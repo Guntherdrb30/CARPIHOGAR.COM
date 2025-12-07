@@ -78,6 +78,14 @@ export default async function EnviosClientePage() {
                       <button className="px-3 py-2 rounded bg-green-600 text-white">Producto recibido</button>
                     </form>
                   )}
+                  {String(s.carrier || '') === 'DELIVERY' && (
+                    <a
+                      className="px-3 py-2 rounded border text-blue-600 border-blue-600"
+                      href={`/dashboard/cliente/envios/mapa/${o.id}`}
+                    >
+                      Ver mapa
+                    </a>
+                  )}
                   <a className="px-3 py-2 rounded border" href={`/dashboard/cliente/pedidos/${o.id}`}>Ver pedido</a>
                 </div>
               </div>
