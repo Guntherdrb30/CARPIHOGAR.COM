@@ -90,6 +90,8 @@ model User {
   // Back-relations for drivers and AI assistant cart
   driverLocations   DriverLocation[]
   assistantCarts    AssistantCart[]
+  notifications     Notification[]
+  pushSubscriptions PushSubscription[]
 
   // Moodboards creados por el usuario
   moodboards        Moodboard[]
@@ -985,6 +987,34 @@ model EcpdDesign {
   updatedAt      DateTime @updatedAt
 
   @@index([userId, createdAt])
+}
+
+// Notificaciones internas (drivers, clientes, etc.)
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// Suscripciones Web Push por dispositivo
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 // Token para confirmar órdenes por WhatsApp

@@ -1,6 +1,6 @@
 import { getAllShippedOrders } from "@/server/actions/orders";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search, MapPin } from "lucide-react";
 
 export default async function AdminEnviosPage({
   searchParams,
@@ -12,8 +12,15 @@ export default async function AdminEnviosPage({
 
   return (
     <div className="p-4 sm:p-6 md:p-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Envíos</h1>
+        <Link
+          href="/dashboard/admin/envios/mapa"
+          className="inline-flex items-center gap-2 rounded-full bg-amber-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-amber-700"
+        >
+          <MapPin className="h-4 w-4" />
+          Ver mapa de delivery
+        </Link>
       </div>
       <div className="mb-6">
         <form>
