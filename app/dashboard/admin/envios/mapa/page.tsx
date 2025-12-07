@@ -1,3 +1,5 @@
+\"use client\";
+
 import dynamic from "next/dynamic";
 
 const DeliveryMapClient = dynamic(
@@ -23,4 +25,3 @@ export default function AdminEnviosMapaPage() {
     </div>
   );
 }
-
