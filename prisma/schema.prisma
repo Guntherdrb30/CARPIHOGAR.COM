@@ -122,6 +122,15 @@ model User {
   deliveryAgreementVersion   Int?
   deliveryAgreementIp         String?
   deliverySignedContractUrl   String?
+
+  // Datos de pago para liquidaciones a delivery (transferencias / pago móvil)
+  payoutBankName        String?
+  payoutBankAccount     String?
+  payoutBankIdNumber    String?
+  payoutPmBank          String?
+  payoutPmPhone         String?
+  payoutPmIdNumber      String?
+  deliverySignedContractUrl   String?
 }
 
 
@@ -730,6 +739,12 @@ model Shipping {
   assignedAt   DateTime?
   deliveryFeeUSD Decimal?      @db.Decimal(10, 2)
   deliveryPaidAt DateTime?
+  // Delivery local (moto): confirmaciones, valoraciones y propinas
+  clientConfirmedAt   DateTime?
+  deliveryConfirmedAt DateTime?
+  clientRating        Int?
+  deliveryRating      Int?
+  tipUSD              Decimal?  @db.Decimal(10, 2)
 
   // Back-relation to shipment evidences (photos/signature)
   photos       ShipmentPhoto[]

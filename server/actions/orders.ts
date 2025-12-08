@@ -420,6 +420,61 @@ export async function markShipmentReceived(orderId: string) {
     return { ok: true };
 }
 
+export async function submitDeliveryFeedback(formData: FormData) {
+    const session = await getServerSession(authOptions);
+    const userId = (session?.user as any)?.id;
+    if (!userId) throw new Error('Not authenticated');
+
+    const orderId = String(formData.get('orderId') || '').trim();
+    const ratingRaw = String(formData.get('rating') || '').trim();
+    const tipRaw = String(formData.get('tipUSD') || '').trim();
+
+    if (!orderId) throw new Error('Missing orderId');
+
+    let rating: number | null = null;
+    if (ratingRaw) {
+        const n = Number(ratingRaw);
+        if (Number.isFinite(n) && n >= 1 && n <= 5) {
+            rating = Math.round(n);
+        }
+    }
+    let tipUSD: number | null = null;
+    if (tipRaw) {
+        const t = Number(tipRaw.replace(',', '.'));
+        if (Number.isFinite(t) && t >= 0) {
+            tipUSD = parseFloat(t.toFixed(2));
+        }
+    }
+
+    const order = await prisma.order.findFirst({
+        where: { id: orderId, userId },
+        include: { shipping: true },
+    });
+    if (!order || !order.shipping) throw new Error('Order not found');
+
+    const carrier = String(order.shipping.carrier || '');
+    if (carrier !== 'DELIVERY') throw new Error('Feedback only allowed for envíos con Delivery local');
+
+    await prisma.shipping.update({
+        where: { orderId },
+        data: {
+            clientRating: rating ?? null,
+            tipUSD: tipUSD != null ? (tipUSD as any) : order.shipping.tipUSD,
+            clientConfirmedAt: new Date() as any,
+        },
+    });
+
+    try {
+        const { revalidatePath } = await import('next/cache');
+        revalidatePath('/dashboard/cliente/pedidos');
+        revalidatePath('/dashboard/cliente/envios');
+        revalidatePath('/dashboard/delivery');
+        revalidatePath('/dashboard/delivery/ganancias');
+    } catch {}
+
+    return { ok: true };
+}
+
 
 
 

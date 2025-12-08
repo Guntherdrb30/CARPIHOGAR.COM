@@ -1,4 +1,4 @@
-import { getMyOrderById } from "@/server/actions/orders";
+import { getMyOrderById, submitDeliveryFeedback } from "@/server/actions/orders";
 import { sendReceiptEmailByForm } from "@/server/actions/email_byform";
 
 export default async function ClientePedidoDetalle({ params }: { params: Promise<{ id: string }> }) {
@@ -20,6 +20,10 @@ export default async function ClientePedidoDetalle({ params }: { params: Promise
   const totalUSD = Number(order.totalUSD || (subtotalUSD + ivaUSD));
   const tasaVES = Number(order.tasaVES || 40);
   const totalVES = Number(order.totalVES || totalUSD * tasaVES);
+  const shipping = order.shipping as any || null;
+  const isLocalDelivery = shipping && String(shipping.carrier || '') === 'DELIVERY';
+  const delivered = shipping && String(shipping.status || '') === 'ENTREGADO';
+  const alreadyRated = Boolean(shipping?.clientConfirmedAt || shipping?.clientRating);
 
   return (
     <div className="container mx-auto p-4 space-y-4">
@@ -161,6 +165,75 @@ export default async function ClientePedidoDetalle({ params }: { params: Promise
               })()}
             </div>
           </div>
+        </div>
+      )}
+
+      {isLocalDelivery && delivered && (
+        <div className="bg-white p-4 rounded-lg shadow space-y-3">
+          <h2 className="text-lg font-bold mb-1">Tu experiencia con el Delivery</h2>
+          <p className="text-sm text-gray-600">
+            Confirma que recibiste el pedido y deja una valoración del servicio de delivery. También puedes dejar una propina opcional.
+          </p>
+          {alreadyRated ? (
+            <div className="text-sm text-gray-700 space-y-1">
+              <div>
+                <span className="font-semibold">Tu valoración:</span>{' '}
+                {shipping.clientRating ? `${shipping.clientRating} / 5` : 'No registrada'}
+              </div>
+              <div>
+                <span className="font-semibold">Propina:</span>{' '}
+                {shipping.tipUSD ? `$ ${Number(shipping.tipUSD).toFixed(2)}` : 'Sin propina'}
+              </div>
+              <div className="text-xs text-gray-500">
+                Gracias por calificar el servicio. Esta información ayuda a mejorar la experiencia de delivery.
+              </div>
+            </div>
+          ) : (
+            <form
+              action={async (formData) => {
+                'use server';
+                await submitDeliveryFeedback(formData);
+              }}
+              className="space-y-3 text-sm"
+            >
+              <input type="hidden" name="orderId" value={order.id} />
+              <div className="flex flex-col md:flex-row md:items-center md:gap-4 gap-2">
+                <label className="block">
+                  <span className="block text-gray-700 mb-1">Valoración del delivery (1 a 5)</span>
+                  <select
+                    name="rating"
+                    className="border rounded px-2 py-1 text-sm"
+                    defaultValue="5"
+                    required
+                  >
+                    <option value="">Selecciona</option>
+                    <option value="5">5 - Excelente</option>
+                    <option value="4">4 - Muy bueno</option>
+                    <option value="3">3 - Aceptable</option>
+                    <option value="2">2 - Regular</option>
+                    <option value="1">1 - Malo</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="block text-gray-700 mb-1">Propina al delivery (USD, opcional)</span>
+                  <input
+                    type="number"
+                    name="tipUSD"
+                    min="0"
+                    step="0.5"
+                    placeholder="Ej: 2"
+                    className="border rounded px-2 py-1 text-sm w-32"
+                  />
+                </label>
+              </div>
+              <button
+                type="submit"
+                className="inline-flex items-center px-4 py-2 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+              >
+                Confirmar entrega y enviar valoración
+              </button>
+            </form>
+          )}
         </div>
       )}
     </div>

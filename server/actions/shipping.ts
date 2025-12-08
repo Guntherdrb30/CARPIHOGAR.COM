@@ -111,7 +111,7 @@ export async function claimDelivery(orderId: string) {
     try { revalidatePath('/dashboard/admin/envios'); } catch {}
 }
 
-export async function completeDelivery(orderId: string) {
+export async function completeDelivery(orderId: string, rating?: number) {
     const session = await getServerSession(authOptions);
     const userId = (session?.user as any)?.id;
     const role = (session?.user as any)?.role;
@@ -123,7 +123,18 @@ export async function completeDelivery(orderId: string) {
     const order_check2 = await prisma.order.findUnique({ where: { id: orderId }, include: { shippingAddress: true } });
     const city2 = String(order_check2?.shippingAddress?.city || '').toLowerCase();
     if (city2 !== 'barinas') throw new Error('Not authorized for this city');
-    await prisma.shipping.update({ where: { orderId }, data: { status: 'ENTREGADO' as any } });
+    let safeRating: number | null = null;
+    if (typeof rating === 'number' && Number.isFinite(rating) && rating >= 1 && rating <= 5) {
+        safeRating = Math.round(rating);
+    }
+    await prisma.shipping.update({
+        where: { orderId },
+        data: {
+            status: 'ENTREGADO' as any,
+            deliveryConfirmedAt: new Date() as any,
+            deliveryRating: safeRating,
+        },
+    });
     try { await prisma.order.update({ where: { id: orderId }, data: { status: 'COMPLETADO' as any } }); } catch {}
     try { await prisma.auditLog.create({ data: { userId, action: 'DELIVERY_COMPLETED', details: orderId } }); } catch {}
     try { revalidatePath('/dashboard/delivery'); } catch {}

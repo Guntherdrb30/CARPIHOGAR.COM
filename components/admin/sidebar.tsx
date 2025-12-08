@@ -88,6 +88,7 @@ export default function AdminSidebar() {
     { href: '/dashboard/admin/ventas', label: 'Ventas' },
     { href: '/dashboard/admin/ventas/aliados', label: 'Ventas Aliados (verificar)' },
     { href: '/dashboard/admin/delivery/solicitudes', label: 'Delivery (verificar)' },
+    { href: '/dashboard/admin/delivery/dashboard', label: 'Delivery (dashboard)' },
     { href: '/dashboard/admin/delivery/liquidaciones', label: 'Liquidaciones Delivery' },
     { href: '/dashboard/admin/cuentas-por-cobrar', label: 'Cuentas por Cobrar' },
     { href: '/dashboard/admin/cuentas-por-pagar', label: 'Cuentas por Pagar' },
