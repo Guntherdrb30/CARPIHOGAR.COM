@@ -23,11 +23,23 @@ async function updateDeliveryPayoutProfile(formData: FormData) {
     select: { phone: true },
   });
 
-  // Validación básica: si se llena pago móvil, el teléfono debe coincidir con el del perfil
-  if (payoutPmPhone && current?.phone) {
-    const normalize = (v: string) => v.replace(/\D+/g, '');
-    if (normalize(payoutPmPhone) !== normalize(current.phone)) {
-      throw new Error('El teléfono de Pago Móvil debe ser el mismo que tu teléfono de perfil.');
+  // Validacion basica: si llenas datos de Pago Movil, debe coincidir con el telefono del perfil
+  if (payoutPmPhone) {
+    if (!current?.phone) {
+      throw new Error('Debes tener un telefono configurado en tu perfil antes de guardar Pago Movil.');
+    }
+    const normalizeDigits = (value: string) => value.replace(/\D+/g, '');
+    const ensureVePhone = (label: string, value: string) => {
+      const digits = normalizeDigits(value);
+      if (!digits.startsWith('0') || digits.length !== 11) {
+        throw new Error(`${label} debe estar en formato venezolano 04xx-xxxxxxx.`);
+      }
+      return digits;
+    };
+    const pmPhone = ensureVePhone('El telefono de Pago Movil', payoutPmPhone);
+    const profilePhone = ensureVePhone('Tu telefono de perfil', current.phone);
+    if (pmPhone !== profilePhone) {
+      throw new Error('El telefono de Pago Movil debe ser el mismo que tu telefono de perfil.');
     }
   }
 
@@ -201,4 +213,3 @@ export default async function DeliveryPayoutProfilePage({
     </div>
   );
 }
-

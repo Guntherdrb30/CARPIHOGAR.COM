@@ -101,6 +101,7 @@ export default function AdminSidebar() {
     { href: '/dashboard/admin/compras', label: 'Compras' },
     { href: '/dashboard/admin/proveedores', label: 'Proveedores' },
     { href: '/dashboard/admin/bancos', label: 'Bancos' },
+    { href: '/dashboard/admin/sucursales', label: 'Sucursales' },
     { href: '/dashboard/admin/usuarios', label: 'Usuarios' },
     { href: '/dashboard/admin/envios', label: 'Envíos' },
     { href: '/dashboard/admin/envios/online', label: 'Envíos Online' },
