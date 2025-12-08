@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import DeliveryImageUploader from "@/components/delivery/image-uploader";
 import { signIn } from "next-auth/react";
 import { normalizeVePhone } from "@/lib/phone";
+import { venezuelaData } from "@/lib/venezuela-data";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -34,6 +35,8 @@ export default function RegisterPage() {
   const [uploadBusyCount, setUploadBusyCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [userType, setUserType] = useState<'CLIENT' | 'ALLY' | 'DELIVERY'>('CLIENT');
+  const [deliveryState, setDeliveryState] = useState("");
+  const [deliveryCity, setDeliveryCity] = useState("");
 
   const handleUserTypeChange = (type: 'CLIENT' | 'ALLY' | 'DELIVERY') => {
     setUserType(type);
@@ -60,6 +63,10 @@ export default function RegisterPage() {
       const normalized = normalizeVePhone(deliveryPhone);
       if (!normalized) {
         setError("Telefono invalido. Usa 0412-1234567 o +58 412 1234567");
+        return;
+      }
+      if (!deliveryState || !deliveryCity || !deliveryAddress.trim()) {
+        setError("Selecciona estado, ciudad y escribe tu direccion real completa.");
         return;
       }
       const normalizePlate = (v: string) => v.replace(/\s+/g, '').toUpperCase();
@@ -105,7 +112,9 @@ export default function RegisterPage() {
         isDelivery,
         deliveryCedula,
         deliveryPhone: normalizeVePhone(deliveryPhone) || deliveryPhone,
-        deliveryAddress,
+        deliveryAddress: deliveryState && deliveryCity
+          ? `${deliveryState} / ${deliveryCity} / ${deliveryAddress}`
+          : deliveryAddress,
         deliveryVehicleType,
         deliveryVehicleBrand,
         deliveryVehicleModel,
@@ -411,7 +420,7 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label className="block text-gray-700">Telefono</label>
+              <label className="block text-gray-700">Telefono de trabajo (WhatsApp)</label>
               <input
                 type="tel"
                 value={deliveryPhone}
@@ -420,16 +429,63 @@ export default function RegisterPage() {
                 placeholder="0412-1234567"
                 required
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Este sera el telefono que usaras para las entregas y quedara registrado en tu perfil.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div>
+                <label className="block text-gray-700">Estado</label>
+                <select
+                  value={deliveryState}
+                  onChange={(e) => {
+                    setDeliveryState(e.target.value);
+                    setDeliveryCity("");
+                  }}
+                  className="w-full rounded-lg border px-3 py-2"
+                  required
+                >
+                  <option value="">Selecciona estado</option>
+                  {venezuelaData.map((e) => (
+                    <option key={e.estado} value={e.estado}>
+                      {e.estado}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-gray-700">Ciudad</label>
+                <select
+                  value={deliveryCity}
+                  onChange={(e) => setDeliveryCity(e.target.value)}
+                  className="w-full rounded-lg border px-3 py-2"
+                  required
+                  disabled={!deliveryState}
+                >
+                  <option value="">Selecciona ciudad</option>
+                  {venezuelaData
+                    .find((e) => e.estado === deliveryState)
+                    ?.ciudades.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                </select>
+              </div>
             </div>
             <div>
-              <label className="block text-gray-700">Direccion</label>
-              <input
-                type="text"
+              <label className="block text-gray-700">Direccion exacta</label>
+              <textarea
                 value={deliveryAddress}
                 onChange={(e) => setDeliveryAddress(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full rounded-lg border px-3 py-2"
+                rows={3}
+                placeholder="Escribe tu direccion real (calle, casa/edificio, referencias)."
                 required
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Debe ser la direccion real donde resides o trabajas habitualmente. La usaremos para coordinar entregas y validar tu zona de servicio.
+              </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
@@ -530,22 +586,29 @@ export default function RegisterPage() {
         )}
 
         {(() => {
-          const isMoto = deliveryVehicleType === 'MOTO';
-          const plateOk = /^[A-Z0-9-]{5,8}$/.test((deliveryMotoPlate || '').replace(/\s+/g,'').toUpperCase());
-          const vinVal = (deliveryChassisSerial || '').replace(/\s+/g,'').toUpperCase();
-          const vinOk = isMoto ? (vinVal.length >= 6) : /^[A-HJ-NPR-Z0-9]{17}$/.test(vinVal);
-          const disableForValidation = isDelivery && (!plateOk || !vinOk);
-          const disabled = submitting || uploadBusyCount > 0 || disableForValidation;
+          const disabled = submitting || uploadBusyCount > 0;
           const missingImages = isDelivery && (!deliveryIdImageUrl || !deliverySelfieUrl);
           return (
             <div className="space-y-2">
               {missingImages && (
-                <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-700">
                   Debes subir las dos imagenes requeridas (cedula/ID y selfie).
                 </div>
               )}
-              <button type="submit" disabled={disabled || missingImages} className={`w-full py-2 rounded-lg ${disabled || missingImages ? 'bg-blue-300 cursor-not-allowed text-white' : 'bg-blue-500 text-white hover:bg-blue-600'}`}>
-                {submitting ? 'Enviando...' : (uploadBusyCount > 0 ? 'Esperando imagenes...' : 'Registrarme')}
+              <button
+                type="submit"
+                disabled={disabled || missingImages}
+                className={`w-full py-2 rounded-lg ${
+                  disabled || missingImages
+                    ? 'bg-blue-300 cursor-not-allowed text-white'
+                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                }`}
+              >
+                {submitting
+                  ? 'Enviando...'
+                  : uploadBusyCount > 0
+                    ? 'Esperando imagenes...'
+                    : 'Registrarme'}
               </button>
             </div>
           );

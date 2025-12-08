@@ -47,6 +47,7 @@ export async function getPendingDeliveries() {
       deliveryChassisSerial: true,
       deliveryIdImageUrl: true,
       deliverySelfieUrl: true,
+      deliverySignedContractUrl: true,
       createdAt: true,
     },
     orderBy: { createdAt: 'desc' },

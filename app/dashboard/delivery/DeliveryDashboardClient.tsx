@@ -261,6 +261,17 @@ export default function DeliveryDashboardClient({ available, mine }: Props) {
                 Notificaciones {unreadCount > 0 ? `(${unreadCount})` : ""}
               </Chip>
             </div>
+            <div className="mt-1">
+              <Button
+                as="a"
+                href="/api/delivery/contrato/pdf"
+                target="_blank"
+                size="sm"
+                variant="bordered"
+              >
+                Ver contrato en PDF
+              </Button>
+            </div>
           </div>
           <div className="mt-4 w-full md:mt-0 md:w-80">
             <DriverLocationClient />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { upload } from "@vercel/blob/client";
 
 export default function DeliveryImageUploader({
@@ -19,21 +19,29 @@ export default function DeliveryImageUploader({
   hint?: string;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const doUpload = async (file: File) => {
     setBusy(true);
-    try { onBusyChange?.(true); } catch {}
+    try {
+      onBusyChange?.(true);
+    } catch {}
     setError(null);
     try {
       const now = new Date();
       const year = String(now.getFullYear());
       const month = String(now.getMonth() + 1).padStart(2, "0");
-      const nameGuess = (file as any).name ? String((file as any).name).toLowerCase() : "";
+      const nameGuess = (file as any).name
+        ? String((file as any).name).toLowerCase()
+        : "";
       let ext = nameGuess.match(/\.([a-z0-9]+)$/)?.[1] || "";
       if (!ext) ext = file.type?.split("/")[1] || "bin";
-      const base = (nameGuess || "delivery").replace(/[^a-z0-9._-]+/g, "-");
+      const base = (nameGuess || "delivery").replace(
+        /[^a-z0-9._-]+/g,
+        "-",
+      );
       const pathname = `uploads/${year}/${month}/${base}.${ext}`;
       const res = await upload(pathname, file, {
         handleUploadUrl: "/api/blob/handle-upload?scope=registration",
@@ -42,17 +50,28 @@ export default function DeliveryImageUploader({
       onChange(res.url);
     } catch (e: any) {
       try {
-        const probe = await fetch('/api/blob/handle-upload?scope=registration', { method: 'GET' });
+        const probe = await fetch(
+          "/api/blob/handle-upload?scope=registration",
+          { method: "GET" },
+        );
         const info = await probe.json().catch(() => ({} as any));
-        const msg = String(e?.message || '').toLowerCase();
-        const noToken = !probe.ok || info?.hasToken === false || msg.includes('client token');
+        const msg = String(e?.message || "").toLowerCase();
+        const noToken =
+          !probe.ok ||
+          info?.hasToken === false ||
+          msg.includes("client token");
         if (noToken) {
           const fd = new FormData();
-          fd.append('file', file);
-          fd.append('type', 'image');
-          const resp = await fetch('/api/upload', { method: 'POST', body: fd });
+          fd.append("file", file);
+          fd.append("type", "image");
+          const resp = await fetch("/api/upload", {
+            method: "POST",
+            body: fd,
+          });
           const data = await resp.json().catch(() => ({} as any));
-          if (!resp.ok || !data?.url) throw new Error(data?.error || 'Upload fallido');
+          if (!resp.ok || !data?.url) {
+            throw new Error(data?.error || "Upload fallido");
+          }
           onChange(String(data.url));
           setError(null);
           return;
@@ -63,15 +82,26 @@ export default function DeliveryImageUploader({
       }
     } finally {
       setBusy(false);
-      try { onBusyChange?.(false); } catch {}
+      try {
+        onBusyChange?.(false);
+      } catch {}
     }
   };
 
-  const onInput = async () => {
-    const file = fileRef.current?.files?.[0];
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
-    const allowed = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"];
-    if (!allowed.includes(file.type) && !/[.](png|jpe?g|webp|gif|svg)$/i.test((file as any).name || "")) {
+    const allowed = [
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+      "image/gif",
+      "image/svg+xml",
+    ];
+    if (
+      !allowed.includes(file.type) &&
+      !/[.](png|jpe?g|webp|gif|svg)$/i.test((file as any).name || "")
+    ) {
       setError("Formato no permitido (PNG/JPG/WEBP/GIF/SVG)");
       return;
     }
@@ -83,11 +113,27 @@ export default function DeliveryImageUploader({
       <label className="block text-gray-700">{label}</label>
       {value ? (
         <div className="flex items-center gap-3">
-          <div className="w-24 h-24 rounded-md border bg-gray-50 overflow-hidden flex items-center justify-center">
-            <img src={value} alt={label} className="w-full h-full object-cover" />
+          <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-md border bg-gray-50">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={value}
+              alt={label}
+              className="h-full w-full object-cover"
+            />
           </div>
-          <a href={value} target="_blank" rel="noreferrer" className="text-blue-600 underline text-sm">Abrir</a>
-          <button type="button" className="text-sm text-red-600" onClick={() => onChange("")}>
+          <a
+            href={value}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-blue-600 underline"
+          >
+            Abrir
+          </a>
+          <button
+            type="button"
+            className="text-sm text-red-600"
+            onClick={() => onChange("")}
+          >
             Quitar
           </button>
         </div>
@@ -95,16 +141,46 @@ export default function DeliveryImageUploader({
       <input
         type="url"
         placeholder="https://..."
-        className="w-full px-3 py-2 border rounded-lg"
+        className="w-full rounded-lg border px-3 py-2"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
       />
-      <div className="flex items-center gap-2">
-        <input ref={fileRef} type="file" accept="image/*" onChange={onInput} className="hidden" />
-        <button type="button" onClick={() => fileRef.current?.click()} className="px-3 py-1 rounded bg-amber-600 text-white hover:bg-amber-700">Subir archivo</button>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="rounded bg-amber-600 px-3 py-1 text-sm text-white hover:bg-amber-700"
+        >
+          Subir desde dispositivo
+        </button>
+        <button
+          type="button"
+          onClick={() => cameraRef.current?.click()}
+          className="rounded border border-amber-600 px-3 py-1 text-sm text-amber-700 hover:bg-amber-50"
+        >
+          Tomar con la cámara
+        </button>
       </div>
-      <p className="text-xs text-gray-500">{hint || 'Sube una imagen o pega un enlace (PNG/JPG/WEBP/SVG).'}</p>
+      <p className="text-xs text-gray-500">
+        {hint ||
+          "Puedes pegar un enlace o subir una foto desde la galería o cámara (PNG/JPG/WEBP/SVG)."}
+      </p>
       {busy && <p className="text-xs text-gray-500">Subiendo...</p>}
       {error && <p className="text-xs text-red-600">{error}</p>}
     </div>

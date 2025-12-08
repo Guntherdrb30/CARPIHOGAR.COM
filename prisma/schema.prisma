@@ -121,6 +121,7 @@ model User {
   deliveryAgreementAcceptedAt DateTime?
   deliveryAgreementVersion   Int?
   deliveryAgreementIp         String?
+  deliverySignedContractUrl   String?
 }
 
 
