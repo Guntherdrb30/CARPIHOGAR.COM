@@ -29,6 +29,7 @@ const ProductCard = ({
   compact?: boolean;
   whatsappPhone?: string;
 }) => {
+  const isConfigurable = Boolean((product as any).isConfigurable);
   const [liveStock, setLiveStock] = useState<number | null>(null);
   const stock = useMemo(() => {
     const base =
@@ -147,6 +148,16 @@ const ProductCard = ({
             {product.name}
           </h3>
         </Link>
+        {isConfigurable && (
+          <div className="mt-1 space-y-1">
+            <span className="inline-flex items-center rounded-full bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 text-[11px] font-semibold">
+              Mueble personalizado
+            </span>
+            <p className="text-[11px] text-gray-600 leading-snug">
+              Los muebles personalizados se entregan entre 10 y 15 días después de la compra. Si el tiempo fuera mayor por cantidad de pedidos, te contactaremos por WhatsApp para informarte la fecha de envío.
+            </p>
+          </div>
+        )}
         <div className="mt-2">
           <Price
             priceUSD={product.priceUSD}
@@ -190,4 +201,3 @@ const ProductCard = ({
 };
 
 export default ProductCard;
-

@@ -75,6 +75,7 @@ export function ProductActions({
       return;
     }
     const safeQty = Math.max(1, Math.min(quantity, stock));
+    const isConfigurable = Boolean((product as any).isConfigurable);
     addItem(
       {
         id: product.id,
@@ -82,6 +83,7 @@ export function ProductActions({
         priceUSD: product.priceUSD,
         stock: stock,
         image: (product as any).images?.[0],
+        ...(isConfigurable ? { type: 'configurable' as const } : {}),
       },
       safeQty,
     );

@@ -38,6 +38,10 @@ export default function RevisarPage() {
   const items = useCartStore((s) => s.items);
   const getTotalUSD = useCartStore((s) => s.getTotalUSD);
   const clearCart = useCartStore((s) => s.clearCart);
+  const hasConfigurable = useMemo(
+    () => items.some((item) => item.type === 'configurable'),
+    [items],
+  );
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PAGO_MOVIL');
   const [paymentCurrency, setPaymentCurrency] = useState<PaymentCurrency>('USD');
@@ -226,12 +230,29 @@ export default function RevisarPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white shadow-md rounded-lg p-4">
           <h2 className="text-xl font-semibold mb-4">Resumen de la orden</h2>
+          {hasConfigurable && (
+            <div className="mb-3 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              <div className="font-semibold mb-1">Muebles personalizados</div>
+              <p>
+                Los muebles personalizados se entregan entre 10 y 15 días después de la compra.
+                Si el tiempo fuera mayor por cantidad de pedidos, te contactaremos por WhatsApp
+                para informarte la fecha de envío.
+              </p>
+            </div>
+          )}
           <div className="space-y-2">
             {items.map((item) => (
-              <div key={item.id} className="flex justify-between">
-                <span>
-                  {item.name} (x{item.quantity})
-                </span>
+              <div key={item.id} className="flex justify-between items-start gap-3">
+                <div className="flex flex-col">
+                  <span>
+                    {item.name} (x{item.quantity})
+                  </span>
+                  {item.type === 'configurable' && (
+                    <span className="mt-1 inline-flex items-center rounded-full bg-amber-50 text-amber-800 px-2 py-0.5 text-[11px] font-semibold">
+                      Mueble personalizado
+                    </span>
+                  )}
+                </div>
                 <span>{formatUSD(item.priceUSD * item.quantity)}</span>
               </div>
             ))}
