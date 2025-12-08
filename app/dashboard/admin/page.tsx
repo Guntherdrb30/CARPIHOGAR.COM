@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getBranches, createBranchAction } from "@/server/actions/branches";
+import BranchLocationFields from "@/components/admin/branch-location-fields";
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions);
@@ -99,31 +100,8 @@ export default async function AdminDashboard() {
                 required
                 className="border rounded px-3 py-2 uppercase"
               />
-              <input name="state" placeholder="Estado" required className="border rounded px-3 py-2" />
-              <input name="city" placeholder="Ciudad" required className="border rounded px-3 py-2" />
             </div>
-            <textarea
-              name="address"
-              placeholder="Direccion completa"
-              required
-              className="border rounded px-3 py-2 min-h-[60px]"
-            />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <input
-                name="lat"
-                type="number"
-                step="0.000001"
-                placeholder="Latitud (opcional)"
-                className="border rounded px-3 py-2"
-              />
-              <input
-                name="lng"
-                type="number"
-                step="0.000001"
-                placeholder="Longitud (opcional)"
-                className="border rounded px-3 py-2"
-              />
-            </div>
+            <BranchLocationFields />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <input
                 name="motoRatePerKmUSD"

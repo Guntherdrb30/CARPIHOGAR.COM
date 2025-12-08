@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { getBranches, createBranchAction } from '@/server/actions/branches';
+import BranchLocationFields from '@/components/admin/branch-location-fields';
 
 type SearchParams = Promise<{ message?: string; error?: string }>;
 
@@ -125,56 +126,8 @@ export default async function AdminBranchesPage({ searchParams }: { searchParams
                 className="w-full rounded border px-3 py-2 text-sm uppercase"
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Estado</label>
-              <input
-                name="state"
-                placeholder="Barinas"
-                required
-                className="w-full rounded border px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Ciudad</label>
-              <input
-                name="city"
-                placeholder="Barinas"
-                required
-                className="w-full rounded border px-3 py-2 text-sm"
-              />
-            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Direccion</label>
-            <textarea
-              name="address"
-              placeholder="Direccion completa"
-              required
-              className="w-full rounded border px-3 py-2 text-sm min-h-[60px]"
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Latitud (opcional)</label>
-              <input
-                name="lat"
-                type="number"
-                step="0.000001"
-                placeholder="8.612345"
-                className="w-full rounded border px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Longitud (opcional)</label>
-              <input
-                name="lng"
-                type="number"
-                step="0.000001"
-                placeholder="-70.210987"
-                className="w-full rounded border px-3 py-2 text-sm"
-              />
-            </div>
-          </div>
+          <BranchLocationFields />
 
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div>
