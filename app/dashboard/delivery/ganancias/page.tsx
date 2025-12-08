@@ -1,4 +1,4 @@
-﻿import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { redirect } from 'next/navigation';
@@ -33,7 +33,8 @@ export default async function DeliveryEarningsPage({ searchParams }: { searchPar
   });
 
   const deliveredAt = (o: any) => new Date(o.shipping?.updatedAt || (o as any).updatedAt);
-  const sum = (arr: any[]) => arr.reduce((acc, o: any) => acc + parseFloat(String(o.shipping?.deliveryFeeUSD || 0)), 0);
+  const sumFee = (arr: any[]) => arr.reduce((acc, o: any) => acc + parseFloat(String(o.shipping?.deliveryFeeUSD || 0)), 0);
+  const sumTips = (arr: any[]) => arr.reduce((acc, o: any) => acc + parseFloat(String(o.shipping?.tipUSD || 0)), 0);
 
   const d0 = startOfDay(now); const w0 = startOfWeek(now); const m0 = startOfMonth(now);
   const today = orders.filter(o => deliveredAt(o) >= d0);
@@ -48,6 +49,12 @@ export default async function DeliveryEarningsPage({ searchParams }: { searchPar
 
   // Rango seleccionado
   const inRange = orders.filter(o => deliveredAt(o) >= startOfDay(fromDate) && deliveredAt(o) <= endOfDay(toDate));
+
+  const ratedByClients = orders.filter((o: any) => typeof o.shipping?.clientRating === 'number');
+  const avgRating =
+    ratedByClients.length > 0
+      ? ratedByClients.reduce((acc: number, o: any) => acc + Number(o.shipping.clientRating || 0), 0) / ratedByClients.length
+      : null;
 
   // Agrupar por día
   const groups = new Map<string, any[]>();
@@ -77,30 +84,45 @@ export default async function DeliveryEarningsPage({ searchParams }: { searchPar
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="bg-white rounded shadow p-4">
-          <div className="text-xs text-gray-500">Hoy</div>
-          <div className="text-2xl font-bold">${sum(today).toFixed(2)}</div>
+          <div className="text-xs text-gray-500">Hoy (envíos)</div>
+          <div className="text-2xl font-bold">${sumFee(today).toFixed(2)}</div>
           <div className="text-xs text-gray-500">{today.length} entregas</div>
         </div>
         <div className="bg-white rounded shadow p-4">
-          <div className="text-xs text-gray-500">Esta semana</div>
-          <div className="text-2xl font-bold">${sum(week).toFixed(2)}</div>
+          <div className="text-xs text-gray-500">Esta semana (envíos)</div>
+          <div className="text-2xl font-bold">${sumFee(week).toFixed(2)}</div>
           <div className="text-xs text-gray-500">{week.length} entregas</div>
         </div>
         <div className="bg-white rounded shadow p-4">
-          <div className="text-xs text-gray-500">Este mes</div>
-          <div className="text-2xl font-bold">${sum(month).toFixed(2)}</div>
+          <div className="text-xs text-gray-500">Este mes (envíos)</div>
+          <div className="text-2xl font-bold">${sumFee(month).toFixed(2)}</div>
           <div className="text-xs text-gray-500">{month.length} entregas</div>
         </div>
         <div className="bg-white rounded shadow p-4">
           <div className="text-xs text-gray-500">Periodo actual</div>
           <div className="text-xs text-gray-500">{toYmd(periodNow.from)} &rarr; {toYmd(periodNow.to)}</div>
-          <div className="text-sm text-gray-600">Pendiente: <span className="font-semibold">${sum(periodPending).toFixed(2)}</span> ({periodPending.length} envíos)</div>
-          <div className="text-sm text-gray-600">Pagado: <span className="font-semibold">${sum(periodPaid).toFixed(2)}</span> ({periodPaid.length} envíos)</div>
+          <div className="text-sm text-gray-600">
+            Pendiente: <span className="font-semibold">${sumFee(periodPending).toFixed(2)}</span> ({periodPending.length} envíos)
+          </div>
+          <div className="text-sm text-gray-600">
+            Pagado: <span className="font-semibold">${sumFee(periodPaid).toFixed(2)}</span> ({periodPaid.length} envíos)
+          </div>
         </div>
-        <div className="bg-white rounded shadow p-4 md:col-span-1">
-          <div className="text-xs text-gray-500">Total a pagar (rango)</div>
-          <div className="text-2xl font-bold">${sum(inRange).toFixed(2)}</div>
-          <div className="text-xs text-gray-500">{fromStr} &rarr; {toStr}</div>
+        <div className="bg-white rounded shadow p-4 md:col-span-1 space-y-1">
+          <div className="text-xs text-gray-500">Resumen del rango</div>
+          <div className="text-sm text-gray-600">
+            Envíos: <span className="font-semibold">${sumFee(inRange).toFixed(2)}</span>
+          </div>
+          <div className="text-sm text-gray-600">
+            Propinas: <span className="font-semibold">${sumTips(inRange).toFixed(2)}</span>
+          </div>
+          <div className="mt-1 text-xs text-gray-500">{fromStr} &rarr; {toStr}</div>
+          {avgRating != null && (
+            <div className="mt-2 text-xs text-gray-700">
+              Valoración promedio de clientes:{' '}
+              <span className="font-semibold">{avgRating.toFixed(2)} / 5</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -111,7 +133,8 @@ export default async function DeliveryEarningsPage({ searchParams }: { searchPar
             <div key={date} className="p-4 flex items-center justify-between">
               <div className="text-sm">{date}</div>
               <div className="text-sm text-gray-600">{items.length} entregas</div>
-              <div className="text-sm font-semibold">${sum(items).toFixed(2)}</div>
+              <div className="text-sm text-gray-600">Envíos: ${sumFee(items).toFixed(2)}</div>
+              <div className="text-sm text-gray-600">Propinas: ${sumTips(items).toFixed(2)}</div>
             </div>
           ))}
           {grouped.length === 0 && (
@@ -122,3 +145,4 @@ export default async function DeliveryEarningsPage({ searchParams }: { searchPar
     </div>
   );
 }
+

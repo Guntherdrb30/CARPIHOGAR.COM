@@ -197,12 +197,28 @@ export default function DeliveryDashboardClient({ available, mine }: Props) {
   };
 
   const handleComplete = async (orderId: string) => {
+    let rating: number | null = null;
+    try {
+      const input = window.prompt(
+        "Califica al cliente (1 a 5). Deja en blanco para omitir.",
+        "5",
+      );
+      if (input != null && input.trim() !== "") {
+        const n = Number(input.trim());
+        if (Number.isFinite(n) && n >= 1 && n <= 5) {
+          rating = Math.round(n);
+        }
+      }
+    } catch {
+      rating = null;
+    }
+
     setBusyId(orderId);
     try {
       const res = await fetch("/api/delivery/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId }),
+        body: JSON.stringify({ orderId, rating }),
       });
       const data = await res.json().catch(() => ({} as any));
       if (!res.ok || !data?.ok) {
