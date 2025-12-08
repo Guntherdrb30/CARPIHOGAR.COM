@@ -117,6 +117,13 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
           const isNew = Boolean(formData.get('isNew'));
           const videoUrl = String((formData.get('videoUrl') as string) || '').trim() || null;
           const showSocialButtons = Boolean(formData.get('showSocialButtons'));
+          const deliveryAllowedVehicles = Array.from(
+            new Set(
+              (formData.getAll('deliveryAllowedVehicles[]') as string[])
+                .map((v) => String(v || '').toUpperCase())
+                .filter((v) => v === 'MOTO' || v === 'CARRO' || v === 'CAMIONETA')
+            )
+          );
           await createProduct({
             name: String(formData.get('name') || ''),
             slug: String(formData.get('slug') || ''),
@@ -147,6 +154,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
             videoUrl,
             showSocialButtons,
             relatedIds,
+            deliveryAllowedVehicles,
           });
           redirect('/dashboard/admin/productos?message=Producto%20creado');
         }} className="form-grid">
@@ -244,10 +252,25 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
             <select name="freightType" className="form-select">
               <option value="">Seleccionar tipo de flete</option>
               <option value="normal">Normal</option>
-              <option value="fragil">Frágil</option>
+              <option value="fragil">Fragil</option>
               <option value="voluminoso">Voluminoso</option>
               <option value="sobrepeso">Sobrepeso</option>
             </select>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm text-gray-700 mb-1">Vehiculos permitidos para delivery</label>
+            <p className="text-xs text-gray-500 mb-1">Marca los tipos de vehiculo que pueden transportar este producto. Si dejas todos en blanco, se permiten todos.</p>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <label className="inline-flex items-center gap-2">
+                <input type="checkbox" name="deliveryAllowedVehicles[]" value="MOTO" /> Moto
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input type="checkbox" name="deliveryAllowedVehicles[]" value="CARRO" /> Carro
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input type="checkbox" name="deliveryAllowedVehicles[]" value="CAMIONETA" /> Camioneta
+              </label>
+            </div>
           </div>
           <input name="videoUrl" placeholder="URL de video (opcional)" className="form-input" />
           <select name="categoryId" className="form-select">

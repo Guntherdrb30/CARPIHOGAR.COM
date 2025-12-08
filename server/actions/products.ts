@@ -284,6 +284,7 @@ export async function createProduct(data: any) {
         widthCm,
         depthCm,
         freightType,
+        deliveryAllowedVehicles,
         ...rest
     } = data || {};
 
@@ -307,6 +308,16 @@ export async function createProduct(data: any) {
         heightCmNum != null && widthCmNum != null && depthCmNum != null
             ? Number((heightCmNum * widthCmNum * depthCmNum).toFixed(2))
             : null;
+    const allowedVehiclesInput = Array.isArray(deliveryAllowedVehicles)
+        ? deliveryAllowedVehicles
+        : (deliveryAllowedVehicles ? [deliveryAllowedVehicles] : []);
+    const allowedVehicles = Array.from(
+        new Set(
+            allowedVehiclesInput
+                .map((v) => String(v || '').toUpperCase())
+                .filter((v) => v === 'MOTO' || v === 'CARRO' || v === 'CAMIONETA')
+        )
+    );
 
     // Create product first
     const product = await prisma.product.create({
@@ -332,6 +343,7 @@ export async function createProduct(data: any) {
             depthCm: depthCmNum as any,
             volumeCm3: volumeCm3 as any,
             freightType: freightType || null,
+            deliveryAllowedVehicles: allowedVehicles,
         },
     });
 
@@ -588,6 +600,14 @@ export async function updateProductFull(formData: FormData) {
     const isNew = String(formData.get('isNew') || '') === 'on' || String(formData.get('isNew') || '') === 'true';
     const videoUrl = String(formData.get('videoUrl') || '').trim() || null;
     const showSocialButtons = String(formData.get('showSocialButtons') || '') === 'on' || String(formData.get('showSocialButtons') || '') === 'true';
+    const deliveryAllowedVehiclesRaw = formData.getAll('deliveryAllowedVehicles[]') as string[];
+    const deliveryAllowedVehicles = Array.from(
+        new Set(
+            deliveryAllowedVehiclesRaw
+                .map((v) => String(v || '').toUpperCase())
+                .filter((v) => v === 'MOTO' || v === 'CARRO' || v === 'CAMIONETA')
+        )
+    );
 
     const volumeCm3 =
         heightCm != null && widthCm != null && depthCm != null
@@ -647,6 +667,7 @@ export async function updateProductFull(formData: FormData) {
             images,
             videoUrl,
             showSocialButtons,
+            deliveryAllowedVehicles,
         },
     });
 

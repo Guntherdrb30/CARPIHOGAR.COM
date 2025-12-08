@@ -29,6 +29,14 @@ export default async function EditProductPage({ params }: { params: { id: string
   if (!product) {
     return <div className="container mx-auto p-4">Producto no encontrado</div>;
   }
+  const deliveryAllowed: string[] = Array.isArray((product as any).deliveryAllowedVehicles)
+    ? (product as any).deliveryAllowedVehicles
+    : [];
+  const hasRestrictions = deliveryAllowed.length > 0;
+  const isVehicleAllowed = (type: string) => {
+    if (!hasRestrictions) return false;
+    return deliveryAllowed.includes(type);
+  };
 
   return (
     <div className="container mx-auto p-4 space-y-4">
@@ -326,10 +334,43 @@ export default async function EditProductPage({ params }: { params: { id: string
             className="border rounded px-2 py-1"
           >
             <option value="normal">Normal</option>
-            <option value="fragil">Frágil</option>
+            <option value="fragil">Fragil</option>
             <option value="voluminoso">Voluminoso</option>
             <option value="sobrepeso">Sobrepeso</option>
           </select>
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm text-gray-700 mb-1">Vehiculos permitidos para delivery</label>
+          <p className="text-xs text-gray-500 mb-1">Marca los vehiculos que pueden transportar el producto. Si dejas todo en blanco, se permiten todos.</p>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="deliveryAllowedVehicles[]"
+                value="MOTO"
+                defaultChecked={isVehicleAllowed('MOTO')}
+              />
+              Moto
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="deliveryAllowedVehicles[]"
+                value="CARRO"
+                defaultChecked={isVehicleAllowed('CARRO')}
+              />
+              Carro
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="deliveryAllowedVehicles[]"
+                value="CAMIONETA"
+                defaultChecked={isVehicleAllowed('CAMIONETA')}
+              />
+              Camioneta
+            </label>
+          </div>
         </div>
 
         {/* Media / relaciones */}
@@ -367,4 +408,3 @@ export default async function EditProductPage({ params }: { params: { id: string
     </div>
   );
 }
-

@@ -116,7 +116,19 @@ export async function claimDelivery(orderId: string) {
     if (!userId || role !== 'DELIVERY') throw new Error('Not authorized');
     if (!((session?.user as any)?.emailVerified === true)) throw new Error('Email not verified');
     // City guard: only allow Barinas deliveries
-    const order_check = await prisma.order.findUnique({ where: { id: orderId }, include: { shippingAddress: true } });
+    const order_check = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+            shippingAddress: true,
+            items: {
+                include: {
+                    product: {
+                        select: { id: true, name: true, deliveryAllowedVehicles: true },
+                    },
+                },
+            },
+        },
+    });
     const city = String(order_check?.shippingAddress?.city || '').toLowerCase();
     if (city !== 'barinas') throw new Error('Not authorized for this city');
 
@@ -144,6 +156,20 @@ export async function claimDelivery(orderId: string) {
 
     const cfg = (settings || {}) as any;
     const vtype = String((driver as any)?.deliveryVehicleType || 'MOTO').toUpperCase();
+    if (order_check?.items?.length) {
+        for (const item of order_check.items as any[]) {
+            const allowed: string[] = Array.isArray(item?.product?.deliveryAllowedVehicles)
+                ? (item.product.deliveryAllowedVehicles as string[])
+                : [];
+            if (!allowed.length) continue;
+            const normalized = allowed.map((v) => String(v || '').toUpperCase());
+            if (!normalized.includes(vtype)) {
+                const label = normalized.join(', ') || 'vehiculo especifico';
+                const pname = String(item?.product?.name || item?.name || 'producto');
+                throw new Error(`El producto "${pname}" requiere vehiculo: ${label}`);
+            }
+        }
+    }
 
     const safeNum = (v: any, fallback: number): number => {
         const n = Number(v);
