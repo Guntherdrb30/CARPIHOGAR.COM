@@ -67,9 +67,20 @@ export default async function DeliveryLiquidacionesPage({ searchParams }: { sear
     }
   })() : [];
 
-  const sum = (arr: typeof orders) => arr.reduce((acc, o) => acc + parseFloat(String(o.shipping?.deliveryFeeUSD || 0)), 0);
+  const settings = await prisma.siteSettings.findUnique({ where: { id: 1 } });
+  const driverPctRaw = (settings as any)?.deliveryDriverSharePct;
+  const driverPct = (() => {
+    const n = Number(driverPctRaw);
+    if (!isFinite(n) || n <= 0 || n > 100) return 70;
+    return n;
+  })();
+  const driverFactor = driverPct / 100;
+
+  const sumFee = (arr: typeof orders) => arr.reduce((acc, o) => acc + parseFloat(String(o.shipping?.deliveryFeeUSD || 0)), 0);
   const pending = orders.filter(o => !o.shipping?.deliveryPaidAt);
   const paid = orders.filter(o => !!o.shipping?.deliveryPaidAt);
+  const totalPendingFee = sumFee(pending);
+  const totalPendingDriver = totalPendingFee * driverFactor;
 
   const fromStr = toYmd(from); const toStr = toYmd(to);
 
@@ -120,8 +131,11 @@ export default async function DeliveryLiquidacionesPage({ searchParams }: { sear
           <div className="text-2xl font-bold">{paid.length}</div>
         </div>
         <div className="bg-white rounded shadow p-4">
-          <div className="text-xs text-gray-500">Total a pagar</div>
-          <div className="text-2xl font-bold">${sum(pending).toFixed(2)}</div>
+          <div className="text-xs text-gray-500">Total a pagar al delivery</div>
+          <div className="text-2xl font-bold">${totalPendingDriver.toFixed(2)}</div>
+          <div className="text-xs text-gray-500 mt-1">
+            Fee cliente: ${totalPendingFee.toFixed(2)} · {driverPct}% delivery
+          </div>
         </div>
       </div>
 

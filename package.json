@@ -8,6 +8,7 @@
         "build": "next build",
         "prisma:deploy": "prisma migrate deploy",
         "agent:db:setup": "ts-node scripts/agent-db-setup.ts",
+        "delivery:db:setup": "dotenv -e .env -- node scripts/delivery-db-setup.js",
         "start": "next start",
         "lint": "next lint",
         "postinstall": "prisma generate",

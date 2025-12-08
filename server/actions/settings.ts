@@ -38,7 +38,14 @@ async function ensureSiteSettingsColumns() {
         'ADD COLUMN IF NOT EXISTS "legalCompanyAddress" TEXT, ' +
         'ADD COLUMN IF NOT EXISTS "legalCompanyPhone" TEXT, ' +
         'ADD COLUMN IF NOT EXISTS "invoiceNextNumber" INTEGER, ' +
-        'ADD COLUMN IF NOT EXISTS "receiptNextNumber" INTEGER'
+        'ADD COLUMN IF NOT EXISTS "receiptNextNumber" INTEGER, ' +
+        'ADD COLUMN IF NOT EXISTS "deliveryMotoRatePerKmUSD" DECIMAL(10,4), ' +
+        'ADD COLUMN IF NOT EXISTS "deliveryCarRatePerKmUSD" DECIMAL(10,4), ' +
+        'ADD COLUMN IF NOT EXISTS "deliveryVanRatePerKmUSD" DECIMAL(10,4), ' +
+        'ADD COLUMN IF NOT EXISTS "deliveryMotoMinFeeUSD" DECIMAL(10,2), ' +
+        'ADD COLUMN IF NOT EXISTS "deliveryVanMinFeeUSD" DECIMAL(10,2), ' +
+        'ADD COLUMN IF NOT EXISTS "deliveryDriverSharePct" DECIMAL(5,2), ' +
+        'ADD COLUMN IF NOT EXISTS "deliveryCompanySharePct" DECIMAL(5,2)'
     );
   } catch {}
 }
@@ -219,6 +226,14 @@ export async function getSettings() {
         (settings as any).legalCompanyAddress ||
         "Av. Industrial, Edificio Teka, Ciudad Barinas, Estado Barinas",
       legalCompanyPhone: (settings as any).legalCompanyPhone || "04245192679",
+      // Delivery local defaults
+      deliveryMotoRatePerKmUSD: (settings as any).deliveryMotoRatePerKmUSD?.toNumber?.() ?? 0.5,
+      deliveryCarRatePerKmUSD: (settings as any).deliveryCarRatePerKmUSD?.toNumber?.() ?? 0.75,
+      deliveryVanRatePerKmUSD: (settings as any).deliveryVanRatePerKmUSD?.toNumber?.() ?? 1,
+      deliveryMotoMinFeeUSD: (settings as any).deliveryMotoMinFeeUSD?.toNumber?.() ?? 4,
+      deliveryVanMinFeeUSD: (settings as any).deliveryVanMinFeeUSD?.toNumber?.() ?? 10,
+      deliveryDriverSharePct: (settings as any).deliveryDriverSharePct?.toNumber?.() ?? 70,
+      deliveryCompanySharePct: (settings as any).deliveryCompanySharePct?.toNumber?.() ?? 30,
       invoiceNextNumber: Number((settings as any).invoiceNextNumber ?? 1) || 1,
       receiptNextNumber: Number((settings as any).receiptNextNumber ?? 1) || 1,
     } as any;
@@ -267,6 +282,13 @@ export async function getSettings() {
       legalCompanyAddress:
         "Av. Industrial, Edificio Teka, Ciudad Barinas, Estado Barinas",
       legalCompanyPhone: "04245192679",
+      deliveryMotoRatePerKmUSD: 0.5,
+      deliveryCarRatePerKmUSD: 0.75,
+      deliveryVanRatePerKmUSD: 1,
+      deliveryMotoMinFeeUSD: 4,
+      deliveryVanMinFeeUSD: 10,
+      deliveryDriverSharePct: 70,
+      deliveryCompanySharePct: 30,
       invoiceNextNumber: 1,
       receiptNextNumber: 1,
     } as any;
@@ -298,6 +320,53 @@ export async function setPaymentInstructions(formData: FormData) {
   revalidatePath("/dashboard/admin/ajustes/sistema");
   try {
     revalidatePath("/checkout/revisar");
+  } catch {}
+  return { ok: true };
+}
+
+export async function setDeliverySettings(formData: FormData) {
+  await ensureSiteSettingsColumns();
+  const session = await getServerSession(authOptions);
+  const email = (session?.user as any)?.email as string | undefined;
+  const isAdmin = (session?.user as any)?.role === "ADMIN";
+  const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
+  if (!isAdmin || String(email || "").toLowerCase() !== rootEmail) {
+    throw new Error("Not authorized");
+  }
+
+  const toNum = (name: string, def: number): number => {
+    const raw = String(formData.get(name) || "").replace(",", ".").trim();
+    if (!raw) return def;
+    const n = Number(raw);
+    return isFinite(n) && n >= 0 ? n : def;
+  };
+
+  const motoRate = toNum("deliveryMotoRatePerKmUSD", 0.5);
+  const carRate = toNum("deliveryCarRatePerKmUSD", 0.75);
+  const vanRate = toNum("deliveryVanRatePerKmUSD", 1);
+  const motoMin = toNum("deliveryMotoMinFeeUSD", 4);
+  const vanMin = toNum("deliveryVanMinFeeUSD", 10);
+  const driverPct = toNum("deliveryDriverSharePct", 70);
+  const companyPct = toNum("deliveryCompanySharePct", 30);
+
+  await prisma.siteSettings.update({
+    where: { id: 1 },
+    data: {
+      deliveryMotoRatePerKmUSD: motoRate as any,
+      deliveryCarRatePerKmUSD: carRate as any,
+      deliveryVanRatePerKmUSD: vanRate as any,
+      deliveryMotoMinFeeUSD: motoMin as any,
+      deliveryVanMinFeeUSD: vanMin as any,
+      deliveryDriverSharePct: driverPct as any,
+      deliveryCompanySharePct: companyPct as any,
+    },
+  });
+
+  revalidatePath("/dashboard/admin/ajustes/sistema");
+  try {
+    revalidatePath("/dashboard/admin/delivery");
+    revalidatePath("/dashboard/admin/delivery/dashboard");
+    revalidatePath("/dashboard/admin/delivery/liquidaciones");
   } catch {}
   return { ok: true };
 }

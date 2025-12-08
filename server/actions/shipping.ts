@@ -6,6 +6,24 @@ import { ShippingStatus, ShippingCarrier } from "@prisma/client";
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
+function toRad(deg: number) {
+    return (deg * Math.PI) / 180;
+}
+
+// Distancia aproximada en km entre dos puntos (lat/lng) usando Haversine
+function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+    const R = 6371; // radio de la Tierra en km
+    const dLat = toRad(bLat - aLat);
+    const dLng = toRad(bLng - aLng);
+    const lat1 = toRad(aLat);
+    const lat2 = toRad(bLat);
+    const sinDLat = Math.sin(dLat / 2);
+    const sinDLng = Math.sin(dLng / 2);
+    const h = sinDLat * sinDLat + Math.cos(lat1) * Math.cos(lat2) * sinDLng * sinDLng;
+    const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+    return R * c;
+}
+
 type ShippingUpdatePayload = {
     orderId: string;
     carrier: ShippingCarrier;
@@ -101,9 +119,83 @@ export async function claimDelivery(orderId: string) {
     const order_check = await prisma.order.findUnique({ where: { id: orderId }, include: { shippingAddress: true } });
     const city = String(order_check?.shippingAddress?.city || '').toLowerCase();
     if (city !== 'barinas') throw new Error('Not authorized for this city');
+
+    // Configuración global de delivery y sucursales
+    const settings = await prisma.siteSettings.findUnique({ where: { id: 1 } });
+
+    let branch: any = null;
+    try {
+        // Solo intentamos leer Branch si la tabla existe en la BD
+        const existsArr: any = await prisma.$queryRawUnsafe(
+            `SELECT to_regclass('\"Branch\"') IS NOT NULL as exists`
+        );
+        const exists = Array.isArray(existsArr) && existsArr[0] && existsArr[0].exists === true;
+        if (exists) {
+            branch = await prisma.branch.findFirst({
+                where: { isActive: true } as any,
+                orderBy: { createdAt: 'asc' },
+            });
+        }
+    } catch {
+        branch = null;
+    }
+
+    const driver = await prisma.user.findUnique({ where: { id: userId }, select: { deliveryVehicleType: true } });
+
+    const cfg = (settings || {}) as any;
+    const vtype = String((driver as any)?.deliveryVehicleType || 'MOTO').toUpperCase();
+
+    const safeNum = (v: any, fallback: number): number => {
+        const n = Number(v);
+        return isFinite(n) && n > 0 ? n : fallback;
+    };
+
+    const motoRate = safeNum(cfg.deliveryMotoRatePerKmUSD, 0.5);
+    const carRate = safeNum(cfg.deliveryCarRatePerKmUSD, 0.75);
+    const vanRate = safeNum(cfg.deliveryVanRatePerKmUSD, 1);
+    const motoMinFee = safeNum(cfg.deliveryMotoMinFeeUSD, 4);
+    const vanMinFee = safeNum(cfg.deliveryVanMinFeeUSD, 10);
+
+    let ratePerKm = motoRate;
+    let minFee = motoMinFee;
+    if (vtype === 'CAMIONETA') {
+        ratePerKm = vanRate;
+        minFee = vanMinFee;
+    } else if (vtype === 'CARRO') {
+        ratePerKm = carRate;
+        minFee = motoMinFee;
+    }
+
+    const addr = (order_check as any)?.shippingAddress as any;
+    const hasCoords =
+        addr &&
+        typeof addr.lat === 'number' &&
+        typeof addr.lng === 'number' &&
+        branch &&
+        typeof branch.lat === 'number' &&
+        typeof branch.lng === 'number';
+
+    let fee = minFee;
+    if (hasCoords) {
+        const km = haversineKm(
+            Number(branch.lat),
+            Number(branch.lng),
+            Number(addr.lat),
+            Number(addr.lng),
+        );
+        const raw = km * ratePerKm;
+        fee = raw < minFee ? minFee : Math.round(raw * 100) / 100;
+    }
+
     const updated = await prisma.shipping.updateMany({
         where: { orderId, carrier: 'DELIVERY' as any, assignedToId: null },
-        data: { assignedToId: userId, assignedAt: new Date() as any, status: 'EN_TRANSITO' as any, deliveryFeeUSD: 3 as any },
+        data: {
+            assignedToId: userId,
+            assignedAt: new Date() as any,
+            status: 'EN_TRANSITO' as any,
+            deliveryFeeUSD: fee as any,
+            branchId: branch?.id || null,
+        },
     });
     if (updated.count === 0) throw new Error('Already assigned');
     try { await prisma.auditLog.create({ data: { userId, action: 'DELIVERY_ASSIGNED', details: orderId } }); } catch {}

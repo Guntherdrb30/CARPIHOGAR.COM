@@ -81,10 +81,18 @@ export async function POST(req: Request) {
   // Only consider pending (unpaid) deliveries
   const pending = orders.filter(o => !o.shipping?.deliveryPaidAt);
   const orderIds = pending.map(o => o.id);
-  const total = pending.reduce((acc, o) => acc + parseFloat(String(o.shipping?.deliveryFeeUSD || 0)), 0);
 
   // Create PDF payout file
   const settings = await prisma.siteSettings.findUnique({ where: { id: 1 } });
+  const driverPctRaw = (settings as any)?.deliveryDriverSharePct;
+  const driverPct = ((): number => {
+    const n = Number(driverPctRaw);
+    if (!isFinite(n) || n <= 0 || n > 100) return 70;
+    return n;
+  })();
+
+  const totalFee = pending.reduce((acc, o) => acc + parseFloat(String(o.shipping?.deliveryFeeUSD || 0)), 0);
+  const totalDriver = totalFee * (driverPct / 100);
   const brandName = String(settings?.brandName || 'Carpihogar.ai');
   const primary = String((settings as any)?.primaryColor || '#0ea5e9');
   const logoUrl = (settings as any)?.logoUrl as string | undefined;
@@ -149,7 +157,7 @@ export async function POST(req: Request) {
     pdfDoc.text('Fecha', 54, y);
     pdfDoc.text('Orden', 164, y);
     pdfDoc.text('Cliente', 234, y, { width: 240 });
-    pdfDoc.text('Fee (USD)', 484, y, { width: 60, align: 'right' });
+    pdfDoc.text('Pago (USD)', 484, y, { width: 60, align: 'right' });
     pdfDoc.moveDown(1);
     pdfDoc.fillColor('#111');
   };
@@ -166,14 +174,15 @@ export async function POST(req: Request) {
   const rows = pending.slice(0, maxRows);
   for (const o of rows) {
     const fee = parseFloat(String(o.shipping?.deliveryFeeUSD || 0));
-    running += fee;
+    const driverAmount = fee * (driverPct / 100);
+    running += driverAmount;
     const fecha = new Date((o as any).updatedAt).toLocaleString('es-VE');
     const cliente = (o.user?.name || o.user?.email || '').toString();
     pdfDoc.font('Helvetica').fontSize(9);
     pdfDoc.text(fecha, 50, (pdfDoc as any).y, { width: 100 });
     pdfDoc.text(o.id.slice(0, 8), 160, (pdfDoc as any).y, { width: 60 });
     pdfDoc.text(cliente, 230, (pdfDoc as any).y, { width: 240 });
-    pdfDoc.text(fee.toFixed(2), 480, (pdfDoc as any).y, { width: 80, align: 'right' });
+    pdfDoc.text(driverAmount.toFixed(2), 480, (pdfDoc as any).y, { width: 80, align: 'right' });
     pdfDoc.moveDown(0.2);
   }
 
@@ -211,5 +220,5 @@ export async function POST(req: Request) {
     updated = result.count;
   }
 
-  return NextResponse.json({ updated, totalUSD: total, pdfUrl: pdfUpload.url, proofUrl, count: orderIds.length });
+  return NextResponse.json({ updated, totalUSD: totalDriver, pdfUrl: pdfUpload.url, proofUrl, count: orderIds.length });
 }

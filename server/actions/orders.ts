@@ -194,11 +194,6 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
             (sum, it) => sum + Number(it.priceUSD) * Number(it.quantity),
             0,
         );
-        // Add local delivery fee (Barinas) if selected
-        const deliverySelected = shippingOption === 'DELIVERY';
-        if (deliverySelected) {
-            subtotalUSD += 6; // Delivery moto Barinas
-        }
 
         // Descuento 20% sobre la base imponible si el pago es en USD.
         const discountPercent = paymentCurrency === 'USD' ? 0.2 : 0;

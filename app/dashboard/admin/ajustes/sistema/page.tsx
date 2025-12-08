@@ -8,6 +8,7 @@ import {
   setPaymentInstructions,
   refreshTasaFromBCV,
   setTasaManual,
+  setDeliverySettings,
 } from "@/server/actions/settings";
 import { setRootRecoverySettings } from "@/server/actions/root-recovery";
 import ShowToastFromSearch from "@/components/show-toast-from-search";
@@ -112,6 +113,118 @@ export default async function SystemSettingsPage() {
             <code> https://tu-proyecto.vercel.app/api/cron/update-bcv?token=&lt;CRON_SECRET_BCV&gt;</code>.
           </p>
         </div>
+      </div>
+
+      {/* Delivery local (tarifas y porcentajes) */}
+      <div className="bg-white p-4 rounded-lg shadow space-y-3">
+        <h2 className="text-lg font-semibold">Delivery local (tarifas y porcentajes)</h2>
+        <p className="text-sm text-gray-600">
+          Configura las tarifas por kilómetro y los mínimos para moto, carro y camioneta,
+          así como el porcentaje de reparto entre delivery y empresa.
+        </p>
+        <form
+          action={async (formData) => {
+            "use server";
+            try {
+              await setDeliverySettings(formData);
+              redirect("/dashboard/admin/ajustes/sistema?message=Delivery%20actualizado");
+            } catch (e: any) {
+              const msg = encodeURIComponent(String(e?.message || "No se pudo guardar delivery"));
+              redirect("/dashboard/admin/ajustes/sistema?error=" + msg);
+            }
+          }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-4xl"
+        >
+          <div className="md:col-span-3 font-semibold">Tarifas por kilómetro (USD/km)</div>
+          <div>
+            <label className="block text-sm text-gray-700">Moto</label>
+            <input
+              name="deliveryMotoRatePerKmUSD"
+              type="number"
+              step="0.01"
+              min={0}
+              defaultValue={(siteSettings as any).deliveryMotoRatePerKmUSD ?? 0.5}
+              className="border rounded px-2 py-1 w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Carro</label>
+            <input
+              name="deliveryCarRatePerKmUSD"
+              type="number"
+              step="0.01"
+              min={0}
+              defaultValue={(siteSettings as any).deliveryCarRatePerKmUSD ?? 0.75}
+              className="border rounded px-2 py-1 w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Camioneta</label>
+            <input
+              name="deliveryVanRatePerKmUSD"
+              type="number"
+              step="0.01"
+              min={0}
+              defaultValue={(siteSettings as any).deliveryVanRatePerKmUSD ?? 1}
+              className="border rounded px-2 py-1 w-full"
+            />
+          </div>
+
+          <div className="md:col-span-3 font-semibold mt-2">Mínimos por viaje (USD)</div>
+          <div>
+            <label className="block text-sm text-gray-700">Mínimo moto</label>
+            <input
+              name="deliveryMotoMinFeeUSD"
+              type="number"
+              step="0.01"
+              min={0}
+              defaultValue={(siteSettings as any).deliveryMotoMinFeeUSD ?? 4}
+              className="border rounded px-2 py-1 w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Mínimo camioneta</label>
+            <input
+              name="deliveryVanMinFeeUSD"
+              type="number"
+              step="0.01"
+              min={0}
+              defaultValue={(siteSettings as any).deliveryVanMinFeeUSD ?? 10}
+              className="border rounded px-2 py-1 w-full"
+            />
+          </div>
+
+          <div className="md:col-span-3 font-semibold mt-2">Porcentajes de reparto (%)</div>
+          <div>
+            <label className="block text-sm text-gray-700">% para Delivery</label>
+            <input
+              name="deliveryDriverSharePct"
+              type="number"
+              step="0.1"
+              min={0}
+              max={100}
+              defaultValue={(siteSettings as any).deliveryDriverSharePct ?? 70}
+              className="border rounded px-2 py-1 w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">% para Empresa</label>
+            <input
+              name="deliveryCompanySharePct"
+              type="number"
+              step="0.1"
+              min={0}
+              max={100}
+              defaultValue={(siteSettings as any).deliveryCompanySharePct ?? 30}
+              className="border rounded px-2 py-1 w-full"
+            />
+          </div>
+          <div className="md:col-span-3 flex gap-2 mt-2">
+            <PendingButton className="px-3 py-2 bg-blue-600 text-white rounded" pendingText="Guardando...">
+              Guardar delivery
+            </PendingButton>
+          </div>
+        </form>
       </div>
 
       {/* Clave de eliminación */}

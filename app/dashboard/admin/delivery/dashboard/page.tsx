@@ -70,8 +70,18 @@ export default async function DeliveryAdminDashboard({ searchParams }: { searchP
     avgRating: number | null;
     lastDeliveryAt: Date | null;
     pendingFee: number;
+    pendingDriverFee: number;
     payoutProfileComplete: boolean;
   };
+
+  const settings = await prisma.siteSettings.findUnique({ where: { id: 1 } });
+  const driverPctRaw = (settings as any)?.deliveryDriverSharePct;
+  const driverPct = (() => {
+    const n = Number(driverPctRaw);
+    if (!isFinite(n) || n <= 0 || n > 100) return 70;
+    return n;
+  })();
+  const driverFactor = driverPct / 100;
 
   const rows: Row[] = users.map((u) => {
     const shipments = u.deliveriesAssigned as any[];
@@ -120,6 +130,7 @@ export default async function DeliveryAdminDashboard({ searchParams }: { searchP
       avgRating,
       lastDeliveryAt,
       pendingFee,
+      pendingDriverFee: pendingFee * driverFactor,
       payoutProfileComplete,
     };
   });
@@ -309,4 +320,3 @@ export default async function DeliveryAdminDashboard({ searchParams }: { searchP
     </div>
   );
 }
-

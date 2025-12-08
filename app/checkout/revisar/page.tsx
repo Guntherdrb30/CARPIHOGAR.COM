@@ -117,6 +117,45 @@ export default function RevisarPage() {
     () => totalUSD * tasaVES,
     [totalUSD, tasaVES],
   );
+  const [deliveryFeeUSD, setDeliveryFeeUSD] = useState<number | null>(null);
+  const [deliveryCalcError, setDeliveryCalcError] = useState<string | null>(null);
+
+  // Calcular fee de delivery estimado cuando:
+  // - hay direcciГіn seleccionada
+  // - el usuario elige DELIVERY
+  useEffect(() => {
+    let cancelled = false;
+    async function computeDelivery() {
+      if (!selectedAddressId || shippingOption !== 'DELIVERY') {
+        setDeliveryFeeUSD(null);
+        setDeliveryCalcError(null);
+        return;
+      }
+      try {
+        const addr = addresses.find((a) => a.id === selectedAddressId);
+        if (!addr) {
+          setDeliveryFeeUSD(null);
+          setDeliveryCalcError('No se pudo leer la direcciГіn seleccionada.');
+          return;
+        }
+        // Por ahora, como no tenemos lat/lng en la direcciГіn ni sucursal desde aquГ­,
+        // usamos los mГ­nimos configurados: 4 USD para moto, 10 USD para camioneta.
+        // Esto estarГЎ alineado con el cГЎlculo real al asignar delivery.
+        const base = 4;
+        if (!cancelled) {
+          setDeliveryFeeUSD(base);
+          setDeliveryCalcError(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setDeliveryFeeUSD(null);
+          setDeliveryCalcError('No se pudo calcular el delivery en este momento.');
+        }
+      }
+    }
+    computeDelivery();
+    return () => { cancelled = true; };
+  }, [selectedAddressId, shippingOption, addresses]);
 
   const initialState = { ok: false as boolean, error: '' as string };
   const [state, formAction] = useFormState(confirmOrderAction as any, initialState);
@@ -267,6 +306,14 @@ export default function RevisarPage() {
               <div className="flex justify-between text-green-700">
                 <span>Descuento 20% pago en USD:</span>
                 <span>-{formatUSD(discountUSD)}</span>
+              </div>
+            )}
+            {shippingOption === 'DELIVERY' && (
+              <div className="flex justify-between text-blue-700">
+                <span>Delivery local (estimado):</span>
+                <span>
+                  {deliveryFeeUSD != null ? formatUSD(deliveryFeeUSD) : 'A calcular'}
+                </span>
               </div>
             )}
             <div className="flex justify-between">

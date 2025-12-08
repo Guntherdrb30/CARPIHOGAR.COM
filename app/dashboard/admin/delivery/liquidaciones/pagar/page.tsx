@@ -40,7 +40,15 @@ export default async function DeliveryPagarPage({ searchParams }: { searchParams
   });
 
   const pending = orders.filter(o => !o.shipping?.deliveryPaidAt);
-  const total = pending.reduce((acc, o) => acc + parseFloat(String(o.shipping?.deliveryFeeUSD || 0)), 0);
+  const settings = await prisma.siteSettings.findUnique({ where: { id: 1 } });
+  const driverPctRaw = (settings as any)?.deliveryDriverSharePct;
+  const driverPct = (() => {
+    const n = Number(driverPctRaw);
+    if (!isFinite(n) || n <= 0 || n > 100) return 70;
+    return n;
+  })();
+  const totalFee = pending.reduce((acc, o) => acc + parseFloat(String(o.shipping?.deliveryFeeUSD || 0)), 0);
+  const totalDriver = totalFee * (driverPct / 100);
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -51,7 +59,7 @@ export default async function DeliveryPagarPage({ searchParams }: { searchParams
         from={fromStr}
         to={toStr}
         pendingCount={pending.length}
-        pendingTotalUSD={total}
+        pendingTotalUSD={totalDriver}
       />
       <div className="bg-white rounded shadow overflow-x-auto">
         <table className="min-w-full text-sm">
@@ -83,4 +91,3 @@ export default async function DeliveryPagarPage({ searchParams }: { searchParams
     </div>
   );
 }
-
