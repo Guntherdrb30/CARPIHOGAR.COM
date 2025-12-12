@@ -73,7 +73,7 @@ export default async function DeliveryLayout({ children }: { children: React.Rea
       <div className="mb-4 flex flex-wrap gap-3 text-sm">
         <a className="flex flex-col rounded border px-3 py-2 hover:bg-gray-50" href="/dashboard/delivery">
           <span className="font-semibold">Pendientes</span>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500" suppressHydrationWarning>
             {activeDeliveries === 0
               ? 'Sin entregas activas'
               : `${activeDeliveries} entrega${activeDeliveries === 1 ? '' : 's'} activas`}
@@ -81,7 +81,7 @@ export default async function DeliveryLayout({ children }: { children: React.Rea
         </a>
         <a className="flex flex-col rounded border px-3 py-2 hover:bg-gray-50" href="/dashboard/delivery/historial">
           <span className="font-semibold">Entregadas</span>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500" suppressHydrationWarning>
             {deliveredLast30 === 0
               ? 'Sin entregas recientes'
               : `${deliveredLast30} en los Últimos 30 días`}
@@ -89,7 +89,7 @@ export default async function DeliveryLayout({ children }: { children: React.Rea
         </a>
         <a className="flex flex-col rounded border px-3 py-2 hover:bg-gray-50" href="/dashboard/delivery/ganancias">
           <span className="font-semibold">Ganancias</span>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-500" suppressHydrationWarning>
             {pendingTotal > 0 ? `${formatUsd(pendingTotal)} por liquidar` : 'Sin pagos pendientes'}
           </span>
         </a>
