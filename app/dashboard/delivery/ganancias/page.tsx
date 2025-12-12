@@ -26,7 +26,7 @@ export default async function DeliveryEarningsPage({ searchParams }: { searchPar
   const orders = await prisma.order.findMany({
     where: {
       shipping: { carrier: 'DELIVERY' as any, assignedToId: meId, status: 'ENTREGADO' as any },
-      shippingAddress: { city: { equals: 'Barinas', mode: 'insensitive' } },
+      shippingAddress: { is: { city: { equals: 'Barinas', mode: 'insensitive' } } as any },
     },
     include: { shipping: true, shippingAddress: true },
     orderBy: { updatedAt: 'desc' },
@@ -145,4 +145,3 @@ export default async function DeliveryEarningsPage({ searchParams }: { searchPar
     </div>
   );
 }
-
