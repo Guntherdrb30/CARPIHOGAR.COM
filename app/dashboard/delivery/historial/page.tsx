@@ -5,17 +5,26 @@ import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
-function toYmd(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+const TIME_ZONE = 'America/Caracas';
+const ymdFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+const hmFormatter = new Intl.DateTimeFormat('en-GB', {
+  timeZone: TIME_ZONE,
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+function toYmd(date: Date) {
+  return ymdFormatter.format(date);
 }
 
-function toHm(d: Date) {
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
+function toHm(date: Date) {
+  return hmFormatter.format(date);
 }
 
 export default async function DeliveryHistoryPage({ searchParams }: { searchParams?: { debug?: string } }) {
