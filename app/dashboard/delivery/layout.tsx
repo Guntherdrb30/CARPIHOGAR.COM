@@ -4,12 +4,8 @@ import prisma from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 
 function formatUsd(value: number) {
-  return value.toLocaleString('es-VE', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  const safe = Number.isFinite(value) ? value : 0;
+  return `US$ ${safe.toFixed(2)}`;
 }
 
 export default async function DeliveryLayout({ children }: { children: React.ReactNode }) {
