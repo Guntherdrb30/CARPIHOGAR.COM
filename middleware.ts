@@ -7,6 +7,8 @@ export default withAuth(
     // Require verified email only for CLIENTE, ALIADO, DELIVERY accessing dashboards or checkout
     const path = req.nextUrl.pathname;
     const role = req.nextauth.token?.role as string | undefined;
+    const email = String((req.nextauth.token as any)?.email || '').toLowerCase();
+    const rootEmail = String(process.env.ROOT_EMAIL || 'root@carpihogar.com').toLowerCase();
     const emailVerified = (req.nextauth.token as any)?.emailVerified === true;
     // Accept short-lived cookie set by /api/auth/verify-email so
     // users can navigate immediately after clicking the email link
@@ -33,6 +35,12 @@ export default withAuth(
       req.nextauth.token?.role === "DELIVERY"
     ) {
       return NextResponse.redirect(new URL("/dashboard/delivery", req.url));
+    }
+    if (req.nextUrl.pathname.startsWith("/dashboard/admin/root")) {
+      const isRoot = role === "ADMIN" && email === rootEmail;
+      if (!isRoot) {
+        return NextResponse.rewrite(new URL("/auth/login?message=You Are Not Authorized!", req.url));
+      }
     }
     // Allow DESPACHO to acceder solo a /dashboard/admin/envios
     if (req.nextUrl.pathname.startsWith("/dashboard/admin/envios")) {
@@ -70,5 +78,4 @@ export default withAuth(
 );
 
 export const config = { matcher: ["/dashboard/admin/:path*", "/checkout/:path*", "/dashboard/cliente/:path*", "/dashboard/aliado/:path*", "/dashboard/delivery/:path*"] };
-
 

@@ -50,67 +50,67 @@ enum ProductStatus {
 
 // Sucursales físicas de la empresa (Barinas, otras ciudades)
 model Branch {
-  id        String   @id @default(cuid())
-  name      String
-  code      String   @unique
-  state     String
-  city      String
-  address   String
-  lat       Decimal? @db.Decimal(10, 7)
-  lng       Decimal? @db.Decimal(10, 7)
+  id               String   @id @default(cuid())
+  name             String
+  code             String   @unique
+  state            String
+  city             String
+  address          String
+  lat              Decimal? @db.Decimal(10, 7)
+  lng              Decimal? @db.Decimal(10, 7)
   // Parámetros específicos de delivery para la sucursal (opcional, si no se usan se toman de SiteSettings)
   motoRatePerKmUSD Decimal? @db.Decimal(10, 4)
   carRatePerKmUSD  Decimal? @db.Decimal(10, 4)
   vanRatePerKmUSD  Decimal? @db.Decimal(10, 4)
   motoMinFeeUSD    Decimal? @db.Decimal(10, 2)
   vanMinFeeUSD     Decimal? @db.Decimal(10, 2)
-  isActive Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  users    User[]
+  users     User[]
   shippings Shipping[]
 }
 
 model User {
-  id           String       @id @default(cuid())
-  email        String       @unique
-  password     String
-  name         String?
-  phone        String?
-  role         Role         @default(CLIENTE)
-  alliedStatus AlliedStatus @default(NONE)
+  id                String       @id @default(cuid())
+  email             String       @unique
+  password          String
+  name              String?
+  phone             String?
+  role              Role         @default(CLIENTE)
+  alliedStatus      AlliedStatus @default(NONE)
   commissionPercent Decimal?     @db.Decimal(5, 2)
   // Ally profile fields (optional)
-  profileImageUrl String?
-  bio             String?
-  services        String[]
-  portfolioUrls   String[]
-  portfolioText   String?
-  
+  profileImageUrl   String?
+  bio               String?
+  services          String[]
+  portfolioUrls     String[]
+  portfolioText     String?
+
   // Ally content relations
-  news         News[] @relation("UserNews")
-  allyProjects AllyProject[] @relation("UserAllyProjects")
-  createdAt    DateTime     @default(now())
-  addresses    Address[]
-  orders       Order[]      @relation("OrderCustomer")
-  sellerOrders Order[]      @relation("OrderSeller")
-  reviewedOrders Order[]    @relation("OrderReviewedBy")
-  commissions  Commission[]
-  quotes       Quote[]      @relation("QuoteCustomer")
-  quotesAsSeller Quote[]    @relation("QuoteSeller")
-  createdPOs   PurchaseOrder[] @relation("POCreator")
-  receivedPOs  PurchaseOrder[] @relation("POReceiver")
-  wishlistItems WishlistItem[]
-  createdPurchases Purchase[] @relation("PurchaseCreatedBy")
+  news             News[]          @relation("UserNews")
+  allyProjects     AllyProject[]   @relation("UserAllyProjects")
+  createdAt        DateTime        @default(now())
+  addresses        Address[]
+  orders           Order[]         @relation("OrderCustomer")
+  sellerOrders     Order[]         @relation("OrderSeller")
+  reviewedOrders   Order[]         @relation("OrderReviewedBy")
+  commissions      Commission[]
+  quotes           Quote[]         @relation("QuoteCustomer")
+  quotesAsSeller   Quote[]         @relation("QuoteSeller")
+  createdPOs       PurchaseOrder[] @relation("POCreator")
+  receivedPOs      PurchaseOrder[] @relation("POReceiver")
+  wishlistItems    WishlistItem[]
+  createdPurchases Purchase[]      @relation("PurchaseCreatedBy")
 
   // Delivery assignments (for DELIVERY role)
   deliveriesAssigned Shipping[] @relation("DeliveryAssignee")
 
   // Messaging relations
-  conversations Conversation[] @relation("ConversationUser")
+  conversations         Conversation[] @relation("ConversationUser")
   assignedConversations Conversation[] @relation("ConversationAssignedTo")
-  
+
   // Back-relations for drivers and AI assistant cart
   driverLocations   DriverLocation[]
   assistantCarts    AssistantCart[]
@@ -118,9 +118,9 @@ model User {
   pushSubscriptions PushSubscription[]
 
   // Moodboards creados por el usuario
-  moodboards        Moodboard[]
+  moodboards  Moodboard[]
   // Diseños personalizados del configurador ECPD
-  ecpdDesigns       EcpdDesign[]
+  ecpdDesigns EcpdDesign[]
 
   passwordResetToken          String?   @unique
   passwordResetTokenExpiresAt DateTime?
@@ -131,92 +131,91 @@ model User {
   emailVerificationTokenExpiresAt DateTime?
 
   // Delivery registration fields
-  deliveryStatus        DeliveryStatus @default(NONE)
-  deliveryCedula        String?
-  deliveryAddress       String?
-  deliveryVehicleType   String?
-  deliveryVehicleBrand  String?
-  deliveryVehicleModel  String?
-  deliveryMotoPlate     String?
-  deliveryChassisSerial String?
-  deliveryIdImageUrl    String?
-  deliverySelfieUrl     String?
+  deliveryStatus              DeliveryStatus @default(NONE)
+  deliveryCedula              String?
+  deliveryAddress             String?
+  deliveryVehicleType         String?
+  deliveryVehicleBrand        String?
+  deliveryVehicleModel        String?
+  deliveryMotoPlate           String?
+  deliveryChassisSerial       String?
+  deliveryIdImageUrl          String?
+  deliverySelfieUrl           String?
   // Delivery contract acceptance
   deliveryAgreementAcceptedAt DateTime?
-  deliveryAgreementVersion   Int?
+  deliveryAgreementVersion    Int?
   deliveryAgreementIp         String?
   // deliverySignedContractUrl   String?
 
   // Datos de pago para liquidaciones a delivery (transferencias / pago móvil)
-  payoutBankName        String?
-  payoutBankAccount     String?
-  payoutBankIdNumber    String?
-  payoutPmBank          String?
-  payoutPmPhone         String?
-  payoutPmIdNumber      String?
-  deliverySignedContractUrl   String?
+  payoutBankName            String?
+  payoutBankAccount         String?
+  payoutBankIdNumber        String?
+  payoutPmBank              String?
+  payoutPmPhone             String?
+  payoutPmIdNumber          String?
+  deliverySignedContractUrl String?
 
   // Sucursal a la que pertenece el usuario (para controlar ventas y entregas por sucursal)
-  branchId              String?
-  branch                Branch?  @relation(fields: [branchId], references: [id])
+  branchId        String?
+  branch          Branch?          @relation(fields: [branchId], references: [id])
+  rootSecretSales RootSecretSale[] @relation("RootSecretSalesCreated")
 }
 
-
-
 model SiteSettings {
-  id                      Int     @id @default(1)
-  brandName               String  @default("Carpihogar.ai")
-  whatsappPhone           String
-  contactPhone            String
-  contactEmail            String
-  ivaPercent              Decimal @default(16) @db.Decimal(5, 2)
-  tasaVES                 Decimal @default(40) @db.Decimal(10, 2)
-  primaryColor            String?
-  secondaryColor          String?
-  logoUrl                 String?
-  homeHeroUrls            String[]
+  id                           Int       @id @default(1)
+  brandName                    String    @default("Carpihogar.ai")
+  whatsappPhone                String
+  contactPhone                 String
+  contactEmail                 String
+  ivaPercent                   Decimal   @default(16) @db.Decimal(5, 2)
+  tasaVES                      Decimal   @default(40) @db.Decimal(10, 2)
+  primaryColor                 String?
+  secondaryColor               String?
+  logoUrl                      String?
+  homeHeroUrls                 String[]
   // Hero específico para la experiencia de moodboard
-  moodboardHeroUrls       String[]
+  moodboardHeroUrls            String[]
   // Mini hero para el personalizador de muebles (ECPD)
-  ecpdHeroUrls            String[]
+  ecpdHeroUrls                 String[]
   // Paleta de colores para el personalizador (JSON con nombre, imagen, descripcion)
-  ecpdColors              Json?
-  heroAutoplayMs          Int?
-  lowStockThreshold       Int     @default(5)
-  sellerCommissionPercent Decimal @default(5) @db.Decimal(5, 2)
-  deleteSecret            String?
+  ecpdColors                   Json?
+  heroAutoplayMs               Int?
+  lowStockThreshold            Int       @default(5)
+  sellerCommissionPercent      Decimal   @default(5) @db.Decimal(5, 2)
+  deleteSecret                 String?
   // Social handles for product buttons
-  instagramHandle         String?
-  tiktokHandle            String?
+  instagramHandle              String?
+  tiktokHandle                 String?
   // Background images for Featured Categories (Home)
   categoryBannerCarpinteriaUrl String?
   categoryBannerHogarUrl       String?
   // Root recovery and security settings (root-only)
-  rootPhone               String?
-  rootRecoveryHash        String?
-  rootResetCode           String?
-  rootResetCodeExpiresAt  DateTime?
+  rootPhone                    String?
+  rootRecoveryHash             String?
+  rootResetCode                String?
+  rootResetCodeExpiresAt       DateTime?
   // Defaults for product margins (root configurable)
-  defaultMarginClientPct   Decimal? @db.Decimal(5, 2)
-  defaultMarginAllyPct     Decimal? @db.Decimal(5, 2)
-  defaultMarginWholesalePct Decimal? @db.Decimal(5, 2)
+  defaultMarginClientPct       Decimal?  @db.Decimal(5, 2)
+  defaultMarginAllyPct         Decimal?  @db.Decimal(5, 2)
+  defaultMarginWholesalePct    Decimal?  @db.Decimal(5, 2)
 
   // Payment instructions (root-configurable)
-  paymentZelleEmail        String?
-  paymentPmPhone           String?
-  paymentPmRif             String?
-  paymentPmBank            String?
-  paymentBanescoAccount    String?
-  paymentBanescoRif        String?
-  paymentBanescoName       String?
-  paymentMercantilAccount  String?
-  paymentMercantilRif      String?
-  paymentMercantilName     String?
+  paymentZelleEmail       String?
+  paymentPmPhone          String?
+  paymentPmRif            String?
+  paymentPmBank           String?
+  paymentBanescoAccount   String?
+  paymentBanescoRif       String?
+  paymentBanescoName      String?
+  paymentMercantilAccount String?
+  paymentMercantilRif     String?
+  paymentMercantilName    String?
   // Legal / billing data for invoices (root-only)
-  legalCompanyName         String?
-  legalCompanyRif          String?
-  legalCompanyAddress      String?
-  legalCompanyPhone        String?
+  legalCompanyName        String?
+  legalCompanyRif         String?
+  legalCompanyAddress     String?
+  legalCompanyPhone       String?
 
   // Parámetros globales para delivery local (pueden servir como defaults por sucursal)
   deliveryMotoRatePerKmUSD Decimal? @db.Decimal(10, 4) // ej: 0.5 USD/km
@@ -224,124 +223,128 @@ model SiteSettings {
   deliveryVanRatePerKmUSD  Decimal? @db.Decimal(10, 4) // ej: 1 USD/km
   deliveryMotoMinFeeUSD    Decimal? @db.Decimal(10, 2) // ej: mínimo 4 USD
   deliveryVanMinFeeUSD     Decimal? @db.Decimal(10, 2) // ej: mínimo 10 USD
-  deliveryDriverSharePct   Decimal? @db.Decimal(5, 2)  // ej: 70
-  deliveryCompanySharePct  Decimal? @db.Decimal(5, 2)  // ej: 30
-  invoiceNextNumber        Int?    @default(1)
-  receiptNextNumber        Int?    @default(1)
+  deliveryDriverSharePct   Decimal? @db.Decimal(5, 2) // ej: 70
+  deliveryCompanySharePct  Decimal? @db.Decimal(5, 2) // ej: 30
+  invoiceNextNumber        Int?     @default(1)
+  receiptNextNumber        Int?     @default(1)
 }
 
 model Category {
-  id        String    @id @default(cuid())
+  id        String     @id @default(cuid())
   name      String
-  slug      String    @unique
-  createdAt DateTime  @default(now())
+  slug      String     @unique
+  createdAt DateTime   @default(now())
   parentId  String?
-  parent    Category? @relation("CategoryChildren", fields: [parentId], references: [id])
+  parent    Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
   children  Category[] @relation("CategoryChildren")
   products  Product[]
 }
 
 model Product {
-  id           String          @id @default(cuid())
-  name         String
-  slug         String          @unique
-  brand        String
-  description  String?
-  images       String[]
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  brand             String
+  description       String?
+  images            String[]
   // Optional product video (rendered last in gallery)
-  videoUrl     String?
+  videoUrl          String?
   // Show Instagram/TikTok buttons in PDP
-  showSocialButtons Boolean @default(false)
+  showSocialButtons Boolean  @default(false)
   // ECPD: marca si el producto tiene configurador de muebles asociado
-  isConfigurable    Boolean @default(false)
+  isConfigurable    Boolean  @default(false)
   // ECPD: esquema JSON del configurador (dimensiones, componentes, etc.)
   configSchema      Json?
-  sku          String?         @unique
+  sku               String?  @unique
   // Câ”œâ”‚digo interno opcional (puede venir de proveedor)
-  code         String?         @unique
-  supplierCode String?
+  code              String?  @unique
+  supplierCode      String?
   // Palabras clave SEO / búsqueda
-  keywords     String[]        @default([])
+  keywords          String[] @default([])
   // Modelo y garantía
-  model        String?
-  guarantee    String?
+  model             String?
+  guarantee         String?
 
   // Tipo de producto (simple / agrupado / combo)
-  type         ProductType     @default(SIMPLE)
-  priceUSD     Decimal         @db.Decimal(10, 2)
-  priceAllyUSD Decimal?        @db.Decimal(10, 2)
+  type               ProductType   @default(SIMPLE)
+  priceUSD           Decimal       @db.Decimal(10, 2)
+  priceAllyUSD       Decimal?      @db.Decimal(10, 2)
   // Nuevo: Precio mayorista (calculado)
-  priceWholesaleUSD Decimal?   @db.Decimal(10, 2)
+  priceWholesaleUSD  Decimal?      @db.Decimal(10, 2)
   // Nuevo: costos y mâ”œÃ­rgenes de referencia
-  costUSD      Decimal?        @db.Decimal(10, 2)
-  marginClientPct   Decimal?   @db.Decimal(5, 2)
-  marginAllyPct     Decimal?   @db.Decimal(5, 2)
-  marginWholesalePct Decimal?  @db.Decimal(5, 2)
+  costUSD            Decimal?      @db.Decimal(10, 2)
+  marginClientPct    Decimal?      @db.Decimal(5, 2)
+  marginAllyPct      Decimal?      @db.Decimal(5, 2)
+  marginWholesalePct Decimal?      @db.Decimal(5, 2)
   // Nuevo: precios calculados explâ”œÂ¡citos (el priceUSD existente se usa como Cliente)
-  priceClientUSD    Decimal?   @db.Decimal(10, 2)
+  priceClientUSD     Decimal?      @db.Decimal(10, 2)
   // Inventario principal
-  stock        Int             @default(0)
+  stock              Int           @default(0)
   // Stock en unidades (alias más explícito para stock)
-  stockUnits   Int             @default(0)
+  stockUnits         Int           @default(0)
   // Stock mínimo recomendado
-  stockMinUnits Int            @default(0)
+  stockMinUnits      Int           @default(0)
   // Permitir venta por pedido / backorder (solo ERP)
-  allowBackorder Boolean       @default(false)
+  allowBackorder     Boolean       @default(false)
   // Permitir venta por unidad cuando es agrupado
-  allowUnitSale Boolean        @default(true)
+  allowUnitSale      Boolean       @default(true)
   // Configuración para productos agrupados (cajas/paquetes)
-  unitsPerPackage Int?
-  stockPackages   Int?
-  soldBy          ProductSoldBy @default(UNIT)
+  unitsPerPackage    Int?
+  stockPackages      Int?
+  soldBy             ProductSoldBy @default(UNIT)
 
   // Datos de envío / flete
-  weightKg    Decimal?         @db.Decimal(10, 3)
-  heightCm    Decimal?         @db.Decimal(10, 2)
-  widthCm     Decimal?         @db.Decimal(10, 2)
-  depthCm     Decimal?         @db.Decimal(10, 2)
-  volumeCm3   Decimal?         @db.Decimal(12, 2)
-  freightType String?
+  weightKg                Decimal? @db.Decimal(10, 3)
+  heightCm                Decimal? @db.Decimal(10, 2)
+  widthCm                 Decimal? @db.Decimal(10, 2)
+  depthCm                 Decimal? @db.Decimal(10, 2)
+  volumeCm3               Decimal? @db.Decimal(12, 2)
+  freightType             String?
   // Tipos de delivery que pueden transportar este producto (MOTO, CARRO, CAMIONETA)
   deliveryAllowedVehicles String[] @default([])
 
   // Estado del producto
-  status      ProductStatus    @default(ACTIVE)
+  status ProductStatus @default(ACTIVE)
 
-  supplierId   String?
-  supplier     Supplier?       @relation(fields: [supplierId], references: [id])
-  reorderPoint Int?
-  safetyStock  Int?
-  leadTimeDays Int?
-  costMethod   CostMethod      @default(PROMEDIO)
-  avgCost      Decimal?        @db.Decimal(10, 2)
-  lastCost     Decimal?        @db.Decimal(10, 2)
-  categoryId   String?
-  category     Category?       @relation(fields: [categoryId], references: [id])
-  isNew        Boolean         @default(false)
-  createdAt    DateTime        @default(now())
-  barcode      String?         @unique
-  orderItems   OrderItem[]
-  stockMoves   StockMovement[]
+  supplierId         String?
+  supplier           Supplier?           @relation(fields: [supplierId], references: [id])
+  reorderPoint       Int?
+  safetyStock        Int?
+  leadTimeDays       Int?
+  costMethod         CostMethod          @default(PROMEDIO)
+  avgCost            Decimal?            @db.Decimal(10, 2)
+  lastCost           Decimal?            @db.Decimal(10, 2)
+  categoryId         String?
+  category           Category?           @relation(fields: [categoryId], references: [id])
+  isNew              Boolean             @default(false)
+  // Marcador interno: solo root puede vender sin IVA
+  rootNoIvaOnly      Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  barcode            String?             @unique
+  orderItems         OrderItem[]
+  stockMoves         StockMovement[]
   purchaseOrderItems PurchaseOrderItem[]
-  quoteItems   QuoteItem[]
-  wishlistItems WishlistItem[]
-  purchaseItems PurchaseItem[]
+  quoteItems         QuoteItem[]
+  wishlistItems      WishlistItem[]
+  purchaseItems      PurchaseItem[]
   // Self-referencing many-to-many for related products
-  relatedFrom  RelatedProduct[] @relation("RelatedFrom")
-  relatedTo    RelatedProduct[] @relation("RelatedTo")
+  relatedFrom        RelatedProduct[]    @relation("RelatedFrom")
+  relatedTo          RelatedProduct[]    @relation("RelatedTo")
 
   // Back-relation to assistant cart items
-  assistantCartItems AssistantCartItem[]
+  assistantCartItems  AssistantCartItem[]
   // Diseños personalizados vinculados a este producto
-  ecpdDesigns   EcpdDesign[]
+  ecpdDesigns         EcpdDesign[]
+  // Ventas secretas de root asociadas
+  rootSecretSaleItems RootSecretSaleItem[]
 }
 
 // Join table for Product <-> Product related items
 model RelatedProduct {
-  fromId   String
-  toId     String
-  from     Product @relation("RelatedFrom", fields: [fromId], references: [id], onDelete: Cascade)
-  to       Product @relation("RelatedTo", fields: [toId], references: [id], onDelete: Cascade)
+  fromId    String
+  toId      String
+  from      Product  @relation("RelatedFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to        Product  @relation("RelatedTo", fields: [toId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@id([fromId, toId])
@@ -400,43 +403,75 @@ model Address {
 }
 
 model Order {
-  id                String      @id @default(cuid())
-  userId            String
-  user              User        @relation("OrderCustomer", fields: [userId], references: [id])
-  sellerId          String?
-  seller            User?       @relation("OrderSeller", fields: [sellerId], references: [id])
-  items             OrderItem[]
-  subtotalUSD       Decimal     @db.Decimal(10, 2)
-  ivaPercent        Decimal     @db.Decimal(5, 2)
-  tasaVES           Decimal     @db.Decimal(10, 2)
-  totalUSD          Decimal     @db.Decimal(10, 2)
-  totalVES          Decimal     @db.Decimal(12, 2)
-  payment           Payment?
-  createdAt         DateTime    @default(now())
-  status            OrderStatus @default(PENDIENTE)
-  saleType          SaleType    @default(CONTADO)
+  id                    String      @id @default(cuid())
+  userId                String
+  user                  User        @relation("OrderCustomer", fields: [userId], references: [id])
+  sellerId              String?
+  seller                User?       @relation("OrderSeller", fields: [sellerId], references: [id])
+  items                 OrderItem[]
+  subtotalUSD           Decimal     @db.Decimal(10, 2)
+  ivaPercent            Decimal     @db.Decimal(5, 2)
+  tasaVES               Decimal     @db.Decimal(10, 2)
+  totalUSD              Decimal     @db.Decimal(10, 2)
+  totalVES              Decimal     @db.Decimal(12, 2)
+  payment               Payment?
+  createdAt             DateTime    @default(now())
+  status                OrderStatus @default(PENDIENTE)
+  saleType              SaleType    @default(CONTADO)
   // Legal correlatives for receipts/invoices (assigned at first PDF generation)
-  invoiceNumber     Int?
-  receiptNumber     Int?
+  invoiceNumber         Int?
+  receiptNumber         Int?
   // Origen de la venta (ONLINE = web, ERP = cargada por admin/aliado)
-  originChannel     String?     @default("ONLINE")
+  originChannel         String?     @default("ONLINE")
   // Control interno de revisión administrativa
-  reviewedAt        DateTime?
-  reviewedById      String?
-  reviewedBy        User?       @relation("OrderReviewedBy", fields: [reviewedById], references: [id])
-  creditDueDate     DateTime?
-  shippingAddressId String?
-  shippingAddress   Address?    @relation(fields: [shippingAddressId], references: [id])
-  shipping          Shipping?
-  commission        Commission?
-  receivable        Receivable?
-  customerTaxId       String?
+  reviewedAt            DateTime?
+  reviewedById          String?
+  reviewedBy            User?       @relation("OrderReviewedBy", fields: [reviewedById], references: [id])
+  creditDueDate         DateTime?
+  shippingAddressId     String?
+  shippingAddress       Address?    @relation(fields: [shippingAddressId], references: [id])
+  shipping              Shipping?
+  commission            Commission?
+  receivable            Receivable?
+  customerTaxId         String?
   customerFiscalAddress String?
   // Vincula la orden con un presupuesto origen (si aplica)
-  originQuoteId     String?
+  originQuoteId         String?
 
   // Back-relation to order auth tokens (WhatsApp confirmation)
-  authTokens        OrderAuthToken[]
+  authTokens OrderAuthToken[]
+}
+
+// Ventas internas del usuario root (sin IVA, no afectan registro normal)
+model RootSecretSale {
+  id                    String               @id @default(cuid())
+  noteNumber            Int                  @unique @default(autoincrement())
+  createdAt             DateTime             @default(now())
+  createdById           String?
+  createdBy             User?                @relation("RootSecretSalesCreated", fields: [createdById], references: [id])
+  customerName          String?
+  customerPhone         String?
+  customerTaxId         String?
+  customerFiscalAddress String?
+  observations          String?
+  subtotalUSD           Decimal              @db.Decimal(10, 2)
+  totalUSD              Decimal              @db.Decimal(10, 2)
+  tasaVES               Decimal?             @db.Decimal(10, 2)
+  currency              Currency             @default(USD)
+  withoutIva            Boolean              @default(true)
+  items                 RootSecretSaleItem[]
+}
+
+model RootSecretSaleItem {
+  id         String         @id @default(cuid())
+  saleId     String
+  sale       RootSecretSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product        @relation(fields: [productId], references: [id])
+  name       String
+  quantity   Int
+  priceUSD   Decimal        @db.Decimal(10, 2)
+  withoutIva Boolean        @default(true)
 }
 
 model OrderItem {
@@ -451,19 +486,19 @@ model OrderItem {
 }
 
 model Payment {
-  id        String        @id @default(cuid())
-  orderId   String        @unique
-  order     Order         @relation(fields: [orderId], references: [id])
-  method    PaymentMethod
-  proofUrl  String?
-  reference String?
-  status    PaymentStatus @default(SIN_PRUEBA)
-  currency  Currency      @default(USD)
-  payerName String?
+  id         String        @id @default(cuid())
+  orderId    String        @unique
+  order      Order         @relation(fields: [orderId], references: [id])
+  method     PaymentMethod
+  proofUrl   String?
+  reference  String?
+  status     PaymentStatus @default(SIN_PRUEBA)
+  currency   Currency      @default(USD)
+  payerName  String?
   payerPhone String?
-  payerBank String?
-  payerId   String?
-  createdAt DateTime      @default(now())
+  payerBank  String?
+  payerId    String?
+  createdAt  DateTime      @default(now())
 }
 
 enum CommissionStatus {
@@ -492,23 +527,23 @@ enum QuoteStatus {
 }
 
 model Quote {
-  id                String      @id @default(cuid())
-  userId            String
-  user              User        @relation("QuoteCustomer", fields: [userId], references: [id])
-  sellerId          String?
-  seller            User?       @relation("QuoteSeller", fields: [sellerId], references: [id])
-  items             QuoteItem[]
-  subtotalUSD       Decimal     @db.Decimal(10, 2)
-  ivaPercent        Decimal     @db.Decimal(5, 2)
-  tasaVES           Decimal     @db.Decimal(10, 2)
-  totalUSD          Decimal     @db.Decimal(10, 2)
-  totalVES          Decimal     @db.Decimal(12, 2)
-  status            QuoteStatus @default(BORRADOR)
-  expiresAt         DateTime?
-  notes             String?
-  customerTaxId       String?
+  id                    String      @id @default(cuid())
+  userId                String
+  user                  User        @relation("QuoteCustomer", fields: [userId], references: [id])
+  sellerId              String?
+  seller                User?       @relation("QuoteSeller", fields: [sellerId], references: [id])
+  items                 QuoteItem[]
+  subtotalUSD           Decimal     @db.Decimal(10, 2)
+  ivaPercent            Decimal     @db.Decimal(5, 2)
+  tasaVES               Decimal     @db.Decimal(10, 2)
+  totalUSD              Decimal     @db.Decimal(10, 2)
+  totalVES              Decimal     @db.Decimal(12, 2)
+  status                QuoteStatus @default(BORRADOR)
+  expiresAt             DateTime?
+  notes                 String?
+  customerTaxId         String?
   customerFiscalAddress String?
-  createdAt         DateTime    @default(now())
+  createdAt             DateTime    @default(now())
 }
 
 model QuoteItem {
@@ -554,13 +589,14 @@ model AuditLog {
 
 // Evidencias de envíos (fotos y firma)
 model ShipmentPhoto {
-  id          String   @id @default(cuid())
-  shipmentId  String
-  shipment    Shipping @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  shipmentId String
+  shipment   Shipping @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
   // package | delivered | signature
-  type        String
-  url         String
-  createdAt   DateTime @default(now())
+  type       String
+  url        String
+  createdAt  DateTime @default(now())
+
   @@index([shipmentId])
 }
 
@@ -572,28 +608,29 @@ model DriverLocation {
   lat       Decimal  @db.Decimal(10, 7)
   lng       Decimal  @db.Decimal(10, 7)
   updatedAt DateTime @default(now())
+
   @@index([driverId])
 }
 
 model Supplier {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?
-  phone     String?
-  taxId     String?
-  address   String?
+  id             String          @id @default(cuid())
+  name           String
+  email          String?
+  phone          String?
+  taxId          String?
+  address        String?
   // URL pública a la imagen/scan del RIF
-  rifImageUrl String?
+  rifImageUrl    String?
   // Persona de contacto principal
-  contactName  String?
-  contactPhone String?
+  contactName    String?
+  contactPhone   String?
   // Condiciones de crédito
-  givesCredit Boolean @default(false)
-  creditDays  Int?
-  createdAt DateTime @default(now())
+  givesCredit    Boolean         @default(false)
+  creditDays     Int?
+  createdAt      DateTime        @default(now())
   purchaseOrders PurchaseOrder[]
-  purchases  Purchase[]
-  products  Product[]
+  purchases      Purchase[]
+  products       Product[]
 }
 
 enum POStatus {
@@ -604,74 +641,74 @@ enum POStatus {
 }
 
 model PurchaseOrder {
-  id          String       @id @default(cuid())
-  supplierId  String
-  supplier    Supplier     @relation(fields: [supplierId], references: [id])
-  status      POStatus     @default(DRAFT)
-  expectedAt  DateTime?
-  totalUSD    Decimal      @default(0) @db.Decimal(12, 2)
-  notes       String?
-  createdAt   DateTime     @default(now())
-  items       PurchaseOrderItem[]
-  createdById String?
-  createdBy   User?        @relation("POCreator", fields: [createdById], references: [id])
+  id           String              @id @default(cuid())
+  supplierId   String
+  supplier     Supplier            @relation(fields: [supplierId], references: [id])
+  status       POStatus            @default(DRAFT)
+  expectedAt   DateTime?
+  totalUSD     Decimal             @default(0) @db.Decimal(12, 2)
+  notes        String?
+  createdAt    DateTime            @default(now())
+  items        PurchaseOrderItem[]
+  createdById  String?
+  createdBy    User?               @relation("POCreator", fields: [createdById], references: [id])
   receivedById String?
-  receivedBy   User?       @relation("POReceiver", fields: [receivedById], references: [id])
+  receivedBy   User?               @relation("POReceiver", fields: [receivedById], references: [id])
   receivedAt   DateTime?
 }
 
 model PurchaseOrderItem {
-  id         String   @id @default(cuid())
-  poId       String
-  po         PurchaseOrder @relation(fields: [poId], references: [id])
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id])
-  quantity   Int
-  received   Int      @default(0)
-  costUSD    Decimal  @db.Decimal(10, 2)
+  id        String        @id @default(cuid())
+  poId      String
+  po        PurchaseOrder @relation(fields: [poId], references: [id])
+  productId String
+  product   Product       @relation(fields: [productId], references: [id])
+  quantity  Int
+  received  Int           @default(0)
+  costUSD   Decimal       @db.Decimal(10, 2)
 }
 
 // Compras (factura recibida)
 model Purchase {
-  id          String    @id @default(cuid())
-  supplierId  String?
-  supplier    Supplier? @relation(fields: [supplierId], references: [id])
-  currency    Currency  @default(USD)
-  tasaVES     Decimal   @default(0) @db.Decimal(10, 2)
-  subtotalUSD Decimal   @default(0) @db.Decimal(12, 2)
-  totalUSD    Decimal   @default(0) @db.Decimal(12, 2)
+  id                String            @id @default(cuid())
+  supplierId        String?
+  supplier          Supplier?         @relation(fields: [supplierId], references: [id])
+  currency          Currency          @default(USD)
+  tasaVES           Decimal           @default(0) @db.Decimal(10, 2)
+  subtotalUSD       Decimal           @default(0) @db.Decimal(12, 2)
+  totalUSD          Decimal           @default(0) @db.Decimal(12, 2)
   // Datos legales de la factura del proveedor
   invoiceNumber     String?
   invoiceDate       DateTime?
-  baseAmountUSD     Decimal?  @db.Decimal(12, 2)
-  discountPercent   Decimal?  @db.Decimal(5, 2)
-  discountAmountUSD Decimal?  @db.Decimal(12, 2)
-  ivaPercent        Decimal?  @db.Decimal(5, 2)
-  ivaAmountUSD      Decimal?  @db.Decimal(12, 2)
+  baseAmountUSD     Decimal?          @db.Decimal(12, 2)
+  discountPercent   Decimal?          @db.Decimal(5, 2)
+  discountAmountUSD Decimal?          @db.Decimal(12, 2)
+  ivaPercent        Decimal?          @db.Decimal(5, 2)
+  ivaAmountUSD      Decimal?          @db.Decimal(12, 2)
   // IGTF sobre pagos en divisas
-  igtfPercent       Decimal?  @db.Decimal(5, 2)
-  igtfAmountUSD     Decimal?  @db.Decimal(12, 2)
+  igtfPercent       Decimal?          @db.Decimal(5, 2)
+  igtfAmountUSD     Decimal?          @db.Decimal(12, 2)
   itemsCount        Int?
   // Soporte de la factura (imagen/PDF subida)
   invoiceImageUrl   String?
-  notes       String?
-  createdAt   DateTime  @default(now())
-  createdById String?
-  createdBy   User?     @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
-  items       PurchaseItem[]
-  bankTransactions BankTransaction[]
+  notes             String?
+  createdAt         DateTime          @default(now())
+  createdById       String?
+  createdBy         User?             @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
+  items             PurchaseItem[]
+  bankTransactions  BankTransaction[]
 }
 
 model PurchaseItem {
-  id           String   @id @default(cuid())
-  purchaseId   String
-  purchase     Purchase @relation(fields: [purchaseId], references: [id])
-  productId    String
-  product      Product  @relation(fields: [productId], references: [id])
-  name         String
-  quantity     Int
-  costUSD      Decimal  @db.Decimal(10, 2)
-  subtotalUSD  Decimal  @db.Decimal(12, 2)
+  id          String   @id @default(cuid())
+  purchaseId  String
+  purchase    Purchase @relation(fields: [purchaseId], references: [id])
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  name        String
+  quantity    Int
+  costUSD     Decimal  @db.Decimal(10, 2)
+  subtotalUSD Decimal  @db.Decimal(12, 2)
 }
 
 // Bancos y movimientos para conciliación básica de pagos
@@ -681,14 +718,14 @@ enum BankTransactionType {
 }
 
 model BankAccount {
-  id             String           @id @default(cuid())
+  id             String            @id @default(cuid())
   name           String
   bankName       String?
   accountNumber  String?
-  currency       Currency         @default(USD)
-  initialBalance Decimal          @default(0) @db.Decimal(14, 2)
-  isActive       Boolean          @default(true)
-  createdAt      DateTime         @default(now())
+  currency       Currency          @default(USD)
+  initialBalance Decimal           @default(0) @db.Decimal(14, 2)
+  isActive       Boolean           @default(true)
+  createdAt      DateTime          @default(now())
   transactions   BankTransaction[]
 }
 
@@ -729,16 +766,16 @@ model Payable {
 }
 
 model PayableEntry {
-  id            String        @id @default(cuid())
+  id            String         @id @default(cuid())
   payableId     String
-  payable       Payable       @relation(fields: [payableId], references: [id])
-  amountUSD     Decimal       @db.Decimal(12, 2)
-  currency      Currency      @default(USD)
+  payable       Payable        @relation(fields: [payableId], references: [id])
+  amountUSD     Decimal        @db.Decimal(12, 2)
+  currency      Currency       @default(USD)
   method        PaymentMethod?
   bankAccountId String?
   reference     String?
   notes         String?
-  createdAt     DateTime      @default(now())
+  createdAt     DateTime       @default(now())
 }
 
 enum ShippingCarrier {
@@ -765,34 +802,35 @@ enum ShippingChannel {
 }
 
 model Shipping {
-  id           String          @id @default(cuid())
-  orderId      String          @unique
-  order        Order           @relation(fields: [orderId], references: [id])
-  carrier      ShippingCarrier
-  tracking     String?
-  status       ShippingStatus  @default(PENDIENTE)
-  channel      ShippingChannel @default(TIENDA)
-  observations String?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  assignedToId String?
-  assignedTo   User?           @relation("DeliveryAssignee", fields: [assignedToId], references: [id])
-  assignedAt   DateTime?
+  id                  String          @id @default(cuid())
+  orderId             String          @unique
+  order               Order           @relation(fields: [orderId], references: [id])
+  carrier             ShippingCarrier
+  tracking            String?
+  status              ShippingStatus  @default(PENDIENTE)
+  channel             ShippingChannel @default(TIENDA)
+  observations        String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  assignedToId        String?
+  assignedTo          User?           @relation("DeliveryAssignee", fields: [assignedToId], references: [id])
+  assignedAt          DateTime?
   // Sucursal desde la que se gestiona este envío (origen logístico)
-  branchId     String?
-  branch       Branch?         @relation(fields: [branchId], references: [id])
-  deliveryFeeUSD Decimal?      @db.Decimal(10, 2)
-  deliveryPaidAt DateTime?
+  branchId            String?
+  branch              Branch?         @relation(fields: [branchId], references: [id])
+  deliveryFeeUSD      Decimal?        @db.Decimal(10, 2)
+  deliveryPaidAt      DateTime?
   // Delivery local (moto): confirmaciones, valoraciones y propinas
   clientConfirmedAt   DateTime?
   deliveryConfirmedAt DateTime?
   clientRating        Int?
   deliveryRating      Int?
-  tipUSD              Decimal?  @db.Decimal(10, 2)
+  tipUSD              Decimal?        @db.Decimal(10, 2)
 
   // Back-relation to shipment evidences (photos/signature)
-  photos       ShipmentPhoto[]
+  photos ShipmentPhoto[]
 }
+
 // Estado de cuentas por cobrar
 enum ReceivableStatus {
   PENDIENTE
@@ -807,28 +845,28 @@ enum ReceivableNoteType {
 }
 
 model Receivable {
-  id         String            @id @default(cuid())
-  orderId    String            @unique
-  order      Order             @relation(fields: [orderId], references: [id])
-  status     ReceivableStatus  @default(PENDIENTE)
-  dueDate    DateTime?
-  notes      String?
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-  entries    ReceivableEntry[]
-  noteItems  ReceivableNote[]
+  id        String            @id @default(cuid())
+  orderId   String            @unique
+  order     Order             @relation(fields: [orderId], references: [id])
+  status    ReceivableStatus  @default(PENDIENTE)
+  dueDate   DateTime?
+  notes     String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  entries   ReceivableEntry[]
+  noteItems ReceivableNote[]
 }
 
 model ReceivableEntry {
-  id            String       @id @default(cuid())
-  receivableId  String
-  receivable    Receivable   @relation(fields: [receivableId], references: [id])
-  amountUSD     Decimal      @db.Decimal(12, 2)
-  currency      Currency     @default(USD)
-  method        PaymentMethod?
-  reference     String?
-  notes         String?
-  createdAt     DateTime     @default(now())
+  id           String         @id @default(cuid())
+  receivableId String
+  receivable   Receivable     @relation(fields: [receivableId], references: [id])
+  amountUSD    Decimal        @db.Decimal(12, 2)
+  currency     Currency       @default(USD)
+  method       PaymentMethod?
+  reference    String?
+  notes        String?
+  createdAt    DateTime       @default(now())
 }
 
 model ReceivableNote {
@@ -878,25 +916,25 @@ enum ConversationStatus {
 }
 
 model Conversation {
-  id            String    @id @default(cuid())
-  userId        String?
-  user          User?     @relation("ConversationUser", fields: [userId], references: [id])
-  phone         String
-  channel       Channel   @default(WHATSAPP)
-  assignedToId  String?
-  assignedTo    User?     @relation("ConversationAssignedTo", fields: [assignedToId], references: [id])
-  status        ConversationStatus @default(OPEN)
-  assignedAt    DateTime?
-  closedAt      DateTime?
-  lastInboundAt DateTime?
+  id             String             @id @default(cuid())
+  userId         String?
+  user           User?              @relation("ConversationUser", fields: [userId], references: [id])
+  phone          String
+  channel        Channel            @default(WHATSAPP)
+  assignedToId   String?
+  assignedTo     User?              @relation("ConversationAssignedTo", fields: [assignedToId], references: [id])
+  status         ConversationStatus @default(OPEN)
+  assignedAt     DateTime?
+  closedAt       DateTime?
+  lastInboundAt  DateTime?
   lastOutboundAt DateTime?
-  unreadAgent   Int       @default(0)
-  unreadCustomer Int      @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  lastMessageAt DateTime?
-  messages      Message[]
-  aiHandled     Boolean   @default(false)
+  unreadAgent    Int                @default(0)
+  unreadCustomer Int                @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  lastMessageAt  DateTime?
+  messages       Message[]
+  aiHandled      Boolean            @default(false)
 
   @@index([userId])
   @@index([phone])
@@ -978,35 +1016,30 @@ model AllyProject {
   @@index([userId, createdAt])
 }
 
-
-
-
-
-
-
-
 // Assistant cart (AI concierge controlled)
 model AssistantCart {
-  id        String   @id @default(cuid())
-  ownerKey  String   // sessionId or customerId
+  id        String              @id @default(cuid())
+  ownerKey  String // sessionId or customerId
   userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
+  user      User?               @relation(fields: [userId], references: [id])
   items     AssistantCartItem[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @default(now())
+
   @@index([ownerKey])
 }
 
 model AssistantCartItem {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   cartId    String
   cart      AssistantCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
   productId String
-  product   Product  @relation(fields: [productId], references: [id])
+  product   Product       @relation(fields: [productId], references: [id])
   name      String
-  priceUSD  Decimal  @db.Decimal(10, 2)
+  priceUSD  Decimal       @db.Decimal(10, 2)
   quantity  Int
-  createdAt DateTime @default(now())
+  createdAt DateTime      @default(now())
+
   @@unique([cartId, productId])
 }
 
@@ -1025,41 +1058,41 @@ model Moodboard {
 
 // Diseños de muebles personalizados (ECPD) guardados por el cliente
 model EcpdDesign {
-  id             String   @id @default(cuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId      String
-  product        Product  @relation(fields: [productId], references: [id])
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id])
   // Imagen del espacio subida por el cliente
-  spaceImageUrl  String
+  spaceImageUrl   String
   // Configuración completa del mueble (dimensiones, componentes, estética)
-  config         Json
+  config          Json
   // Posición relativa del mueble sobre la foto (0-1, centro)
-  overlayX       Float    @default(0.5)
-  overlayY       Float    @default(0.5)
+  overlayX        Float    @default(0.5)
+  overlayY        Float    @default(0.5)
   // Escala visual adicional aplicada sobre la escala derivada de las dimensiones reales
-  overlayScale   Float    @default(1)
+  overlayScale    Float    @default(1)
   // Rotación visual en grados
-  overlayRotation Float   @default(0)
+  overlayRotation Float    @default(0)
   // Precio en el momento de guardar
-  priceUSD       Decimal  @db.Decimal(10, 2)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  priceUSD        Decimal  @db.Decimal(10, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([userId, createdAt])
 }
 
 // Notificaciones internas (drivers, clientes, etc.)
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   type      String
   title     String
   body      String
   data      Json?
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId, createdAt])
 }
@@ -1079,25 +1112,26 @@ model PushSubscription {
 
 // Token para confirmar órdenes por WhatsApp
 model OrderAuthToken {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   orderId     String
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   token       String
   expiresAt   DateTime
   usedAt      DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
   channel     String?
   destination String?
+
   @@unique([orderId, token])
 }
 
 model OrdersTemp {
-  id          String   @id @default(cuid())
-  customerId  String
-  items       Json
-  totalUSD    Decimal  @db.Decimal(10, 2)
+  id           String   @id @default(cuid())
+  customerId   String
+  items        Json
+  totalUSD     Decimal  @db.Decimal(10, 2)
   shippingData Json?
-  createdAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
 }
 
 model PurchaseToken {
@@ -1108,6 +1142,7 @@ model PurchaseToken {
   expiresAt   DateTime
   used        Boolean  @default(false)
   createdAt   DateTime @default(now())
+
   @@index([customerId])
   @@index([orderTempId, token])
 }

@@ -17,7 +17,8 @@ async function ensureProductColumns() {
       'ADD COLUMN IF NOT EXISTS "videoUrl" TEXT, ' +
       'ADD COLUMN IF NOT EXISTS "showSocialButtons" BOOLEAN NOT NULL DEFAULT false, ' +
       'ADD COLUMN IF NOT EXISTS "isConfigurable" BOOLEAN NOT NULL DEFAULT false, ' +
-      'ADD COLUMN IF NOT EXISTS "configSchema" JSONB'
+      'ADD COLUMN IF NOT EXISTS "configSchema" JSONB, ' +
+      'ADD COLUMN IF NOT EXISTS "rootNoIvaOnly" BOOLEAN NOT NULL DEFAULT false'
     );
   } catch {}
 }
@@ -231,6 +232,9 @@ export async function createProduct(data: any) {
     if ((session?.user as any)?.role !== 'ADMIN') {
         throw new Error('Not authorized');
     }
+    const email = String((session?.user as any)?.email || '').toLowerCase();
+    const rootEmail = String(process.env.ROOT_EMAIL || 'root@carpihogar.com').toLowerCase();
+    const isRoot = email === rootEmail;
 
     // Normalize and ensure unique slug to avoid server errors on duplicates
     const baseName = String(data?.name || '').trim();
@@ -285,6 +289,7 @@ export async function createProduct(data: any) {
         depthCm,
         freightType,
         deliveryAllowedVehicles,
+        rootNoIvaOnly: rootNoIvaOnlyInput,
         ...rest
     } = data || {};
 
@@ -344,6 +349,7 @@ export async function createProduct(data: any) {
             volumeCm3: volumeCm3 as any,
             freightType: freightType || null,
             deliveryAllowedVehicles: allowedVehicles,
+            rootNoIvaOnly: isRoot && Boolean(rootNoIvaOnlyInput),
         },
     });
 

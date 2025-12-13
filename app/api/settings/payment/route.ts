@@ -16,6 +16,7 @@ export async function GET() {
     paymentMercantilName: (s as any).paymentMercantilName || '',
     ivaPercent: (s as any).ivaPercent || 16,
     tasaVES: (s as any).tasaVES || 40,
+    deliveryMinFeeUSD: Number((s as any).deliveryMotoMinFeeUSD ?? 4) || 4,
   };
   return NextResponse.json(payload, { headers: { 'Cache-Control': 'no-store' } });
 }

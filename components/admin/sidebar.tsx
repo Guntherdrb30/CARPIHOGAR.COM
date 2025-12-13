@@ -110,7 +110,14 @@ export default function AdminSidebar() {
     // Cursos (IA) - sólo visible para ADMIN/ROOT
     ...(isAdmin ? [{ href: '/dashboard/settings/courses', label: 'Cursos (IA)' }] : []),
     { href: '/dashboard/admin/envios/logs', label: 'Logs de Envios' },
-    ...(isRoot ? [{ href: '/dashboard/admin/ajustes/sistema', label: 'Ajustes del Sistema (Root)' }] : []),
+    ...(isRoot
+      ? [
+          { href: '/dashboard/admin/root', label: 'Root (panel oculto)' },
+          { href: '/dashboard/admin/root/productos', label: 'Root: Productos sin IVA' },
+          { href: '/dashboard/admin/root/ventas', label: 'Root: Ventas sin IVA' },
+          { href: '/dashboard/admin/ajustes/sistema', label: 'Ajustes del Sistema (Root)' },
+        ]
+      : []),
     { href: '/dashboard/admin/reportes', label: 'Reportes' },
     { href: '/dashboard/admin/mensajeria', label: 'Mensajería' },
   ];
