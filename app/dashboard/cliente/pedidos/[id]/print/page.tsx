@@ -12,6 +12,24 @@ export default async function PrintMyOrderPage({ params, searchParams }: { param
     getSettings(),
   ]);
 
+  const statusUp = String(order.status || '').toUpperCase();
+  const docsAvailable = (statusUp === 'PAGADO' || statusUp === 'COMPLETADO') && !!order.reviewedAt;
+  if (!docsAvailable) {
+    return (
+      <div className="p-6 text-sm">
+        <div className="max-w-xl mx-auto bg-white rounded border shadow p-6 text-center space-y-3">
+          <h1 className="text-lg font-semibold text-gray-800">Documento no disponible</h1>
+          <p className="text-gray-600">
+            Tu pago esta en revision. Cuando el equipo confirme la operacion, podras descargar tu recibo y factura desde esta pagina.
+          </p>
+          <a href="/dashboard/cliente/pedidos" className="inline-flex items-center justify-center rounded border px-4 py-2 text-sm text-blue-700">
+            Volver a mis pedidos
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   // Las facturas/recibos legales para el cliente se generan solo en Bs (VES)
   const moneda = 'VES';
   const ivaPercent = Number(order.ivaPercent || (settings as any).ivaPercent || 16);

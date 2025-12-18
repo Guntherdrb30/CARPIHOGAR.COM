@@ -61,52 +61,74 @@ export async function markSaleReviewed(formData: FormData) {
   if (!orderId) throw new Error('orderId requerido');
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { user: true },
+    include: { user: true, payment: true, shipping: true },
   });
   if (!order) throw new Error('Orden no encontrada');
 
-  await prisma.order.update({
-    where: { id: order.id },
-    data: {
+  const reviewerId = (session?.user as any)?.id || null;
+  const status = String(order.status || '').toUpperCase();
+  const shouldForcePaid = status === 'PENDIENTE' || status === 'CONFIRMACION';
+  const updatedOrder = await prisma.$transaction(async (tx) => {
+    const data: any = {
       reviewedAt: new Date() as any,
-      reviewedById: (session?.user as any)?.id || null,
-    },
+      reviewedById: reviewerId,
+    };
+    if (shouldForcePaid) {
+      data.status = 'PAGADO' as any;
+    }
+    const next = await tx.order.update({
+      where: { id: order.id },
+      data,
+      include: { user: true, payment: true, shipping: true },
+    });
+    if (next.payment && next.payment.status !== 'APROBADO') {
+      const refreshedPayment = await tx.payment.update({
+        where: { orderId: order.id },
+        data: { status: 'APROBADO' as any },
+      });
+      return { ...next, payment: refreshedPayment } as any;
+    }
+    return next;
   });
 
   try {
     await prisma.auditLog.create({
       data: {
-        userId: (session?.user as any)?.id,
+        userId: reviewerId,
         action: 'ORDER_REVIEWED',
         details: order.id,
       },
     });
   } catch {}
 
-  // Notificación por correo al cliente (best-effort)
+  // Notificacion por correo al cliente (best-effort)
   try {
-    const to = (order as any).user?.email as string | undefined;
+    const finalOrder = updatedOrder || order;
+    const to = (finalOrder as any).user?.email as string | undefined;
     if (to) {
-      const code = order.id.slice(-6);
+      const code = finalOrder.id.slice(-6);
       const brand = process.env.BRAND_NAME || 'Carpihogar.ai';
       const base =
-        (process.env.NEXT_PUBLIC_URL || '').replace(/\/$/, '') ||
-        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
+        (process.env.NEXT_PUBLIC_URL || process.env.NEXTAUTH_URL || '').replace(/\/$/, '') ||
+        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') ||
+        'https://carpihogar.com';
       let docsHtml = '';
       if (base) {
-        const reciboUrl = `${base}/api/orders/${order.id}/pdf?tipo=recibo&moneda=VES`;
-        const facturaUrl = `${base}/api/orders/${order.id}/pdf?tipo=factura&moneda=VES`;
-        docsHtml = `<p>Puedes descargar tus documentos en PDF aquí:</p>
+        const reciboUrl = `${base}/api/orders/${finalOrder.id}/pdf?tipo=recibo&moneda=VES`;
+        const facturaUrl = `${base}/api/orders/${finalOrder.id}/pdf?tipo=factura&moneda=VES`;
+        const pedidosUrl = `${base}/dashboard/cliente/pedidos/${finalOrder.id}`;
+        docsHtml = `<p>Adjuntamos tus soportes digitales. Tambien puedes descargarlos cuando quieras:</p>
 <ul>
-  <li><a href="${reciboUrl}">Recibo (Bs)</a></li>
-  <li><a href="${facturaUrl}">Factura (Bs)</a></li>
-</ul>`;
+  <li><a href="${reciboUrl}">Recibo en PDF</a></li>
+  <li><a href="${facturaUrl}">Factura en PDF</a></li>
+</ul>
+<p>Puedes ver el estado del pedido y tus documentos desde <a href="${pedidosUrl}">Mis pedidos</a>.</p>`;
       }
       const title = 'Tu pedido fue revisado';
       const bodyHtml = [
-        `<p>Hola ${(order as any).user?.name || 'cliente'},</p>`,
-        `<p>Hemos revisado tu pago de la orden <strong>${code}</strong>.</p>`,
-        `<p>Tu pedido será despachado a la brevedad. Te avisaremos cuando tu envío esté en camino.</p>`,
+        `<p>Hola ${(finalOrder as any).user?.name || 'cliente'},</p>`,
+        `<p>Hemos verificado y aprobado tu pago de la orden <strong>${code}</strong>.</p>`,
+        `<p>Tu pedido pasara a preparacion y te avisaremos cuando el envio este en camino.</p>`,
         docsHtml,
         `<p>Gracias por comprar en ${brand}.</p>`,
       ]
@@ -115,15 +137,15 @@ export async function markSaleReviewed(formData: FormData) {
       const html = basicTemplate(title, bodyHtml);
       await sendMail({
         to,
-        subject: `${brand} – tu pedido ${code} fue revisado`,
+        subject: `${brand} - tu pedido ${code} fue revisado`,
         html,
       });
       try {
         await prisma.auditLog.create({
           data: {
-            userId: (session?.user as any)?.id,
+            userId: reviewerId,
             action: 'ORDER_REVIEWED_EMAIL_SENT',
-            details: order.id,
+            details: finalOrder.id,
           },
         });
       } catch {}
@@ -132,6 +154,14 @@ export async function markSaleReviewed(formData: FormData) {
 
   revalidatePath('/dashboard/admin/ventas');
   revalidatePath('/dashboard/admin/envios');
+  try {
+    revalidatePath('/dashboard/cliente/pedidos');
+    revalidatePath('/dashboard/cliente/envios');
+    if (order?.id) {
+      revalidatePath(`/dashboard/cliente/pedidos/${order.id}`);
+      revalidatePath(`/dashboard/cliente/pedidos/${order.id}/print`);
+    }
+  } catch {}
 }
 
 export async function getOrderById(id: string) {

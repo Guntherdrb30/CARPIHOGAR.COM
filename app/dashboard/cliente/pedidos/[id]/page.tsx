@@ -24,6 +24,8 @@ export default async function ClientePedidoDetalle({ params }: { params: Promise
   const isLocalDelivery = shipping && String(shipping.carrier || '') === 'DELIVERY';
   const delivered = shipping && String(shipping.status || '') === 'ENTREGADO';
   const alreadyRated = Boolean(shipping?.clientConfirmedAt || shipping?.clientRating);
+  const statusUp = String(order.status || '').toUpperCase();
+  const docsAvailable = (statusUp === 'PAGADO' || statusUp === 'COMPLETADO') && !!order.reviewedAt;
 
   return (
     <div className="container mx-auto p-4 space-y-4">
@@ -101,23 +103,29 @@ export default async function ClientePedidoDetalle({ params }: { params: Promise
         ) : (
           <div className="text-sm text-gray-600">Sin registro de pago</div>
         )}
-        <div className="mt-4 flex flex-wrap gap-2 items-center">
-          <a className="border px-3 py-1 rounded" href={`/dashboard/cliente/pedidos/${order.id}/print?tipo=recibo&moneda=USD`} target="_blank">Imprimir / PDF</a>
-          <form action={sendReceiptEmailByForm} className="flex items-center gap-2">
-            <input type="hidden" name="orderId" value={order.id} />
-            <select name="tipo" className="border rounded px-2 py-1 text-sm">
-              <option value="recibo">Recibo</option>
-              <option value="nota">Nota</option>
-              <option value="factura">Factura</option>
-            </select>
-            <select name="moneda" className="border rounded px-2 py-1 text-sm">
-              <option value="USD">USD</option>
-              <option value="VES">Bs (VES)</option>
-            </select>
-            <input name="to" type="email" defaultValue={order.user?.email || ''} placeholder="Email" className="border rounded px-2 py-1 text-sm" required />
-            <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm">Enviar por email</button>
-          </form>
-        </div>
+        {docsAvailable ? (
+          <div className="mt-4 flex flex-wrap gap-2 items-center">
+            <a className="border px-3 py-1 rounded" href={`/dashboard/cliente/pedidos/${order.id}/print?tipo=recibo&moneda=USD`} target="_blank">Imprimir / PDF</a>
+            <form action={sendReceiptEmailByForm} className="flex items-center gap-2">
+              <input type="hidden" name="orderId" value={order.id} />
+              <select name="tipo" className="border rounded px-2 py-1 text-sm">
+                <option value="recibo">Recibo</option>
+                <option value="nota">Nota</option>
+                <option value="factura">Factura</option>
+              </select>
+              <select name="moneda" className="border rounded px-2 py-1 text-sm">
+                <option value="USD">USD</option>
+                <option value="VES">Bs (VES)</option>
+              </select>
+              <input name="to" type="email" defaultValue={order.user?.email || ''} placeholder="Email" className="border rounded px-2 py-1 text-sm" required />
+              <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm">Enviar por email</button>
+            </form>
+          </div>
+        ) : (
+          <div className="mt-4 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Tu pago esta en revision. Te avisaremos cuando puedas descargar tu recibo y factura.
+          </div>
+        )}
       </div>
 
       {order.shipping && (
