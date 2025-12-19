@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
@@ -23,8 +25,6 @@ async function fetchLogoBuffer(logoUrl?: string): Promise<Buffer | null> {
     }
 
     const trimmed = logoUrl.startsWith("/") ? logoUrl.slice(1) : logoUrl;
-    const fs = await import("fs");
-    const path = await import("path");
     const p = path.join(process.cwd(), "public", trimmed);
     if (fs.existsSync(p)) {
       return fs.readFileSync(p);
