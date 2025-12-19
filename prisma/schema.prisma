@@ -121,6 +121,7 @@ model User {
   moodboards  Moodboard[]
   // Diseños personalizados del configurador ECPD
   ecpdDesigns EcpdDesign[]
+  adminSettingsAuditLogs AdminSettingsAuditLog[]
 
   passwordResetToken          String?   @unique
   passwordResetTokenExpiresAt DateTime?
