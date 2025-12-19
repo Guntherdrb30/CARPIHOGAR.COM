@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getTopSoldProducts } from '@/server/actions/inventory';
 import { getSettings } from '@/server/actions/settings';
+import { applyPriceAdjustments, getPriceAdjustmentSettings } from '@/server/price-adjustments';
 
 function toNum(x: any, fb: number | null = null) {
   try {
@@ -27,14 +28,23 @@ export async function GET(req: Request) {
   });
   const byId = new Map(rows.map((r) => [r.id, r] as const));
   const settings = await getSettings();
+  const pricing = await getPriceAdjustmentSettings();
   const items = ids
     .map((id: string) => byId.get(id))
     .filter(Boolean)
-    .map((p: any) => ({
-      ...p,
-      images: Array.isArray(p.images) ? p.images : [],
-      priceUSD: toNum(p.priceUSD, 0),
-    }));
+    .map((p: any) => {
+      const categoryId = p.categoryId || p.category?.id || null;
+      const base = toNum(p.priceUSD, 0);
+      return {
+        ...p,
+        images: Array.isArray(p.images) ? p.images : [],
+        priceUSD: applyPriceAdjustments({
+          basePriceUSD: base,
+          currency: 'USD',
+          categoryId,
+          settings: pricing,
+        }),
+      };
+    });
   return NextResponse.json({ items, tasaVES: (settings as any).tasaVES });
 }
-

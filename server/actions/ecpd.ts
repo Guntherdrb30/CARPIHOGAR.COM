@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { applyPriceAdjustments, getPriceAdjustmentSettings } from '@/server/price-adjustments';
 
 type EcpdConfig = {
   name: string;
@@ -21,6 +22,7 @@ export async function getConfigurableProducts(): Promise<
     priceUSD: number | null;
   }>
 > {
+  const pricing = await getPriceAdjustmentSettings();
   const products = await prisma.product.findMany({
     where: { isConfigurable: true },
     select: {
@@ -31,19 +33,32 @@ export async function getConfigurableProducts(): Promise<
       configSchema: true,
       images: true,
       priceUSD: true,
+      categoryId: true,
     },
     orderBy: { createdAt: 'desc' },
   });
 
-  return products.map((p) => ({
-    ...p,
-    configSchema: (p as any).configSchema ?? null,
-    images: Array.isArray((p as any).images) ? ((p as any).images as string[]) : [],
-    priceUSD:
+  return products.map((p) => {
+    const base =
       typeof (p as any).priceUSD === 'number'
         ? ((p as any).priceUSD as number)
-        : (p as any).priceUSD?.toNumber?.() ?? null,
-  }));
+        : (p as any).priceUSD?.toNumber?.() ?? null;
+    const categoryId = (p as any).categoryId || null;
+    return {
+      ...p,
+      configSchema: (p as any).configSchema ?? null,
+      images: Array.isArray((p as any).images) ? ((p as any).images as string[]) : [],
+      priceUSD:
+        base != null
+          ? applyPriceAdjustments({
+              basePriceUSD: base,
+              currency: 'USD',
+              categoryId,
+              settings: pricing,
+            })
+          : null,
+    };
+  });
 }
 
 export async function getConfigurableProductBySlug(rawSlug: string) {
@@ -77,6 +92,7 @@ export async function getConfigurableProductBySlug(rawSlug: string) {
     list.find((p) => normalize(p.name) === target) ||
     list[0];
 
+  const pricing = await getPriceAdjustmentSettings();
   const p = await prisma.product.findUnique({
     where: { id: matchBasic.id },
     select: {
@@ -92,18 +108,29 @@ export async function getConfigurableProductBySlug(rawSlug: string) {
       depthCm: true,
       isConfigurable: true,
       configSchema: true,
+      categoryId: true,
     },
   });
 
   if (!p || !(p as any).isConfigurable) return null;
 
+  const base =
+    typeof (p as any).priceUSD === 'number'
+      ? ((p as any).priceUSD as number)
+      : (p as any).priceUSD?.toNumber?.() ?? null;
+  const categoryId = (p as any).categoryId || null;
   return {
     ...p,
     images: Array.isArray((p as any).images) ? ((p as any).images as string[]) : [],
     priceUSD:
-      typeof (p as any).priceUSD === 'number'
-        ? ((p as any).priceUSD as number)
-        : (p as any).priceUSD?.toNumber?.() ?? null,
+      base != null
+        ? applyPriceAdjustments({
+            basePriceUSD: base,
+            currency: 'USD',
+            categoryId,
+            settings: pricing,
+          })
+        : null,
     configSchema: (p as any).configSchema ?? null,
   };
 }

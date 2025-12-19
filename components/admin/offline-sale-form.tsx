@@ -108,7 +108,10 @@ export default function OfflineSaleForm({
         return;
       }
       try {
-        const res = await fetch(`/api/products/search?q=${encodeURIComponent(q)}`, { credentials: "include" });
+        const res = await fetch(
+          `/api/products/search?q=${encodeURIComponent(q)}&currency=${encodeURIComponent(paymentCurrency)}`,
+          { credentials: "include" }
+        );
         if (res.ok) {
           const json = await res.json();
           setFound(json);
@@ -116,7 +119,7 @@ export default function OfflineSaleForm({
       } catch {}
     }, 300);
     return () => clearTimeout(t);
-  }, [q]);
+  }, [q, paymentCurrency]);
 
   // Buscar cliente existente por Email / Teléfono / Cédula-RIF y precargar datos + direcciones
   useEffect(() => {

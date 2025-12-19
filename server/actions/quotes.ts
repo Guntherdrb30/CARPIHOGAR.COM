@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { applyPriceAdjustments, getPriceAdjustmentSettings, type PriceAdjustmentSettings } from '@/server/price-adjustments';
 
 async function autoExpireQuotes() {
   try {
@@ -16,6 +17,68 @@ async function autoExpireQuotes() {
       data: { status: 'VENCIDO' as any },
     });
   } catch {}
+}
+
+const toNumberSafe = (value: any, fallback = 0) => {
+  try {
+    if (value == null) return fallback;
+    if (typeof value === 'number') return isFinite(value) ? value : fallback;
+    if (typeof value?.toNumber === 'function') return value.toNumber();
+    const n = Number(value);
+    return isFinite(n) ? n : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+async function buildAdjustedQuoteItems(
+  items: Array<{ productId: string; name: string; priceUSD: number; quantity: number }>,
+  pricing: PriceAdjustmentSettings,
+) {
+  const ids = Array.from(new Set(items.map((it) => it.productId))).filter(Boolean);
+  if (!ids.length) {
+    return items.map((it) => ({ ...it, priceUSD: Number(it.priceUSD || 0) }));
+  }
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true, priceUSD: true, priceAllyUSD: true, categoryId: true },
+  });
+  const byId = new Map(products.map((p) => [p.id, p] as const));
+
+  return items.map((it) => {
+    const p = byId.get(it.productId);
+    if (!p) {
+      return { ...it, priceUSD: Number(it.priceUSD || 0) };
+    }
+    const categoryId = (p as any).categoryId || null;
+    const baseP1 = toNumberSafe((p as any).priceUSD, 0);
+    const baseP2 = (p as any).priceAllyUSD != null ? toNumberSafe((p as any).priceAllyUSD, 0) : null;
+    const adjustedP1 = applyPriceAdjustments({
+      basePriceUSD: baseP1,
+      currency: 'USD',
+      categoryId,
+      settings: pricing,
+    });
+    const adjustedP2 =
+      baseP2 != null
+        ? applyPriceAdjustments({
+            basePriceUSD: baseP2,
+            currency: 'USD',
+            categoryId,
+            settings: pricing,
+          })
+        : null;
+    const requested = Number(it.priceUSD || 0);
+    let priceUSD = adjustedP1;
+    if (adjustedP2 != null) {
+      const diffP1 = Math.abs(requested - adjustedP1);
+      const diffP2 = Math.abs(requested - adjustedP2);
+      priceUSD = diffP2 <= diffP1 ? adjustedP2 : adjustedP1;
+    }
+    if (!priceUSD && requested) priceUSD = requested;
+    return { ...it, name: it.name || (p as any).name || '', priceUSD };
+  });
 }
 
 export async function getQuotes(filters?: { q?: string; status?: 'BORRADOR'|'ENVIADO'|'APROBADO'|'RECHAZADO'|'VENCIDO'|string; sellerId?: string; from?: string; to?: string }) {
@@ -122,7 +185,9 @@ export async function createQuote(formData: FormData) {
   const ivaPercent = ivaPercentForm !== null ? Number(ivaPercentForm) : Number(settings?.ivaPercent || 16);
   const tasaVES = Number(settings?.tasaVES || 40);
 
-  const subtotalUSD = items.reduce((acc, it) => acc + (Number(it.priceUSD) * Number(it.quantity)), 0);
+  const pricing = await getPriceAdjustmentSettings();
+  const pricedItems = await buildAdjustedQuoteItems(items, pricing);
+  const subtotalUSD = pricedItems.reduce((acc, it) => acc + (Number(it.priceUSD) * Number(it.quantity)), 0);
   const totalUSD = subtotalUSD * (1 + ivaPercent/100);
   const totalVES = totalUSD * tasaVES;
 
@@ -144,7 +209,7 @@ export async function createQuote(formData: FormData) {
       notes: notes || null,
       customerTaxId: customerTaxId as any,
       customerFiscalAddress: customerFiscalAddress as any,
-      items: { create: items.map(it => ({ productId: it.productId, name: it.name, priceUSD: it.priceUSD as any, quantity: it.quantity })) },
+      items: { create: pricedItems.map(it => ({ productId: it.productId, name: it.name, priceUSD: it.priceUSD as any, quantity: it.quantity })) },
     },
   });
 
@@ -328,7 +393,9 @@ export async function updateQuoteByForm(formData: FormData) {
   const ivaPercent = ivaPercentForm !== null ? Number(ivaPercentForm) : Number(settings?.ivaPercent || 16);
   const tasaVES = Number(settings?.tasaVES || 40);
 
-  const subtotalUSD = items.reduce((acc, it) => acc + (Number(it.priceUSD) * Number(it.quantity)), 0);
+  const pricing = await getPriceAdjustmentSettings();
+  const pricedItems = await buildAdjustedQuoteItems(items, pricing);
+  const subtotalUSD = pricedItems.reduce((acc, it) => acc + (Number(it.priceUSD) * Number(it.quantity)), 0);
   const totalUSD = subtotalUSD * (1 + ivaPercent/100);
   const totalVES = totalUSD * tasaVES;
 
@@ -344,7 +411,7 @@ export async function updateQuoteByForm(formData: FormData) {
       customerFiscalAddress: customerFiscalAddress as any,
     } });
     await tx.quoteItem.deleteMany({ where: { quoteId: id } });
-    await tx.quoteItem.createMany({ data: items.map((it) => ({ quoteId: id, productId: it.productId, name: it.name, priceUSD: it.priceUSD as any, quantity: Number(it.quantity) })) });
+    await tx.quoteItem.createMany({ data: pricedItems.map((it) => ({ quoteId: id, productId: it.productId, name: it.name, priceUSD: it.priceUSD as any, quantity: Number(it.quantity) })) });
   });
 
   try { await prisma.auditLog.create({ data: { userId: (session?.user as any)?.id, action: 'QUOTE_UPDATE_ITEMS', details: id } }); } catch {}

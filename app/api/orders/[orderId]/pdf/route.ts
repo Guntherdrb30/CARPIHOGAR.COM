@@ -4,6 +4,7 @@ import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
 
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { getPriceAdjustmentSettings } from "@/server/price-adjustments";
 
 // Ensure Node.js runtime for pdfkit on Vercel/Next.js
 export const runtime = "nodejs";
@@ -101,6 +102,7 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
     }
 
     const settings = await prisma.siteSettings.findUnique({ where: { id: 1 } });
+    const pricing = await getPriceAdjustmentSettings();
 
     // Correlativos (solo se asignan la primera vez)
     let invoiceNumber = (order as any).invoiceNumber as number | null | undefined;
@@ -172,7 +174,9 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
     ).toUpperCase();
     const isDivisa = paymentCurrency === "USD" || paymentCurrency === "USDT";
 
-    const discountPercent = isDivisa ? 0.2 : 0;
+    const discountPercent = isDivisa && pricing.usdPaymentDiscountEnabled
+      ? Number(pricing.usdPaymentDiscountPercent || 0) / 100
+      : 0;
     const discountUSD = subtotalUSD * discountPercent;
     const taxableBaseUSD = subtotalUSD - discountUSD;
     const ivaUSD = taxableBaseUSD * (ivaPercent / 100);
@@ -392,7 +396,8 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
     writeTotalLine(`I.V.A. (${ivaPercent}%):`, money(ivaBs));
 
     if (discountUSD > 0) {
-      writeTotalLine("Descuento 20% pago USD:", `- ${money(discountBs)}`);
+      const pctLabel = Number(pricing.usdPaymentDiscountPercent || 0).toFixed(2);
+      writeTotalLine(`Descuento ${pctLabel}% pago USD:`, `- ${money(discountBs)}`);
     }
 
     writeTotalLine("I.G.T.F. 3%:", money(igtfBs));
@@ -440,4 +445,3 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
     return new NextResponse(`Error: ${String(e)}`, { status: 500 });
   }
 }
-

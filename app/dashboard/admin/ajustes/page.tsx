@@ -1,4 +1,4 @@
-Ôªøimport { getSettings, updateSettings, getAuditLogs } from "@/server/actions/settings";
+import { getSettings, updateSettings, getAuditLogs, getPriceAdjustmentSettingsRoot, getPriceAdjustmentAuditLogs, setPriceAdjustments } from "@/server/actions/settings";
 import LogoUploader from "@/components/admin/logo-uploader";
 import HeroMediaUploader from "@/components/admin/hero-media-uploader";
 import HeroCarouselEditor from "@/components/admin/hero-carousel-editor";
@@ -6,10 +6,14 @@ import EcpdColorsEditor from "@/components/admin/ecpd-colors-editor";
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import ShowToastFromSearch from '@/components/show-toast-from-search';
+import { getCategoriesFlattened } from "@/server/actions/categories";
 
 export default async function AdminSettingsPage() {
   const session = await getServerSession(authOptions);
   const isAdmin = ((session?.user as any)?.role) === 'ADMIN';
+  const email = String((session?.user as any)?.email || '').toLowerCase();
+  const rootEmail = String(process.env.ROOT_EMAIL || 'root@carpihogar.com').toLowerCase();
+  const isRoot = isAdmin && email === rootEmail;
   if (!isAdmin) {
     return (
       <div className="container mx-auto p-4">
@@ -19,10 +23,20 @@ export default async function AdminSettingsPage() {
     );
   }
 
-  const [settings, logs] = await Promise.all([
+  const [settings, logs, priceSettings, priceLogs, categories] = await Promise.all([
     getSettings(),
     (async () => { try { return await getAuditLogs({ take: 50 }); } catch { return [] as any[]; } })(),
+    isRoot ? getPriceAdjustmentSettingsRoot() : Promise.resolve(null),
+    isRoot ? getPriceAdjustmentAuditLogs({ take: 50 }) : Promise.resolve([] as any[]),
+    isRoot ? getCategoriesFlattened() : Promise.resolve([] as any[]),
   ]);
+
+
+  const priceData = (priceSettings || {}) as any;
+  const priceLogsList = Array.isArray(priceLogs) ? priceLogs : [];
+  const categoriesList = Array.isArray(categories) ? categories : [];
+  const latestPriceLog = priceLogsList.length ? priceLogsList[0] : null;
+  const categoryAdjustments = (priceData.categoryPriceAdjustments && typeof priceData.categoryPriceAdjustments === "object") ? priceData.categoryPriceAdjustments : {};
 
   return (
     <div className="container mx-auto p-4">
@@ -72,7 +86,7 @@ export default async function AdminSettingsPage() {
             />
           </div>
           <div className="mb-4">
-            <label className="block text-gray-700">Tel√©fono de WhatsApp</label>
+            <label className="block text-gray-700">TelÈfono de WhatsApp</label>
             <input
               type="text"
               name="whatsappPhone"
@@ -81,7 +95,7 @@ export default async function AdminSettingsPage() {
             />
           </div>
           <div className="mb-4">
-            <label className="block text-gray-700">Tel√©fono de Contacto</label>
+            <label className="block text-gray-700">TelÈfono de Contacto</label>
             <input
               type="text"
               name="contactPhone"
@@ -109,7 +123,7 @@ export default async function AdminSettingsPage() {
             />
           </div>
           <div className="mb-4">
-            <label className="block text-gray-700">Comisi√≥n Vendedor (%)</label>
+            <label className="block text-gray-700">ComisiÛn Vendedor (%)</label>
             <input
               type="number"
               name="sellerCommissionPercent"
@@ -122,7 +136,7 @@ export default async function AdminSettingsPage() {
             <div>
               <label className="block text-gray-700">Color primario</label>
               <input type="color" name="primaryColor" defaultValue={(settings as any).primaryColor || '#FF4D00'} className="w-full h-10 border rounded" />
-              <p className="text-xs text-gray-500 mt-1">Al subir un logo, detectamos su color y lo aplicamos autom√°ticamente.</p>
+              <p className="text-xs text-gray-500 mt-1">Al subir un logo, detectamos su color y lo aplicamos autom·ticamente.</p>
             </div>
             <div>
               <label className="block text-gray-700">Color secundario</label>
@@ -130,7 +144,7 @@ export default async function AdminSettingsPage() {
             </div>
             <div>
               <label className="block text-gray-700">Logo</label>
-              <p className="text-xs text-gray-500 mb-1">Sube una imagen desde tu PC. Se guardar√° y usar√° como logo.</p>
+              <p className="text-xs text-gray-500 mb-1">Sube una imagen desde tu PC. Se guardar· y usar· como logo.</p>
               <div className="mt-2">
                 <LogoUploader targetInputName="logoUrl" defaultUrl={(settings as any).logoUrl || ''} />
               </div>
@@ -138,7 +152,7 @@ export default async function AdminSettingsPage() {
             </div>
           </div>
           <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-2">Home (P√°gina principal)</h3>
+            <h3 className="text-lg font-semibold mb-2">Home (P·gina principal)</h3>
             <p className="text-sm text-gray-600 mb-3">Sube y ordena hasta 3 archivos (imagen o video) para el carrusel del hero.</p>
             <div className="mb-3">
               <label className="block text-gray-700">Autoplay del carrusel (ms)</label>
@@ -150,7 +164,7 @@ export default async function AdminSettingsPage() {
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-2">Personalizador de muebles (mini hero)</h3>
             <p className="text-sm text-gray-600 mb-3">
-              Sube hasta 3 imÔøΩgenes para el carrusel pequeÔøΩo que promociona el personalizador de muebles en la pÔøΩgina de inicio.
+              Sube hasta 3 im?genes para el carrusel peque?o que promociona el personalizador de muebles en la p?gina de inicio.
             </p>
               <HeroCarouselEditor
                 defaultUrls={((settings as any).ecpdHeroUrls || []) as string[]}
@@ -160,7 +174,7 @@ export default async function AdminSettingsPage() {
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-2">Moodboard (hero)</h3>
             <p className="text-sm text-gray-600 mb-3">
-              Sube hasta 3 im√°genes que se mostrar√°n en la cabecera de la experiencia de moodboard.
+              Sube hasta 3 im·genes que se mostrar·n en la cabecera de la experiencia de moodboard.
             </p>
             <HeroCarouselEditor
               defaultUrls={((settings as any).moodboardHeroUrls || []) as string[]}
@@ -169,11 +183,11 @@ export default async function AdminSettingsPage() {
           </div>
             <EcpdColorsEditor defaultColors={((settings as any).ecpdColors || []) as any[]} />
           <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-2">Categor√≠as del Home</h3>
-            <p className="text-sm text-gray-600 mb-3">Carga im√°genes de fondo para las tarjetas de "Carpinter√≠a" y "Hogar".</p>
+            <h3 className="text-lg font-semibold mb-2">Categorias del Home</h3>
+            <p className="text-sm text-gray-600 mb-3">Carga im·genes de fondo para las tarjetas de "CarpinterÌa" y "Hogar".</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-gray-700">Imagen para Carpinter√≠a</label>
+                <label className="block text-gray-700">Imagen para CarpinterÌa</label>
                 <HeroMediaUploader targetInputName="categoryBannerCarpinteriaUrl" defaultUrl={(settings as any).categoryBannerCarpinteriaUrl || ''} />
                 <input type="hidden" name="categoryBannerCarpinteriaUrl" defaultValue={(settings as any).categoryBannerCarpinteriaUrl || ''} />
               </div>
@@ -221,6 +235,146 @@ export default async function AdminSettingsPage() {
           </button>
         </form>
       </div>
+      {isRoot && (
+        <div className="bg-white p-4 rounded-lg shadow mt-6 space-y-4">
+          <h2 className="text-lg font-bold">Motor de Ajustes de Precio</h2>
+          <p className="text-sm text-gray-600">
+            Ajustes centralizados aplicados en tiempo real sin mostrar mensajes al cliente.
+          </p>
+          <div className="text-xs text-gray-500">
+            Ultima modificacion: {latestPriceLog ? `${new Date(latestPriceLog.changedAt).toLocaleString()} - ${latestPriceLog.changedBy?.name || latestPriceLog.changedBy?.email || latestPriceLog.changedByUserId || '-'}` : 'Sin cambios registrados'}
+          </div>
+          <form action={async (formData) => {
+            'use server';
+            try {
+              await setPriceAdjustments(formData);
+            } catch (e: any) {
+              const msg = encodeURIComponent(String(e?.message || 'No se pudo guardar'));
+              const { redirect } = await import('next/navigation');
+              redirect('/dashboard/admin/ajustes?error=' + msg);
+            }
+            const { redirect } = await import('next/navigation');
+            redirect('/dashboard/admin/ajustes?message=Ajustes%20de%20precio%20actualizados');
+          }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" name="globalPriceAdjustmentEnabled" defaultChecked={Boolean(priceData.globalPriceAdjustmentEnabled)} />
+                Activar ajuste global
+              </label>
+              <div>
+                <label className="block text-sm text-gray-700">Porcentaje global (%)</label>
+                <input type="number" step="0.01" name="globalPriceAdjustmentPercent" defaultValue={Number(priceData.globalPriceAdjustmentPercent ?? 0)} className="w-full px-2 py-1 border rounded" />
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" name="priceAdjustmentByCurrencyEnabled" defaultChecked={Boolean(priceData.priceAdjustmentByCurrencyEnabled)} />
+                Activar ajuste por moneda
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm text-gray-700">USD (%)</label>
+                  <input type="number" step="0.01" name="priceAdjustmentUSDPercent" defaultValue={Number(priceData.priceAdjustmentUSDPercent ?? 0)} className="w-full px-2 py-1 border rounded" />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-700">Bs (VES) (%)</label>
+                  <input type="number" step="0.01" name="priceAdjustmentVESPercent" defaultValue={Number(priceData.priceAdjustmentVESPercent ?? 0)} className="w-full px-2 py-1 border rounded" />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <h3 className="text-md font-semibold mb-2">Ajuste por categoria</h3>
+              <div className="text-xs text-gray-500 mb-2">Configura un porcentaje adicional por Categoria (solo ROOT).</div>
+              <div className="overflow-x-auto">
+                <table className="w-full table-auto text-sm">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="px-2 py-1 text-left">Categoria</th>
+                      <th className="px-2 py-1 text-left">Ajuste (%)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categoriesList.map((c: any) => (
+                      <tr key={c.id}>
+                        <td className="border px-2 py-1">
+                          <div style={{ paddingLeft: `${(c.depth || 0) * 12}px` }}>{c.name}</div>
+                        </td>
+                        <td className="border px-2 py-1">
+                          <input
+                            type="number"
+                            step="0.01"
+                            name={`categoryAdj_${c.id}`}
+                            defaultValue={Number(categoryAdjustments[c.id] ?? 0)}
+                            className="w-28 px-2 py-1 border rounded"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                    {categoriesList.length === 0 && (
+                      <tr>
+                        <td className="border px-2 py-2 text-gray-500" colSpan={2}>
+                          No hay Categorias registradas.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" name="usdPaymentDiscountEnabled" defaultChecked={Boolean(priceData.usdPaymentDiscountEnabled)} />
+                Activar descuento por pago en divisas
+              </label>
+              <div>
+                <label className="block text-sm text-gray-700">Porcentaje descuento USD (%)</label>
+                <input type="number" step="0.01" name="usdPaymentDiscountPercent" defaultValue={Number(priceData.usdPaymentDiscountPercent ?? 20)} className="w-full px-2 py-1 border rounded" />
+              </div>
+            </div>
+
+            <button type="submit" className="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg">
+              Guardar ajustes de precio
+            </button>
+          </form>
+
+          <div className="pt-2">
+            <h3 className="text-md font-semibold mb-2">Historial de cambios</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full table-auto text-sm">
+                <thead>
+                  <tr className="bg-gray-200">
+                    <th className="px-3 py-2 text-left">Fecha</th>
+                    <th className="px-3 py-2 text-left">Usuario</th>
+                    <th className="px-3 py-2 text-left">Clave</th>
+                    <th className="px-3 py-2 text-left">Antes</th>
+                    <th className="px-3 py-2 text-left">Despues</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {priceLogsList.map((l: any) => (
+                    <tr key={l.id}>
+                      <td className="border px-3 py-2">{new Date(l.changedAt).toLocaleString()}</td>
+                      <td className="border px-3 py-2">{l.changedBy?.name || l.changedBy?.email || l.changedByUserId || '-'}</td>
+                      <td className="border px-3 py-2">{l.settingKey}</td>
+                      <td className="border px-3 py-2">{l.oldValue ?? '-'}</td>
+                      <td className="border px-3 py-2">{l.newValue ?? '-'}</td>
+                    </tr>
+                  ))}
+                  {priceLogsList.length === 0 && (
+                    <tr>
+                      <td className="border px-3 py-2 text-gray-500" colSpan={5}>Sin cambios registrados.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white p-4 rounded-lg shadow mt-6">
         <h2 className="text-lg font-bold mb-2">Historial de Seguridad (Audit Log)</h2>
         <p className="text-sm text-gray-600 mb-2">Ultimos 50 eventos registrados del sistema.</p>

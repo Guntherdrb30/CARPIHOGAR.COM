@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { applyPriceAdjustments, getPriceAdjustmentSettings, toCurrencyCode } from '@/server/price-adjustments';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get('q') || '';
+  const currency = toCurrencyCode(searchParams.get('currency') || 'USD');
 
   // Require admin or vendedor to use this endpoint in admin context
   const session = (await getServerSession(authOptions as any)) as any;
@@ -36,11 +38,57 @@ export async function GET(req: Request) {
       priceUSD: true,
       priceAllyUSD: true,
       priceWholesaleUSD: true,
+      categoryId: true,
       slug: true,
       images: true,
       stock: true,
       isNew: true,
     },
   });
-  return NextResponse.json(items);
+  const pricing = await getPriceAdjustmentSettings();
+  const toNumberSafe = (value: any, fallback = 0) => {
+    try {
+      if (value == null) return fallback;
+      if (typeof value === 'number') return isFinite(value) ? value : fallback;
+      if (typeof value?.toNumber === 'function') return value.toNumber();
+      const n = Number(value);
+      return isFinite(n) ? n : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+  const adjusted = items.map((p) => {
+    const categoryId = (p as any).categoryId || null;
+    const base = toNumberSafe((p as any).priceUSD, 0);
+    const baseAlly = toNumberSafe((p as any).priceAllyUSD, 0);
+    const baseWholesale = toNumberSafe((p as any).priceWholesaleUSD, 0);
+    return {
+      ...p,
+      priceUSD: applyPriceAdjustments({
+        basePriceUSD: base,
+        currency,
+        categoryId,
+        settings: pricing,
+      }),
+      priceAllyUSD:
+        (p as any).priceAllyUSD != null
+          ? applyPriceAdjustments({
+              basePriceUSD: baseAlly,
+              currency,
+              categoryId,
+              settings: pricing,
+            })
+          : null,
+      priceWholesaleUSD:
+        (p as any).priceWholesaleUSD != null
+          ? applyPriceAdjustments({
+              basePriceUSD: baseWholesale,
+              currency,
+              categoryId,
+              settings: pricing,
+            })
+          : null,
+    };
+  });
+  return NextResponse.json(adjusted);
 }

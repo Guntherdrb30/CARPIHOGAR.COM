@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { applyPriceAdjustments, getPriceAdjustmentSettings } from '@/server/price-adjustments';
 
 function toNum(x: any, fb: number | null = null) {
   try {
@@ -104,6 +105,7 @@ export async function GET(req: NextRequest) {
         images: true,
         stock: true,
         priceUSD: true,
+        categoryId: true,
         sku: true,
         code: true,
         brand: true,
@@ -150,16 +152,26 @@ export async function GET(req: NextRequest) {
 
     scored.sort((a, b) => b.score - a.score || (b.r.createdAt?.getTime?.() || 0) - (a.r.createdAt?.getTime?.() || 0));
 
-    const items = scored.slice(0, 12).map(({ r }) => ({
-      id: r.id,
-      name: r.name,
-      slug: r.slug,
-      image: Array.isArray((r as any).images) && (r as any).images.length ? (r as any).images[0] : undefined,
-      stock: r.stock || 0,
-      priceUSD: toNum((r as any).priceUSD, 0) as number,
-      sku: (r as any).sku || undefined,
-      code: (r as any).code || undefined,
-    }));
+    const pricing = await getPriceAdjustmentSettings();
+    const items = scored.slice(0, 12).map(({ r }) => {
+      const categoryId = (r as any).categoryId || null;
+      const base = toNum((r as any).priceUSD, 0) as number;
+      return {
+        id: r.id,
+        name: r.name,
+        slug: r.slug,
+        image: Array.isArray((r as any).images) && (r as any).images.length ? (r as any).images[0] : undefined,
+        stock: r.stock || 0,
+        priceUSD: applyPriceAdjustments({
+          basePriceUSD: base,
+          currency: 'USD',
+          categoryId,
+          settings: pricing,
+        }),
+        sku: (r as any).sku || undefined,
+        code: (r as any).code || undefined,
+      };
+    });
 
     return NextResponse.json({ items }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {

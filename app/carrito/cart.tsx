@@ -24,7 +24,7 @@ export default function Cart({ tasa }: { tasa: number }) {
   useEffect(() => {
     let cancelled = false;
     const doSync = async () => {
-      const res = await refreshStocks();
+      const res = await refreshStocks({ currency: moneda, includePrices: true });
       if (!cancelled) setSyncInfo(res);
     };
     doSync();
@@ -33,7 +33,7 @@ export default function Cart({ tasa }: { tasa: number }) {
       cancelled = true;
       clearInterval(t);
     };
-  }, [refreshStocks]);
+  }, [refreshStocks, moneda]);
 
   // Decide next step: if user logged in and already has an address, jump to revisar con transferencia
   useEffect(() => {

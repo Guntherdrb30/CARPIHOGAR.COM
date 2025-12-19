@@ -22,7 +22,7 @@ export type CartState = {
   clearCart: () => void;
   getTotalItems: () => number;
   getTotalUSD: () => number;
-  refreshStocks: () => Promise<{ removed: string[]; adjusted: Array<{ id: string; from: number; to: number }> }>;
+  refreshStocks: (opts?: { currency?: 'USD' | 'VES'; includePrices?: boolean }) => Promise<{ removed: string[]; adjusted: Array<{ id: string; from: number; to: number }> }>;
 };
 
 export const useCartStore = create<CartState>()(
@@ -73,17 +73,43 @@ export const useCartStore = create<CartState>()(
       getTotalUSD: () => {
         return get().items.reduce((total, item) => total + item.priceUSD * item.quantity, 0);
       },
-      refreshStocks: async () => {
+      refreshStocks: async (opts) => {
         const items = get().items;
         const removed: string[] = [];
         const adjusted: Array<{ id: string; from: number; to: number }> = [];
         if (!items.length) return { removed, adjusted };
         try {
           const ids = Array.from(new Set(items.map(i => i.id)));
-          const res = await fetch(`/api/stock?ids=${encodeURIComponent(ids.join(','))}`, { cache: 'no-store' });
+          const includePrices = Boolean(opts?.includePrices);
+          const currency = opts?.currency ? `&currency=${encodeURIComponent(opts.currency)}` : '';
+          const withPrices = includePrices ? '&includePrices=1' : '';
+          const res = await fetch(`/api/stock?ids=${encodeURIComponent(ids.join(','))}${currency}${withPrices}`, { cache: 'no-store' });
           if (!res.ok) return { removed, adjusted };
           const data = await res.json();
           const stocks = (data?.stocks || {}) as Record<string, number>;
+          const prices = (data?.prices || {}) as Record<string, number>;
+          let configPrices: Record<string, number> = {};
+          if (includePrices) {
+            const configItems = items.filter((it) => it.type === 'configurable' && it.config);
+            if (configItems.length) {
+              try {
+                const resp = await fetch('/api/cart/pricing', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    currency: opts?.currency || 'USD',
+                    items: configItems.map((it) => ({ id: it.id, config: it.config })),
+                  }),
+                });
+                if (resp.ok) {
+                  const json = await resp.json();
+                  if (json?.prices && typeof json.prices === 'object') {
+                    configPrices = json.prices as Record<string, number>;
+                  }
+                }
+              } catch {}
+            }
+          }
           set((state) => {
             const next: CartItem[] = [];
             for (const it of state.items) {
@@ -94,7 +120,15 @@ export const useCartStore = create<CartState>()(
               }
               const newQty = Math.max(1, Math.min(it.quantity, Number(newStock)));
               if (newQty !== it.quantity) adjusted.push({ id: it.id, from: it.quantity, to: newQty });
-              next.push({ ...it, quantity: newQty, stock: Number(newStock) });
+              const isConfigurable = it.type === 'configurable';
+              const nextPrice = includePrices
+                ? (
+                    isConfigurable
+                      ? (typeof configPrices[it.id] === 'number' ? Number(configPrices[it.id]) : it.priceUSD)
+                      : (typeof prices[it.id] === 'number' ? Number(prices[it.id]) : it.priceUSD)
+                  )
+                : it.priceUSD;
+              next.push({ ...it, quantity: newQty, stock: Number(newStock), priceUSD: nextPrice });
             }
             return { items: next } as any;
           });

@@ -199,6 +199,15 @@ model SiteSettings {
   defaultMarginClientPct       Decimal?  @db.Decimal(5, 2)
   defaultMarginAllyPct         Decimal?  @db.Decimal(5, 2)
   defaultMarginWholesalePct    Decimal?  @db.Decimal(5, 2)
+  // Motor de ajustes de precio (root-only)
+  globalPriceAdjustmentPercent   Decimal? @default(0) @db.Decimal(6, 2)
+  globalPriceAdjustmentEnabled   Boolean  @default(false)
+  priceAdjustmentUSDPercent      Decimal? @default(0) @db.Decimal(6, 2)
+  priceAdjustmentVESPercent      Decimal? @default(0) @db.Decimal(6, 2)
+  priceAdjustmentByCurrencyEnabled Boolean @default(false)
+  categoryPriceAdjustments        Json?
+  usdPaymentDiscountPercent       Decimal? @default(20) @db.Decimal(6, 2)
+  usdPaymentDiscountEnabled       Boolean  @default(true)
 
   // Payment instructions (root-configurable)
   paymentZelleEmail       String?
@@ -585,6 +594,21 @@ model AuditLog {
   action    String
   details   String?
   createdAt DateTime @default(now())
+}
+
+model AdminSettingsAuditLog {
+  id               String   @id @default(cuid())
+  settingKey       String
+  oldValue         String?
+  newValue         String?
+  changedByUserId  String?
+  changedBy        User?    @relation(fields: [changedByUserId], references: [id])
+  changedAt        DateTime @default(now())
+  ipAddress        String?
+  userAgent        String?
+
+  @@index([changedAt])
+  @@index([settingKey])
 }
 
 // Evidencias de envíos (fotos y firma)

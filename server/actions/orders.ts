@@ -1,10 +1,12 @@
-﻿'use server';
+'use server';
 
 import prisma from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { createPayment } from './payments';
 import type { Currency } from '@prisma/client';
+import { applyPriceAdjustments, applyUsdPaymentDiscount, getPriceAdjustmentSettings, toCurrencyCode } from '@/server/price-adjustments';
+import { computeConfigurablePrice } from '@/server/ecpd-pricing';
 
 // Use the shared Prisma client to avoid creating multiple connections
 
@@ -36,8 +38,8 @@ export async function getMyOrders(params?: { take?: number }) {
 }
 
 export async function getAllOrders() {
-  // Esta función asume que el caller ya verificó permisos.
-  // Si por alguna razón se llama sin sesión válida, devolvemos lista vacía
+  // Esta funci�n asume que el caller ya verific� permisos.
+  // Si por alguna raz�n se llama sin sesi�n v�lida, devolvemos lista vac�a
   // en lugar de lanzar un error que rompa el render del dashboard.
   try {
     const orders = await prisma.order.findMany({
@@ -72,7 +74,7 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
 
     try {
         const itemsJson = (formData.get('items') as string) || '[]';
-        const items: Array<{ id: string; name: string; priceUSD: number; quantity: number }> = JSON.parse(itemsJson);
+        const items: Array<{ id: string; name: string; priceUSD: number; quantity: number; type?: string; config?: any }> = JSON.parse(itemsJson);
 
         if (!Array.isArray(items) || items.length === 0) {
             try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Cart is empty' } }); } catch {}
@@ -102,7 +104,7 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
         const validMethods = ['PAGO_MOVIL','TRANSFERENCIA','ZELLE'];
         if (!validMethods.includes(String(method))) {
             try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Invalid method' } }); } catch {}
-            return { ok: false, error: 'MÃ©todo de pago invÃ¡lido' };
+            return { ok: false, error: 'Método de pago inválido' };
         }
         if (!reference || !reference.trim()) {
             try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Missing reference' } }); } catch {}
@@ -110,15 +112,15 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
         }
         if (String(method) === 'PAGO_MOVIL' && !pmPhone.trim()) {
             try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Missing pm_phone' } }); } catch {}
-            return { ok: false, error: 'Para Pago MÃ³vil, el telÃ©fono es obligatorio' };
+            return { ok: false, error: 'Para Pago Móvil, el teléfono es obligatorio' };
         }
         if (String(method) === 'PAGO_MOVIL' && !pmPayerName.trim()) {
             try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Missing pm_payer_name' } }); } catch {}
-            return { ok: false, error: 'Para Pago MÃ³vil, el nombre del titular es obligatorio' };
+            return { ok: false, error: 'Para Pago Móvil, el nombre del titular es obligatorio' };
         }
         if (String(method) === 'PAGO_MOVIL' && !pmBank.trim()) {
             try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Missing pm_bank' } }); } catch {}
-            return { ok: false, error: 'Para Pago MÃ³vil, el banco del titular es obligatorio' };
+            return { ok: false, error: 'Para Pago Móvil, el banco del titular es obligatorio' };
         }
         if (String(method) === 'ZELLE') {
             if (!zelleEmail.trim() && !zellePayerName.trim()) {
@@ -130,12 +132,12 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
             if (String(paymentCurrency) === 'USD') {
                 if (!depositPayerName.trim() || !depositPayerId.trim() || !depositBank.trim()) {
                     try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Missing deposit fields' } }); } catch {}
-                    return { ok: false, error: 'Para depósito en USD, nombre, cédula y banco son obligatorios' };
+                    return { ok: false, error: 'Para dep�sito en USD, nombre, c�dula y banco son obligatorios' };
                 }
             } else if (String(paymentCurrency) === 'VES') {
                 if (!transferPayerName.trim() || !transferPayerId.trim()) {
                     try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Missing transfer VES fields' } }); } catch {}
-                    return { ok: false, error: 'Para transferencia en Bs, nombre y cédula son obligatorios' };
+                    return { ok: false, error: 'Para transferencia en Bs, nombre y c�dula son obligatorios' };
                 }
             }
         }
@@ -162,53 +164,88 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
         }
         if (!selectedAddress) {
             try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_VALIDATION_FAILED', details: 'No address on file' } }); } catch {}
-            return { ok: false, error: 'Debes agregar una direcciÃ³n de envÃ­o antes de confirmar.' };
-        // Ensure phone is present and sync to user profile
-        try {
-            const phoneRaw = String((selectedAddress as any).phone || '').trim();
-            const digits = phoneRaw.replace(/[^0-9]/g, '');
-            if (!digits || digits.length < 7) {
-                try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_VALIDATION_FAILED', details: 'Missing phone in address' } }); } catch {}
-                return { ok: false, error: 'Tu teléfono es obligatorio en la dirección de envío.' };
-            }
-            const current = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
-            if (!current?.phone || String(current.phone) !== phoneRaw) {
-                await prisma.user.update({ where: { id: userId }, data: { phone: phoneRaw } });
-            }
-        } catch {}
+            return { ok: false, error: 'Debes agregar una dirección de envío antes de confirmar.' };
         }
+        
         // Ensure phone is present and sync to user profile
         try {
             const phoneRaw = String((selectedAddress as any).phone || '').trim();
             const digits = phoneRaw.replace(/[^0-9]/g, '');
             if (!digits || digits.length < 7) {
                 try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_VALIDATION_FAILED', details: 'Missing phone in address' } }); } catch {}
-                return { ok: false, error: 'Tu teléfono es obligatorio en la dirección de envío.' };
+                return { ok: false, error: 'Tu tel�fono es obligatorio en la direcci�n de env�o.' };
             }
             const current = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
             if (!current?.phone || String(current.phone) !== phoneRaw) {
                 await prisma.user.update({ where: { id: userId }, data: { phone: phoneRaw } });
             }
         } catch {}
-        let subtotalUSD = items.reduce(
+        const toNumberSafe = (value: any, fallback = 0) => {
+            try {
+                if (value == null) return fallback;
+                if (typeof value === 'number') return isFinite(value) ? value : fallback;
+                if (typeof value?.toNumber === 'function') return value.toNumber();
+                const n = Number(value);
+                return isFinite(n) ? n : fallback;
+            } catch {
+                return fallback;
+            }
+        };
+
+        const pricing = await getPriceAdjustmentSettings();
+        const currencyCode = toCurrencyCode(paymentCurrency);
+
+        // Validate stock and compute adjusted prices
+        const ids = Array.from(new Set(items.map(i => i.id)));
+        const products = await prisma.product.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, name: true, stock: true, stockUnits: true, allowBackorder: true, priceUSD: true, categoryId: true, configSchema: true, widthCm: true, depthCm: true, heightCm: true },
+        });
+        const byId = new Map(products.map(p => [p.id, p] as const));
+        const pricedItems = items.map((it) => {
+            const p = byId.get(it.id);
+            if (!p) {
+                throw new Error(`Producto no encontrado (${it.name})`);
+            }
+            const isConfigurable = (it as any).type === 'configurable' || (it as any).config;
+            const base = toNumberSafe((p as any).priceUSD, 0);
+            const priceUSD = isConfigurable
+                ? ((it as any).config
+                    ? computeConfigurablePrice({
+                        config: (it as any).config,
+                        product: {
+                          name: (p as any).name || '',
+                          priceUSD: (p as any).priceUSD,
+                          categoryId: (p as any).categoryId || null,
+                          configSchema: (p as any).configSchema,
+                          widthCm: (p as any).widthCm ?? null,
+                          depthCm: (p as any).depthCm ?? null,
+                          heightCm: (p as any).heightCm ?? null,
+                        },
+                        currency: currencyCode,
+                        settings: pricing,
+                      })
+                    : Number(it.priceUSD || 0))
+                : applyPriceAdjustments({
+                    basePriceUSD: base,
+                    currency: currencyCode,
+                    categoryId: (p as any).categoryId || null,
+                    settings: pricing,
+                });
+            return { ...it, priceUSD };
+        });
+        let subtotalUSD = pricedItems.reduce(
             (sum, it) => sum + Number(it.priceUSD) * Number(it.quantity),
             0,
         );
 
-        // Descuento 20% sobre la base imponible si el pago es en USD.
-        const discountPercent = paymentCurrency === 'USD' ? 0.2 : 0;
-        const discountUSD = subtotalUSD * discountPercent;
-        const taxableBaseUSD = subtotalUSD - discountUSD;
+        const discount = applyUsdPaymentDiscount({ subtotalUSD, currency: paymentCurrency, settings: pricing });
+        const taxableBaseUSD = discount.subtotalAfterDiscount;
 
         const ivaAmount = taxableBaseUSD * (ivaPercent / 100);
         const totalUSD = taxableBaseUSD + ivaAmount;
 
         const totalVES = totalUSD * tasaVES;
-
-        // Validate stock and create order atomically with stock deduction
-        const ids = Array.from(new Set(items.map(i => i.id)));
-        const products = await prisma.product.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, stock: true, stockUnits: true, allowBackorder: true } });
-        const byId = new Map(products.map(p => [p.id, p] as const));
         // Check availability
         for (const it of items) {
             const p = byId.get(it.id);
@@ -232,7 +269,7 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
                     totalVES,
                     shippingAddressId: selectedAddress.id,
                     items: {
-                        create: items.map((it) => ({
+                        create: pricedItems.map((it) => ({
                             productId: it.id,
                             name: it.name,
                             priceUSD: Number(it.priceUSD),
@@ -448,7 +485,7 @@ export async function submitDeliveryFeedback(formData: FormData) {
     if (!order || !order.shipping) throw new Error('Order not found');
 
     const carrier = String(order.shipping.carrier || '');
-    if (carrier !== 'DELIVERY') throw new Error('Feedback only allowed for envíos con Delivery local');
+    if (carrier !== 'DELIVERY') throw new Error('Feedback only allowed for env�os con Delivery local');
 
     await prisma.shipping.update({
         where: { orderId },
@@ -469,6 +506,9 @@ export async function submitDeliveryFeedback(formData: FormData) {
 
     return { ok: true };
 }
+
+
+
 
 
 

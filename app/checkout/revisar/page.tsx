@@ -38,6 +38,7 @@ export default function RevisarPage() {
   const items = useCartStore((s) => s.items);
   const getTotalUSD = useCartStore((s) => s.getTotalUSD);
   const clearCart = useCartStore((s) => s.clearCart);
+  const refreshStocks = useCartStore((s) => s.refreshStocks);
   const hasConfigurable = useMemo(
     () => items.some((item) => item.type === 'configurable'),
     [items],
@@ -91,12 +92,14 @@ export default function RevisarPage() {
   }, []);// ConfiguraciÃ³n (puede venir de BD/ajustes si se requiere)
   const [ivaPercent, setIvaPercent] = useState<number>(16);
   const [tasaVES, setTasaVES] = useState<number>(40);
+  const [usdDiscountEnabled, setUsdDiscountEnabled] = useState<boolean>(true);
+  const [usdDiscountPercent, setUsdDiscountPercent] = useState<number>(20);
 
   const subtotal = useMemo(() => getTotalUSD(), [getTotalUSD, items]);
-  const discountPct = useMemo(
-    () => (paymentCurrency === 'USD' ? 0.2 : 0),
-    [paymentCurrency],
-  );
+  const discountPct = useMemo(() => {
+    if (paymentCurrency !== 'USD' || !usdDiscountEnabled) return 0;
+    return Math.max(0, Number(usdDiscountPercent || 0)) / 100;
+  }, [paymentCurrency, usdDiscountEnabled, usdDiscountPercent]);
   const discountUSD = useMemo(
     () => subtotal * discountPct,
     [subtotal, discountPct],
@@ -177,12 +180,23 @@ export default function RevisarPage() {
           setTasaVES(Number(data.tasaVES) || 40);
           setTasaTop(Number(data.tasaVES) || 40);
         }
+        if (typeof data.usdPaymentDiscountEnabled === 'boolean') {
+          setUsdDiscountEnabled(Boolean(data.usdPaymentDiscountEnabled));
+        }
+        if (typeof data.usdPaymentDiscountPercent === 'number') {
+          setUsdDiscountPercent(Number(data.usdPaymentDiscountPercent) || 0);
+        }
       } catch {}
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!items.length) return;
+    refreshStocks({ currency: paymentCurrency, includePrices: true });
+  }, [items.length, paymentCurrency, refreshStocks]);
 
   // Ajuste inicial: si la moneda es USD, forzar 'ZELLE' como método por defecto
   // para que las instrucciones se muestren de inmediato. Si es VES, usar Pago Móvil.
@@ -302,9 +316,9 @@ export default function RevisarPage() {
               <span>Subtotal:</span>
               <span>{formatUSD(subtotal)}</span>
             </div>
-            {paymentCurrency === 'USD' && discountUSD > 0 && (
+            {paymentCurrency === 'USD' && usdDiscountEnabled && discountUSD > 0 && (
               <div className="flex justify-between text-green-700">
-                <span>Descuento 20% pago en USD:</span>
+                <span>Descuento {Number(usdDiscountPercent || 0).toFixed(2)}% pago en USD:</span>
                 <span>-{formatUSD(discountUSD)}</span>
               </div>
             )}
@@ -333,9 +347,9 @@ export default function RevisarPage() {
               <span>{formatVES(totalVES)}</span>
             </div>
           </div>
-          {paymentCurrency === 'USD' && (
+          {paymentCurrency === 'USD' && usdDiscountEnabled && discountUSD > 0 && (
             <div className="mt-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3">
-              Pagando en d�lares obtienes un 20% de descuento.
+              Pagando en d�lares obtienes un {Number(usdDiscountPercent || 0).toFixed(2)}% de descuento.
             </div>
           )}
         </div>

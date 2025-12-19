@@ -7,11 +7,27 @@ import { authOptions } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { basicTemplate, sendMail } from '@/lib/mailer';
+import { applyPriceAdjustments, applyUsdPaymentDiscount, getPriceAdjustmentSettings } from '@/server/price-adjustments';
 
 export async function searchProducts(q: string) {
   const where: any = q ? { OR: [ { name: { contains: q, mode: 'insensitive' } }, { sku: { contains: q, mode: 'insensitive' } } ] } : {};
-  const items = await prisma.product.findMany({ where, take: 20, orderBy: { createdAt: 'desc' }, select: { id: true, name: true, sku: true, priceUSD: true } });
-  return items;
+  const items = await prisma.product.findMany({
+    where,
+    take: 20,
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, name: true, sku: true, priceUSD: true, categoryId: true },
+  });
+  const pricing = await getPriceAdjustmentSettings();
+  const toNum = (x: any) => (typeof x?.toNumber === 'function' ? x.toNumber() : Number(x || 0));
+  return items.map((p) => ({
+    ...p,
+    priceUSD: applyPriceAdjustments({
+      basePriceUSD: toNum((p as any).priceUSD),
+      currency: 'USD',
+      categoryId: (p as any).categoryId || null,
+      settings: pricing,
+    }),
+  }));
 }
 
 export async function getSellers() {
@@ -458,7 +474,10 @@ export async function createOfflineSale(formData: FormData) {
   // Delivery local (Barinas) fee if selected
   if (shippingLocalOption === 'DELIVERY') { _subtotalUSD += 6; }
   const subtotalUSD = _subtotalUSD;
-  const totalUSD = subtotalUSD * (1 + ivaPercent/100);
+  const pricing = await getPriceAdjustmentSettings();
+  const discount = applyUsdPaymentDiscount({ subtotalUSD, currency: paymentCurrency, settings: pricing });
+  const taxableBaseUSD = discount.subtotalAfterDiscount;
+  const totalUSD = taxableBaseUSD * (1 + ivaPercent/100);
   const totalVES = totalUSD * tasaVES;
 
   const order = await prisma.$transaction(async (tx) => {

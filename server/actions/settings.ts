@@ -1,12 +1,13 @@
 ﻿"use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
+import { headers } from "next/headers";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 // Best-effort: ensure SiteSettings has new columns in DBs that missed migrations
-async function ensureSiteSettingsColumns() {
+export async function ensureSiteSettingsColumns() {
   try {
     await prisma.$executeRawUnsafe(
       'ALTER TABLE "public"."SiteSettings" ' +
@@ -14,6 +15,14 @@ async function ensureSiteSettingsColumns() {
         'ADD COLUMN IF NOT EXISTS "defaultMarginClientPct" DECIMAL(5,2), ' +
         'ADD COLUMN IF NOT EXISTS "defaultMarginAllyPct" DECIMAL(5,2), ' +
         'ADD COLUMN IF NOT EXISTS "defaultMarginWholesalePct" DECIMAL(5,2), ' +
+        'ADD COLUMN IF NOT EXISTS "globalPriceAdjustmentPercent" DECIMAL(6,2) DEFAULT 0, ' +
+        'ADD COLUMN IF NOT EXISTS "globalPriceAdjustmentEnabled" BOOLEAN NOT NULL DEFAULT false, ' +
+        'ADD COLUMN IF NOT EXISTS "priceAdjustmentUSDPercent" DECIMAL(6,2) DEFAULT 0, ' +
+        'ADD COLUMN IF NOT EXISTS "priceAdjustmentVESPercent" DECIMAL(6,2) DEFAULT 0, ' +
+        'ADD COLUMN IF NOT EXISTS "priceAdjustmentByCurrencyEnabled" BOOLEAN NOT NULL DEFAULT false, ' +
+        'ADD COLUMN IF NOT EXISTS "categoryPriceAdjustments" JSONB, ' +
+        'ADD COLUMN IF NOT EXISTS "usdPaymentDiscountPercent" DECIMAL(6,2) DEFAULT 20, ' +
+        'ADD COLUMN IF NOT EXISTS "usdPaymentDiscountEnabled" BOOLEAN NOT NULL DEFAULT true, ' +
         'ADD COLUMN IF NOT EXISTS "heroAutoplayMs" INTEGER, ' +
         'ADD COLUMN IF NOT EXISTS "ecpdHeroUrls" TEXT[], ' +
         'ADD COLUMN IF NOT EXISTS "moodboardHeroUrls" TEXT[], ' +
@@ -46,6 +55,31 @@ async function ensureSiteSettingsColumns() {
         'ADD COLUMN IF NOT EXISTS "deliveryVanMinFeeUSD" DECIMAL(10,2), ' +
         'ADD COLUMN IF NOT EXISTS "deliveryDriverSharePct" DECIMAL(5,2), ' +
         'ADD COLUMN IF NOT EXISTS "deliveryCompanySharePct" DECIMAL(5,2)'
+    );
+  } catch {}
+}
+
+async function ensureAdminSettingsAuditLogTable() {
+  try {
+    await prisma.$executeRawUnsafe(
+      'CREATE TABLE IF NOT EXISTS "public"."AdminSettingsAuditLog" (' +
+        '"id" TEXT NOT NULL, ' +
+        '"settingKey" TEXT NOT NULL, ' +
+        '"oldValue" TEXT, ' +
+        '"newValue" TEXT, ' +
+        '"changedByUserId" TEXT, ' +
+        '"changedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, ' +
+        '"ipAddress" TEXT, ' +
+        '"userAgent" TEXT, ' +
+        'CONSTRAINT "AdminSettingsAuditLog_pkey" PRIMARY KEY ("id"), ' +
+        'CONSTRAINT "AdminSettingsAuditLog_changedByUserId_fkey" FOREIGN KEY ("changedByUserId") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE' +
+      ')'
+    );
+    await prisma.$executeRawUnsafe(
+      'CREATE INDEX IF NOT EXISTS "AdminSettingsAuditLog_changedAt_idx" ON "public"."AdminSettingsAuditLog"("changedAt")'
+    );
+    await prisma.$executeRawUnsafe(
+      'CREATE INDEX IF NOT EXISTS "AdminSettingsAuditLog_settingKey_idx" ON "public"."AdminSettingsAuditLog"("settingKey")'
     );
   } catch {}
 }
@@ -173,7 +207,7 @@ export async function getSettings() {
       // Si falla BCV, seguimos usando la tasa guardada
     }
 
-    return {
+    const result = {
       ...settings,
       ivaPercent: settings.ivaPercent.toNumber(),
       tasaVES: settings.tasaVES.toNumber(),
@@ -237,6 +271,16 @@ export async function getSettings() {
       invoiceNextNumber: Number((settings as any).invoiceNextNumber ?? 1) || 1,
       receiptNextNumber: Number((settings as any).receiptNextNumber ?? 1) || 1,
     } as any;
+    // Remove pricing adjustment settings from public payloads
+    delete result.globalPriceAdjustmentPercent;
+    delete result.globalPriceAdjustmentEnabled;
+    delete result.priceAdjustmentUSDPercent;
+    delete result.priceAdjustmentVESPercent;
+    delete result.priceAdjustmentByCurrencyEnabled;
+    delete result.categoryPriceAdjustments;
+    delete result.usdPaymentDiscountPercent;
+    delete result.usdPaymentDiscountEnabled;
+    return result;
   } catch (err) {
     console.warn("[getSettings] DB not reachable, using defaults.", err);
     return {
@@ -662,5 +706,228 @@ export async function setDefaultMargins(formData: FormData) {
     });
   } catch {}
   revalidatePath("/dashboard/admin/ajustes/sistema");
+  return { ok: true };
+}
+
+const toNumberSafe = (value: any, fallback = 0) => {
+  try {
+    if (value == null) return fallback;
+    if (typeof value === "number") return isFinite(value) ? value : fallback;
+    if (typeof value?.toNumber === "function") {
+      const n = value.toNumber();
+      return isFinite(n) ? n : fallback;
+    }
+    const n = Number(value);
+    return isFinite(n) ? n : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const toBoolSafe = (value: any, fallback = false) => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const v = value.trim().toLowerCase();
+    if (v === "true" || v === "1" || v === "on" || v === "yes") return true;
+    if (v === "false" || v === "0" || v === "off" || v === "no") return false;
+  }
+  return fallback;
+};
+
+const stableJson = (value: Record<string, any>) => {
+  const keys = Object.keys(value || {}).sort();
+  const ordered: Record<string, any> = {};
+  for (const k of keys) ordered[k] = value[k];
+  return JSON.stringify(ordered);
+};
+
+const getClientMeta = () => {
+  try {
+    const h = headers();
+    const forwarded = h.get("x-forwarded-for") || "";
+    const ip = forwarded.split(",")[0]?.trim() || h.get("x-real-ip") || "";
+    const userAgent = h.get("user-agent") || "";
+    return { ipAddress: ip || null, userAgent: userAgent || null };
+  } catch {
+    return { ipAddress: null, userAgent: null };
+  }
+};
+
+export async function getPriceAdjustmentSettingsRoot() {
+  await ensureSiteSettingsColumns();
+  const session = await getServerSession(authOptions);
+  const email = String((session?.user as any)?.email || "").toLowerCase();
+  const isAdmin = (session?.user as any)?.role === "ADMIN";
+  const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
+  if (!isAdmin || email !== rootEmail) throw new Error("Not authorized");
+
+  const settings = await prisma.siteSettings.findUnique({ where: { id: 1 } });
+  const raw = (settings || {}) as any;
+  const categoryMap =
+    raw.categoryPriceAdjustments && typeof raw.categoryPriceAdjustments === "object"
+      ? raw.categoryPriceAdjustments
+      : {};
+
+  return {
+    globalPriceAdjustmentPercent: toNumberSafe(raw.globalPriceAdjustmentPercent, 0),
+    globalPriceAdjustmentEnabled: toBoolSafe(raw.globalPriceAdjustmentEnabled, false),
+    priceAdjustmentUSDPercent: toNumberSafe(raw.priceAdjustmentUSDPercent, 0),
+    priceAdjustmentVESPercent: toNumberSafe(raw.priceAdjustmentVESPercent, 0),
+    priceAdjustmentByCurrencyEnabled: toBoolSafe(raw.priceAdjustmentByCurrencyEnabled, false),
+    categoryPriceAdjustments: categoryMap,
+    usdPaymentDiscountPercent: toNumberSafe(raw.usdPaymentDiscountPercent, 20),
+    usdPaymentDiscountEnabled: toBoolSafe(raw.usdPaymentDiscountEnabled, true),
+  } as any;
+}
+
+export async function getPriceAdjustmentAuditLogs(params?: { take?: number }) {
+  await ensureAdminSettingsAuditLogTable();
+  const session = await getServerSession(authOptions);
+  const email = String((session?.user as any)?.email || "").toLowerCase();
+  const isAdmin = (session?.user as any)?.role === "ADMIN";
+  const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
+  if (!isAdmin || email !== rootEmail) throw new Error("Not authorized");
+
+  const logs = await prisma.adminSettingsAuditLog.findMany({
+    orderBy: { changedAt: "desc" },
+    take: params?.take ?? 50,
+    include: { changedBy: { select: { id: true, name: true, email: true } } },
+  });
+  return logs;
+}
+
+export async function setPriceAdjustments(formData: FormData) {
+  await ensureSiteSettingsColumns();
+  await ensureAdminSettingsAuditLogTable();
+  const session = await getServerSession(authOptions);
+  const email = String((session?.user as any)?.email || "").toLowerCase();
+  const isAdmin = (session?.user as any)?.role === "ADMIN";
+  const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
+  if (!isAdmin || email !== rootEmail) throw new Error("Not authorized");
+
+  const parsePercent = (name: string, fallback = 0) => {
+    const raw = String(formData.get(name) || "").replace(",", ".").trim();
+    if (!raw) return fallback;
+    const n = Number(raw);
+    return isFinite(n) ? n : fallback;
+  };
+
+  const globalPriceAdjustmentPercent = parsePercent("globalPriceAdjustmentPercent", 0);
+  const globalPriceAdjustmentEnabled =
+    String(formData.get("globalPriceAdjustmentEnabled") || "") === "on";
+  const priceAdjustmentUSDPercent = parsePercent("priceAdjustmentUSDPercent", 0);
+  const priceAdjustmentVESPercent = parsePercent("priceAdjustmentVESPercent", 0);
+  const priceAdjustmentByCurrencyEnabled =
+    String(formData.get("priceAdjustmentByCurrencyEnabled") || "") === "on";
+  const usdPaymentDiscountPercent = parsePercent("usdPaymentDiscountPercent", 20);
+  const usdPaymentDiscountEnabled =
+    String(formData.get("usdPaymentDiscountEnabled") || "") === "on";
+
+  const categoryPriceAdjustments: Record<string, number> = {};
+  for (const [key, value] of Array.from(formData.entries())) {
+    if (!key.startsWith("categoryAdj_")) continue;
+    const categoryId = key.replace("categoryAdj_", "");
+    const raw = String(value || "").replace(",", ".").trim();
+    if (!raw) continue;
+    const n = Number(raw);
+    if (!isFinite(n)) continue;
+    if (n !== 0) categoryPriceAdjustments[categoryId] = n;
+  }
+
+  await getSettings();
+  const before = await prisma.siteSettings.findUnique({
+    where: { id: 1 },
+    select: {
+      globalPriceAdjustmentPercent: true,
+      globalPriceAdjustmentEnabled: true,
+      priceAdjustmentUSDPercent: true,
+      priceAdjustmentVESPercent: true,
+      priceAdjustmentByCurrencyEnabled: true,
+      categoryPriceAdjustments: true,
+      usdPaymentDiscountPercent: true,
+      usdPaymentDiscountEnabled: true,
+    },
+  });
+
+  const data = {
+    globalPriceAdjustmentPercent: globalPriceAdjustmentPercent as any,
+    globalPriceAdjustmentEnabled,
+    priceAdjustmentUSDPercent: priceAdjustmentUSDPercent as any,
+    priceAdjustmentVESPercent: priceAdjustmentVESPercent as any,
+    priceAdjustmentByCurrencyEnabled,
+    categoryPriceAdjustments,
+    usdPaymentDiscountPercent: usdPaymentDiscountPercent as any,
+    usdPaymentDiscountEnabled,
+  } as any;
+
+  await prisma.siteSettings.update({ where: { id: 1 }, data });
+
+  const changes: Array<{
+    settingKey: string;
+    oldValue: string | null;
+    newValue: string | null;
+  }> = [];
+  const old = (before || {}) as any;
+  const oldCategory = (old.categoryPriceAdjustments && typeof old.categoryPriceAdjustments === "object")
+    ? old.categoryPriceAdjustments
+    : {};
+
+  const pushIfChanged = (key: string, oldVal: any, newVal: any) => {
+    const oldNum = toNumberSafe(oldVal, 0);
+    const newNum = toNumberSafe(newVal, 0);
+    if (key.endsWith("Enabled")) {
+      const oldBool = toBoolSafe(oldVal, false);
+      const newBool = toBoolSafe(newVal, false);
+      if (oldBool !== newBool) {
+        changes.push({ settingKey: key, oldValue: String(oldBool), newValue: String(newBool) });
+      }
+      return;
+    }
+    if (oldNum !== newNum) {
+      changes.push({ settingKey: key, oldValue: String(oldNum), newValue: String(newNum) });
+    }
+  };
+
+  pushIfChanged("globalPriceAdjustmentPercent", old.globalPriceAdjustmentPercent, globalPriceAdjustmentPercent);
+  pushIfChanged("globalPriceAdjustmentEnabled", old.globalPriceAdjustmentEnabled, globalPriceAdjustmentEnabled);
+  pushIfChanged("priceAdjustmentUSDPercent", old.priceAdjustmentUSDPercent, priceAdjustmentUSDPercent);
+  pushIfChanged("priceAdjustmentVESPercent", old.priceAdjustmentVESPercent, priceAdjustmentVESPercent);
+  pushIfChanged("priceAdjustmentByCurrencyEnabled", old.priceAdjustmentByCurrencyEnabled, priceAdjustmentByCurrencyEnabled);
+  pushIfChanged("usdPaymentDiscountPercent", old.usdPaymentDiscountPercent, usdPaymentDiscountPercent);
+  pushIfChanged("usdPaymentDiscountEnabled", old.usdPaymentDiscountEnabled, usdPaymentDiscountEnabled);
+
+  const oldCategoryJson = stableJson(oldCategory || {});
+  const newCategoryJson = stableJson(categoryPriceAdjustments || {});
+  if (oldCategoryJson !== newCategoryJson) {
+    changes.push({
+      settingKey: "categoryPriceAdjustments",
+      oldValue: oldCategoryJson,
+      newValue: newCategoryJson,
+    });
+  }
+
+  const meta = getClientMeta();
+  if (changes.length) {
+    try {
+      await prisma.adminSettingsAuditLog.createMany({
+        data: changes.map((c) => ({
+          ...c,
+          changedByUserId: (session?.user as any)?.id || null,
+          ipAddress: meta.ipAddress,
+          userAgent: meta.userAgent,
+        })),
+      });
+    } catch {}
+  }
+
+  try {
+    revalidatePath("/");
+    revalidatePath("/productos");
+    revalidatePath("/dashboard/admin/ajustes");
+    revalidatePath("/dashboard/admin/ajustes/sistema");
+    revalidatePath("/dashboard/admin/ventas");
+    revalidatePath("/dashboard/admin/presupuestos");
+    revalidatePath("/checkout/revisar");
+  } catch {}
   return { ok: true };
 }

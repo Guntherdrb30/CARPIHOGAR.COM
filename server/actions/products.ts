@@ -8,6 +8,7 @@ import { authOptions } from '@/lib/auth';
 import { generateEan13, normalizeBarcode } from '@/lib/barcode';
 import { getSettings } from '@/server/actions/settings';
 import { unstable_cache as unstableCache } from 'next/cache';
+import { applyPriceAdjustments, getPriceAdjustmentSettings } from '@/server/price-adjustments';
 
 // Ensure optional columns exist for new features (best-effort, tolerant if missing perms)
 async function ensureProductColumns() {
@@ -202,6 +203,7 @@ export async function getProducts(filters?: { isNew?: boolean; categorySlug?: st
     };
 
     try {
+        const pricing = await getPriceAdjustmentSettings();
         const products = await prisma.product.findMany({
             where,
             include: {
@@ -212,14 +214,31 @@ export async function getProducts(filters?: { isNew?: boolean; categorySlug?: st
                 createdAt: 'desc'
             }
         });
-        return products.map(p => ({
-            ...p,
-            images: Array.isArray((p as any).images) ? (p as any).images : [],
-            priceUSD: dec((p as any).priceUSD, 0)!,
-            priceAllyUSD: dec((p as any).priceAllyUSD, null),
-            avgCost: dec((p as any).avgCost, null),
-            lastCost: dec((p as any).lastCost, null),
-        }));
+        return products.map(p => {
+            const categoryId = (p as any).categoryId || (p as any).category?.id || null;
+            const basePrice = dec((p as any).priceUSD, 0)!;
+            const baseAlly = dec((p as any).priceAllyUSD, null);
+            return {
+                ...p,
+                images: Array.isArray((p as any).images) ? (p as any).images : [],
+                priceUSD: applyPriceAdjustments({
+                    basePriceUSD: basePrice,
+                    currency: 'USD',
+                    categoryId,
+                    settings: pricing,
+                }),
+                priceAllyUSD: baseAlly != null
+                    ? applyPriceAdjustments({
+                        basePriceUSD: baseAlly,
+                        currency: 'USD',
+                        categoryId,
+                        settings: pricing,
+                    })
+                    : null,
+                avgCost: dec((p as any).avgCost, null),
+                lastCost: dec((p as any).lastCost, null),
+            };
+        });
     } catch (err) {
         console.warn('[getProducts] DB not reachable or query failed. Returning empty list.', err);
         return [] as any[];
@@ -815,6 +834,7 @@ export async function getProductPageData(slug: string) {
   if (!product || !settings) {
     return { product: null, settings: null, relatedProducts: [] };
   }
+  const pricing = await getPriceAdjustmentSettings();
 
   // Prefer curated relateds via join; fallback to same-category suggestions
   let relatedProducts: any[] = [];
@@ -847,11 +867,26 @@ export async function getProductPageData(slug: string) {
     } catch { return fb; }
   };
 
+  const categoryId = (product as any).categoryId || (product as any).category?.id || null;
+  const basePrice = dec((product as any).priceUSD, 0)!;
+  const baseAlly = dec((product as any).priceAllyUSD, null);
   const serializableProduct = {
     ...product,
     images: Array.isArray((product as any).images) ? (product as any).images : [],
-    priceUSD: dec((product as any).priceUSD, 0)!,
-    priceAllyUSD: dec((product as any).priceAllyUSD, null),
+    priceUSD: applyPriceAdjustments({
+      basePriceUSD: basePrice,
+      currency: 'USD',
+      categoryId,
+      settings: pricing,
+    }),
+    priceAllyUSD: baseAlly != null
+      ? applyPriceAdjustments({
+          basePriceUSD: baseAlly,
+          currency: 'USD',
+          categoryId,
+          settings: pricing,
+        })
+      : null,
     avgCost: dec((product as any).avgCost, null),
     lastCost: dec((product as any).lastCost, null),
   } as any;
@@ -863,14 +898,31 @@ export async function getProductPageData(slug: string) {
     sellerCommissionPercent: dec((settings as any).sellerCommissionPercent, 5)!,
   } as any;
 
-  const serializableRelatedProducts = relatedProducts.map((p) => ({
-    ...p,
-    images: Array.isArray((p as any).images) ? (p as any).images : [],
-    priceUSD: dec((p as any).priceUSD, 0)!,
-    priceAllyUSD: dec((p as any).priceAllyUSD, null),
-    avgCost: dec((p as any).avgCost, null),
-    lastCost: dec((p as any).lastCost, null),
-  }));
+  const serializableRelatedProducts = relatedProducts.map((p) => {
+    const relCategoryId = (p as any).categoryId || (p as any).category?.id || null;
+    const relBase = dec((p as any).priceUSD, 0)!;
+    const relAlly = dec((p as any).priceAllyUSD, null);
+    return {
+      ...p,
+      images: Array.isArray((p as any).images) ? (p as any).images : [],
+      priceUSD: applyPriceAdjustments({
+        basePriceUSD: relBase,
+        currency: 'USD',
+        categoryId: relCategoryId,
+        settings: pricing,
+      }),
+      priceAllyUSD: relAlly != null
+        ? applyPriceAdjustments({
+            basePriceUSD: relAlly,
+            currency: 'USD',
+            categoryId: relCategoryId,
+            settings: pricing,
+          })
+        : null,
+      avgCost: dec((p as any).avgCost, null),
+      lastCost: dec((p as any).lastCost, null),
+    };
+  });
 
   return {
     product: serializableProduct,
@@ -882,6 +934,7 @@ export async function getProductPageData(slug: string) {
 // Top-selling products for home trends section
 export async function getTrendingProducts(limit = 9, daysBack = 60) {
   try {
+    const pricing = await getPriceAdjustmentSettings();
     const to = new Date();
     const from = new Date(to.getTime() - daysBack * 24 * 60 * 60 * 1000);
     const items = await prisma.orderItem.findMany({
@@ -917,14 +970,31 @@ export async function getTrendingProducts(limit = 9, daysBack = 60) {
       } catch { return fb; }
     };
     return products
-      .map((p: any) => ({
-        ...p,
-        images: Array.isArray(p.images) ? p.images : [],
-        priceUSD: dec(p.priceUSD, 0)!,
-        priceAllyUSD: dec(p.priceAllyUSD, null),
-        avgCost: dec(p.avgCost, null),
-        lastCost: dec(p.lastCost, null),
-      }))
+      .map((p: any) => {
+        const categoryId = p.categoryId || p.category?.id || null;
+        const base = dec(p.priceUSD, 0)!;
+        const baseAlly = dec(p.priceAllyUSD, null);
+        return {
+          ...p,
+          images: Array.isArray(p.images) ? p.images : [],
+          priceUSD: applyPriceAdjustments({
+            basePriceUSD: base,
+            currency: 'USD',
+            categoryId,
+            settings: pricing,
+          }),
+          priceAllyUSD: baseAlly != null
+            ? applyPriceAdjustments({
+                basePriceUSD: baseAlly,
+                currency: 'USD',
+                categoryId,
+                settings: pricing,
+              })
+            : null,
+          avgCost: dec(p.avgCost, null),
+          lastCost: dec(p.lastCost, null),
+        };
+      })
       .sort((a: any, b: any) => (order.get(a.id)! - order.get(b.id)!));
   } catch (e) {
     console.warn('[getTrendingProducts] failed', e);
