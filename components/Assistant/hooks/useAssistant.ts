@@ -28,6 +28,53 @@ type State = {
 };
 
 const STORAGE_KEY = "carpihogar.assistant.state.v1";
+const CONTEXT_KEYS = {
+  addressId: "assistant:addressId",
+  currency: "assistant:currency",
+  paymentMethod: "assistant:paymentMethod",
+  orderId: "assistant:orderId",
+  awaitingAddress: "assistant:awaitingAddress",
+  awaitingCurrency: "assistant:awaitingCurrency",
+  awaitingPayment: "assistant:awaitingPayment",
+};
+
+function safeGet(key: string) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSet(key: string, value: string) {
+  try {
+    if (!value) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {}
+}
+
+function readAssistantContext() {
+  const addressId = safeGet(CONTEXT_KEYS.addressId) || undefined;
+  const currency = safeGet(CONTEXT_KEYS.currency) || undefined;
+  const paymentMethod = safeGet(CONTEXT_KEYS.paymentMethod) || undefined;
+  const orderId = safeGet(CONTEXT_KEYS.orderId) || undefined;
+  const awaitingAddress = safeGet(CONTEXT_KEYS.awaitingAddress) === "1";
+  const awaitingCurrency = safeGet(CONTEXT_KEYS.awaitingCurrency) === "1";
+  const awaitingPayment = safeGet(CONTEXT_KEYS.awaitingPayment) === "1";
+  return {
+    addressId,
+    currency,
+    paymentMethod,
+    orderId,
+    awaitingAddress,
+    awaitingCurrency,
+    awaitingPayment,
+  };
+}
+
+function clearAssistantContext() {
+  Object.values(CONTEXT_KEYS).forEach((k) => safeSet(k, ""));
+}
 
 function mapStreamChunkToContent(raw: any): AssistantContent | null {
   if (!raw || typeof raw !== "object") return null;
@@ -62,6 +109,34 @@ function mapStreamChunkToContent(raw: any): AssistantContent | null {
       // El contenido del carrito se renderiza desde el store local
       return { type: "rich", cart: payload.cart || {} };
     }
+    if (action === "set_address_context") {
+      const addressId = String(payload.addressId || "");
+      if (addressId) safeSet(CONTEXT_KEYS.addressId, addressId);
+      return null;
+    }
+    if (action === "set_order_context") {
+      const orderId = String(payload.orderId || "");
+      const currency = String(payload.currency || "");
+      const paymentMethod = String(payload.paymentMethod || "");
+      const addressId = String(payload.addressId || "");
+      if (orderId) safeSet(CONTEXT_KEYS.orderId, orderId);
+      if (currency) safeSet(CONTEXT_KEYS.currency, currency);
+      if (paymentMethod) safeSet(CONTEXT_KEYS.paymentMethod, paymentMethod);
+      if (addressId) safeSet(CONTEXT_KEYS.addressId, addressId);
+      return null;
+    }
+    if (action === "set_flow_state") {
+      if ("awaitingAddress" in payload) {
+        safeSet(CONTEXT_KEYS.awaitingAddress, payload.awaitingAddress ? "1" : "");
+      }
+      if ("awaitingCurrency" in payload) {
+        safeSet(CONTEXT_KEYS.awaitingCurrency, payload.awaitingCurrency ? "1" : "");
+      }
+      if ("awaitingPayment" in payload) {
+        safeSet(CONTEXT_KEYS.awaitingPayment, payload.awaitingPayment ? "1" : "");
+      }
+      return null;
+    }
     // Otros ui_control (show_address_picker, tracking, etc.) no se manejan en este panel legacy
     return null;
   }
@@ -77,9 +152,11 @@ function mapStreamChunkToContent(raw: any): AssistantContent | null {
   }
 
   if (t === "text" || typeof raw.message === "string" || typeof raw.content === "string") {
+    const actions = Array.isArray(raw.actions) ? raw.actions : undefined;
     return {
       type: "text",
       message: String(raw.message || raw.content || ""),
+      actions,
     };
   }
 
@@ -253,10 +330,11 @@ export function useAssistant() {
       }
 
       try {
+        const context = readAssistantContext();
         const res = await fetch("/api/assistant/text", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, context }),
         });
         if (!res.ok) {
           let msg = "";
@@ -510,6 +588,7 @@ export function useAssistant() {
   );
 
   const reset = useCallback(() => {
+    clearAssistantContext();
     setState({
       open: true,
       loading: false,

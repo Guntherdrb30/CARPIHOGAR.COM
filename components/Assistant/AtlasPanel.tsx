@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ChatWindow from "./ChatWindow";
 import { useAssistantCtx } from "./AssistantProvider";
@@ -7,23 +7,147 @@ import { ShoppingCart } from "lucide-react";
 import { useCartStore } from "@/store/cart";
 import VoiceMic from "./VoiceMic";
 
+const CONTEXT_KEYS = {
+  addressId: "assistant:addressId",
+  currency: "assistant:currency",
+  paymentMethod: "assistant:paymentMethod",
+  orderId: "assistant:orderId",
+  awaitingAddress: "assistant:awaitingAddress",
+  awaitingCurrency: "assistant:awaitingCurrency",
+  awaitingPayment: "assistant:awaitingPayment",
+};
+
+function safeGet(key: string) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSet(key: string, value?: string) {
+  try {
+    if (!value) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {}
+}
+
 export default function AtlasPanel() {
   const a = useAssistantCtx();
   const [text, setText] = useState("");
+  const [uploading, setUploading] = useState(false);
   const close = () => a.setOpen(false);
-  const send = async () => { if (!text.trim()) return; const t = text; setText(""); await a.sendMessage(t); };
-  const onAction = async (key: string) => {
+  const fileInputId = "assistant-proof-file";
+
+  const send = async () => {
+    if (!text.trim()) return;
+    const t = text;
+    setText("");
+    await a.sendMessage(t);
+  };
+
+  const showCart = async () => {
     try {
-      const r = await fetch('/api/assistant/ui-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key }) });
-      if (key === 'start_checkout') {
-        try { window.location.href = '/checkout/revisar'; } catch {}
+      const r = await fetch("/api/assistant/ui-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "view_cart" }),
+      });
+      const j = await r.json();
+      if (j?.cart) {
+        a.append({
+          id: crypto.randomUUID(),
+          from: "agent",
+          at: Date.now(),
+          content: { type: "rich", message: "Tu carrito", cart: j.cart },
+        } as any);
       }
     } catch {}
   };
 
-  const width = typeof window !== 'undefined' && window.innerWidth < 768 ? '100%' : '420px';
-  const [uploading, setUploading] = useState(false);
-  const fileInputId = 'assistant-proof-file';
+  const handleAction = async (key: string) => {
+    if (!key) return;
+
+    if (key === "view_cart") {
+      await showCart();
+      return;
+    }
+
+    if (key === "start_checkout") {
+      try {
+        window.location.href = "/checkout/revisar";
+      } catch {}
+      return;
+    }
+
+    if (key === "open_login") {
+      try {
+        window.location.href = "/auth/login";
+      } catch {}
+      return;
+    }
+
+    if (key === "open_register") {
+      try {
+        window.location.href = "/auth/register";
+      } catch {}
+      return;
+    }
+
+    if (key.startsWith("select_address:")) {
+      const addressId = key.split(":")[1] || "";
+      if (addressId) {
+        safeSet(CONTEXT_KEYS.addressId, addressId);
+        safeSet(CONTEXT_KEYS.awaitingAddress, "");
+        await a.sendMessage("Usar esta direccion.");
+      }
+      return;
+    }
+
+    if (key === "choose_currency_usd" || key === "choose_currency_ves") {
+      const currency = key === "choose_currency_usd" ? "USD" : "VES";
+      safeSet(CONTEXT_KEYS.currency, currency);
+      safeSet(CONTEXT_KEYS.awaitingCurrency, "");
+      await a.sendMessage(`Pago en ${currency}.`);
+      return;
+    }
+
+    if (
+      key === "choose_method_zelle" ||
+      key === "choose_method_pm" ||
+      key === "choose_method_transfer"
+    ) {
+      const method =
+        key === "choose_method_zelle"
+          ? "ZELLE"
+          : key === "choose_method_pm"
+            ? "PAGO_MOVIL"
+            : "TRANSFERENCIA";
+      const label =
+        method === "ZELLE"
+          ? "Zelle"
+          : method === "PAGO_MOVIL"
+            ? "Pago movil"
+            : "Transferencia";
+      safeSet(CONTEXT_KEYS.paymentMethod, method);
+      safeSet(CONTEXT_KEYS.awaitingPayment, "");
+      await a.sendMessage(`Metodo de pago: ${label}.`);
+      return;
+    }
+
+    try {
+      await fetch("/api/assistant/ui-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key }),
+      });
+    } catch {}
+  };
+
+  const width =
+    typeof window !== "undefined" && window.innerWidth < 768
+      ? "100%"
+      : "420px";
 
   return (
     <AnimatePresence>
@@ -40,111 +164,165 @@ export default function AtlasPanel() {
             initial={{ x: 500 }}
             animate={{ x: 0 }}
             exit={{ x: 500 }}
-            transition={{ type: 'spring', stiffness: 280, damping: 30 }}
+            transition={{ type: "spring", stiffness: 280, damping: 30 }}
             className="absolute right-0 top-0 h-full atlas-panel atlas-shadow flex flex-col"
             style={{ width }}
           >
-            {/* Header */}
             <div className="flex items-center justify-between p-3 border-b bg-white rounded-tl-[16px]">
               <div className="flex items-center gap-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo-default.svg" className="h-6 w-auto" alt="Carpihogar" />
+                <img
+                  src="/logo-default.svg"
+                  className="h-6 w-auto"
+                  alt="Carpihogar"
+                />
                 <span className="font-semibold">Asistente</span>
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={async () => {
-                    try {
-                      const r = await fetch('/api/assistant/ui-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'view_cart' }) });
-                      const j = await r.json();
-                      if (j?.cart) {
-                        a.append({ id: crypto.randomUUID(), from: 'agent', at: Date.now(), content: { type: 'rich', message: 'Tu carrito', cart: j.cart } } as any);
-                      }
-                    } catch {}
-                  }}
+                  onClick={showCart}
                   className="relative p-2 rounded border text-sm"
                   title="Ver carrito"
                   aria-label="Ver carrito"
                 >
                   <ShoppingCart size={16} />
-                  {(() => { try { const n = useCartStore.getState().getTotalItems(); return n > 0 ? (
-                    <span className="absolute -top-1 -right-1 bg-[var(--color-brand)] text-white text-[10px] rounded-full px-1.5 py-[1px]">{n}</span>
-                  ) : null; } catch { return null; } })()}
+                  {(() => {
+                    try {
+                      const n = useCartStore.getState().getTotalItems();
+                      return n > 0 ? (
+                        <span className="absolute -top-1 -right-1 bg-[var(--color-brand)] text-white text-[10px] rounded-full px-1.5 py-[1px]">
+                          {n}
+                        </span>
+                      ) : null;
+                    } catch {
+                      return null;
+                    }
+                  })()}
                 </button>
-                <button onClick={() => a.reset()} className="px-2 py-1 rounded border text-sm" title="Vaciar conversación">Vaciar</button>
-                <button onClick={close} className="px-2 py-1 rounded border text-sm">Cerrar</button>
+                <button
+                  onClick={() => a.reset()}
+                  className="px-2 py-1 rounded border text-sm"
+                  title="Vaciar conversacion"
+                >
+                  Vaciar
+                </button>
+                <button
+                  onClick={close}
+                  className="px-2 py-1 rounded border text-sm"
+                >
+                  Cerrar
+                </button>
               </div>
             </div>
 
-            {/* Chat */}
-            <ChatWindow messages={a.messages} onAction={async (key) => {
-              if (key === 'view_cart') {
-                try {
-                  const r = await fetch('/api/assistant/ui-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'view_cart' }) });
-                  const j = await r.json();
-                  if (j?.cart) a.append({ id: crypto.randomUUID(), from: 'agent', at: Date.now(), content: { type: 'rich', message: 'Tu carrito', cart: j.cart } } as any);
-                } catch {}
-                return;
-              }
-              if (key === 'choose_method_zelle' || key === 'choose_method_pm' || key === 'choose_method_transfer' || key === 'choose_method_store') {
-                const method = key === 'choose_method_zelle' ? 'Zelle' : key === 'choose_method_pm' ? 'Pago Móvil' : key === 'choose_method_transfer' ? 'Transferencia Bancaria' : 'Pago en Tienda';
-                try {
-                  // cache in localStorage to prefill checkout later
-                  try { localStorage.setItem('assistant:paymentMethod', method); } catch {}
-                  const r = await fetch('/api/assistant/ui-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'choose_payment_method', method }) });
-                  const j = await r.json();
-                  if (j?.order) {
-                    a.append({ id: crypto.randomUUID(), from: 'agent', at: Date.now(), content: { type: 'rich', message: `Instrucciones de ${method}:`, order: j.order } } as any);
-                  } else {
-                    a.append({ id: crypto.randomUUID(), from: 'agent', at: Date.now(), content: { type: 'text', message: `Usaremos ${method}.` } } as any);
-                  }
-                } catch {}
-                return;
-              }
-              try {
-                const r = await fetch('/api/assistant/ui-event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key }) });
-                if (key === 'start_checkout') {
-                  try { window.location.href = '/checkout/revisar'; } catch {}
-                }
-              } catch {}
-            }} />
+            <ChatWindow messages={a.messages} onAction={handleAction} />
 
-            {/* Footer */}
             <div className="p-3 border-t bg-white flex items-center gap-2">
-              <input id={fileInputId} type="file" accept="image/*" hidden onChange={async (e) => {
-                const f = e.currentTarget.files?.[0];
-                if (!f) return;
-                setUploading(true);
-                try {
-                  const fd = new FormData();
-                  fd.append('file', f);
-                  const r = await fetch('/api/assistant/upload-proof', { method: 'POST', body: fd });
-                  const j = await r.json();
-                  if (j?.ok) {
-                    const { parsed, submitted } = j;
-                    a.append({ id: crypto.randomUUID(), from: 'agent', at: Date.now(), content: { type: 'text', message: submitted?.ok ? 'Recibí tu comprobante y registré el pago. ¿A dónde deseas que enviemos tu compra? Por favor, indícame tu dirección.' : 'Recibí tu comprobante. ¿A dónde deseas que enviemos tu compra? Por favor, indícame tu dirección.' } });
-                  } else {
-                    a.append({ id: crypto.randomUUID(), from: 'agent', at: Date.now(), content: { type: 'text', message: 'No pude leer el soporte de pago. ¿Puedes intentar con una imagen más clara o ingresar el monto y la referencia?' } });
+              <input
+                id={fileInputId}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={async (e) => {
+                  const f = e.currentTarget.files?.[0];
+                  if (!f) return;
+                  setUploading(true);
+                  try {
+                    const fd = new FormData();
+                    fd.append("file", f);
+                    const orderId = safeGet(CONTEXT_KEYS.orderId);
+                    if (orderId) fd.append("orderId", orderId);
+                    const r = await fetch("/api/assistant/upload-proof", {
+                      method: "POST",
+                      body: fd,
+                    });
+                    const j = await r.json();
+                    if (j?.orderId) safeSet(CONTEXT_KEYS.orderId, j.orderId);
+                    if (j?.ok) {
+                      const receipt = j?.receiptUrl
+                        ? `Recibo: ${j.receiptUrl}`
+                        : "";
+                      const submittedOk = Boolean(j?.submitted?.success);
+                      const baseMsg = submittedOk
+                        ? "Recibi tu comprobante y registre el pago."
+                        : "Recibi tu comprobante.";
+                      const follow = submittedOk
+                        ? "Tu pago sera revisado y te enviaremos un email cuando lo confirmemos."
+                        : "Si falta algun dato, dime el monto y la referencia para registrarlo.";
+                      const message = [baseMsg, receipt, follow]
+                        .filter(Boolean)
+                        .join(" ");
+                      a.append({
+                        id: crypto.randomUUID(),
+                        from: "agent",
+                        at: Date.now(),
+                        content: { type: "text", message },
+                      });
+                    } else {
+                      a.append({
+                        id: crypto.randomUUID(),
+                        from: "agent",
+                        at: Date.now(),
+                        content: {
+                          type: "text",
+                          message:
+                            "No pude leer el soporte de pago. Puedes intentar con una imagen mas clara o ingresar el monto y la referencia.",
+                        },
+                      });
+                    }
+                  } catch {
+                    a.append({
+                      id: crypto.randomUUID(),
+                      from: "agent",
+                      at: Date.now(),
+                      content: {
+                        type: "text",
+                        message:
+                          "Hubo un problema al subir tu soporte. Intenta nuevamente.",
+                      },
+                    });
+                  } finally {
+                    setUploading(false);
+                    try {
+                      (e.currentTarget as any).value = "";
+                    } catch {}
                   }
-                } catch {
-                  a.append({ id: crypto.randomUUID(), from: 'agent', at: Date.now(), content: { type: 'text', message: 'Hubo un problema al subir tu soporte. Intenta nuevamente.' } });
-                } finally {
-                  setUploading(false);
-                  try { (e.currentTarget as any).value = ''; } catch {}
-                }
-              }} />
+                }}
+              />
               <input
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Escribe un mensaje..."
                 className="flex-1 border rounded-full px-4 py-2 text-sm"
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
               />
-              <button className={`px-3 py-2 rounded-full ${uploading ? 'opacity-60' : 'atlas-button-alt'}`} onClick={() => { try { (document.getElementById(fileInputId) as HTMLInputElement)?.click(); } catch {} }} disabled={uploading} title="Adjuntar soporte">
-                {uploading ? 'Subiendo…' : 'Adjuntar'}
+              <button
+                className={`px-3 py-2 rounded-full ${
+                  uploading ? "opacity-60" : "atlas-button-alt"
+                }`}
+                onClick={() => {
+                  try {
+                    (document.getElementById(fileInputId) as HTMLInputElement)?.click();
+                  } catch {}
+                }}
+                disabled={uploading}
+                title="Adjuntar soporte"
+              >
+                {uploading ? "Subiendo..." : "Adjuntar"}
               </button>
               <VoiceMic />
-              <button className="px-3 py-2 rounded-full atlas-button" onClick={send} disabled={a.loading}>Enviar</button>
+              <button
+                className="px-3 py-2 rounded-full atlas-button"
+                onClick={send}
+                disabled={a.loading}
+              >
+                Enviar
+              </button>
             </div>
           </motion.div>
         </motion.div>

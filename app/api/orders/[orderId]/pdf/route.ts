@@ -472,8 +472,8 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
       const sub = p * q;
       const product = (it as any).product as any | undefined;
       const code =
-        product?.sku ||
         product?.code ||
+        product?.sku ||
         product?.supplierCode ||
         product?.barcode ||
         "";

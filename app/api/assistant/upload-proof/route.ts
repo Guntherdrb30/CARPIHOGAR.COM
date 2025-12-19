@@ -25,10 +25,12 @@ async function latestOrderId(customerId: string): Promise<string | null> {
 
 export async function POST(req: Request) {
   try {
+    const origin = new URL(req.url).origin;
     const session = await getServerSession(authOptions);
     const customerId = (session?.user as any)?.id as string | undefined;
     const form = await req.formData();
     const file = form.get('file') as File | null;
+    const orderIdFromForm = String(form.get('orderId') || '').trim();
     if (!file) {
       return NextResponse.json(
         { ok: false, error: 'Archivo de imagen requerido' },
@@ -131,8 +133,20 @@ export async function POST(req: Request) {
     const reference = String(parsed.reference || '').slice(0, 80) || undefined;
 
     let submitted: any = { success: false };
+    let orderId: string | null = null;
     if (customerId) {
-      const orderId = await latestOrderId(customerId);
+      if (orderIdFromForm) {
+        const owned = await prisma.order.findFirst({
+          where: { id: orderIdFromForm, userId: customerId },
+          select: { id: true },
+        });
+        orderId = owned?.id || null;
+        if (!orderId) {
+          submitted = { success: false, message: 'Orden no encontrada' };
+        }
+      } else {
+        orderId = await latestOrderId(customerId);
+      }
       if (orderId) {
         submitted = await savePaymentProof({
           orderId,
@@ -143,13 +157,18 @@ export async function POST(req: Request) {
       }
     }
 
+    const receiptUrl = orderId
+      ? `${origin}/api/orders/${orderId}/pdf?tipo=recibo&moneda=${currency}`
+      : undefined;
+
     return NextResponse.json({
       ok: true,
       parsed: { method, currency, amountUSD, reference },
       submitted,
+      orderId,
+      receiptUrl,
     });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 });
   }
 }
-

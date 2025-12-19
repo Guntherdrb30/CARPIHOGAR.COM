@@ -49,13 +49,13 @@ export async function POST(req: Request) {
       (async () => {
         try {
           // 1) Intentar primero el flujo de compra guiado (add_to_cart, buy, greet, site_help, etc.)
-          const flow = await runPurchaseConversation({ customerId, sessionId, message: text });
+          const flow = await runPurchaseConversation({ customerId, sessionId, message: text, context: body?.context || {} });
           const msgs = Array.isArray(flow?.messages) ? flow.messages : [];
           const ui = Array.isArray(flow?.uiActions) ? flow.uiActions : [];
           if (msgs.length || ui.length) {
             for (const m of msgs) {
               const t = String(m?.type || '').toLowerCase();
-              if (t === 'text') emit({ type: 'text', message: String(m?.content || m?.message || '') });
+              if (t === 'text') emit({ type: 'text', message: String(m?.content || m?.message || ''), actions: m?.actions || [] });
               else if (t === 'products') emit({ type: 'products', products: m?.products || m?.data || [] });
               else if (t === 'cart') emit({ type: 'cart', data: m?.data || {} });
               else emit({ type: 'text', message: String(m?.content || '') });
@@ -159,4 +159,3 @@ export async function POST(req: Request) {
   if (setCookieHeader) response.headers.append('Set-Cookie', setCookieHeader);
   return response;
 }
-
