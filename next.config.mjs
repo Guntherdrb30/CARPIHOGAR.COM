@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ["pdfkit"],
   env: {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
   },
