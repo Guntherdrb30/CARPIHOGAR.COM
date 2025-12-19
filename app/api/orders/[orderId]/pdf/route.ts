@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
-import * as fs from "node:fs";
-import * as path from "node:path";
 
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
@@ -13,22 +11,22 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-async function fetchLogoBuffer(logoUrl?: string): Promise<Buffer | null> {
+async function fetchLogoBuffer(logoUrl?: string, baseUrl?: string): Promise<Buffer | null> {
   try {
     if (!logoUrl) return null;
 
-    if (logoUrl.startsWith("http")) {
-      const res = await fetch(logoUrl);
-      if (!res.ok) return null;
-      const arr = await res.arrayBuffer();
-      return Buffer.from(arr);
-    }
+    const resolvedUrl = logoUrl.startsWith("http")
+      ? logoUrl
+      : baseUrl
+        ? new URL(logoUrl, baseUrl).toString()
+        : "";
 
-    const trimmed = logoUrl.startsWith("/") ? logoUrl.slice(1) : logoUrl;
-    const p = path.join(process.cwd(), "public", trimmed);
-    if (fs.existsSync(p)) {
-      return fs.readFileSync(p);
-    }
+    if (!resolvedUrl) return null;
+
+    const res = await fetch(resolvedUrl);
+    if (!res.ok) return null;
+    const arr = await res.arrayBuffer();
+    return Buffer.from(arr);
   } catch {
     // ignore logo errors
   }
@@ -140,11 +138,12 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
       });
     }
 
+    const baseUrl = url.origin;
     // Logo: configurado, luego Trends172, luego genérico
     const logoBuf =
-      (await fetchLogoBuffer((settings as any)?.logoUrl)) ||
-      (await fetchLogoBuffer("/trends172-logo.png")) ||
-      (await fetchLogoBuffer("/logo-default.svg"));
+      (await fetchLogoBuffer((settings as any)?.logoUrl, baseUrl)) ||
+      (await fetchLogoBuffer("/trends172-logo.png", baseUrl)) ||
+      (await fetchLogoBuffer("/logo-default.svg", baseUrl));
 
     const doc = new PDFDocument({ size: "A4", margin: 40 });
     const chunks: Uint8Array[] = [];
