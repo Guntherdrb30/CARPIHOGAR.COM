@@ -86,7 +86,7 @@ export default async function AdminSettingsPage() {
             />
           </div>
           <div className="mb-4">
-            <label className="block text-gray-700">TelÈfono de WhatsApp</label>
+            <label className="block text-gray-700">Tel√©fono de WhatsApp</label>
             <input
               type="text"
               name="whatsappPhone"
@@ -95,7 +95,7 @@ export default async function AdminSettingsPage() {
             />
           </div>
           <div className="mb-4">
-            <label className="block text-gray-700">TelÈfono de Contacto</label>
+            <label className="block text-gray-700">Tel√©fono de Contacto</label>
             <input
               type="text"
               name="contactPhone"
@@ -123,7 +123,7 @@ export default async function AdminSettingsPage() {
             />
           </div>
           <div className="mb-4">
-            <label className="block text-gray-700">ComisiÛn Vendedor (%)</label>
+            <label className="block text-gray-700">Comisi√≥n Vendedor (%)</label>
             <input
               type="number"
               name="sellerCommissionPercent"
@@ -136,7 +136,7 @@ export default async function AdminSettingsPage() {
             <div>
               <label className="block text-gray-700">Color primario</label>
               <input type="color" name="primaryColor" defaultValue={(settings as any).primaryColor || '#FF4D00'} className="w-full h-10 border rounded" />
-              <p className="text-xs text-gray-500 mt-1">Al subir un logo, detectamos su color y lo aplicamos autom·ticamente.</p>
+              <p className="text-xs text-gray-500 mt-1">Al subir un logo, detectamos su color y lo aplicamos autom√°ticamente.</p>
             </div>
             <div>
               <label className="block text-gray-700">Color secundario</label>
@@ -144,7 +144,7 @@ export default async function AdminSettingsPage() {
             </div>
             <div>
               <label className="block text-gray-700">Logo</label>
-              <p className="text-xs text-gray-500 mb-1">Sube una imagen desde tu PC. Se guardar· y usar· como logo.</p>
+              <p className="text-xs text-gray-500 mb-1">Sube una imagen desde tu PC. Se guardar√° y usar√° como logo.</p>
               <div className="mt-2">
                 <LogoUploader targetInputName="logoUrl" defaultUrl={(settings as any).logoUrl || ''} />
               </div>
@@ -152,7 +152,7 @@ export default async function AdminSettingsPage() {
             </div>
           </div>
           <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-2">Home (P·gina principal)</h3>
+            <h3 className="text-lg font-semibold mb-2">Home (P√°gina principal)</h3>
             <p className="text-sm text-gray-600 mb-3">Sube y ordena hasta 3 archivos (imagen o video) para el carrusel del hero.</p>
             <div className="mb-3">
               <label className="block text-gray-700">Autoplay del carrusel (ms)</label>
@@ -174,7 +174,7 @@ export default async function AdminSettingsPage() {
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-2">Moodboard (hero)</h3>
             <p className="text-sm text-gray-600 mb-3">
-              Sube hasta 3 im·genes que se mostrar·n en la cabecera de la experiencia de moodboard.
+              Sube hasta 3 im√°genes que se mostrar√°n en la cabecera de la experiencia de moodboard.
             </p>
             <HeroCarouselEditor
               defaultUrls={((settings as any).moodboardHeroUrls || []) as string[]}
@@ -184,10 +184,10 @@ export default async function AdminSettingsPage() {
             <EcpdColorsEditor defaultColors={((settings as any).ecpdColors || []) as any[]} />
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-2">Categorias del Home</h3>
-            <p className="text-sm text-gray-600 mb-3">Carga im·genes de fondo para las tarjetas de "CarpinterÌa" y "Hogar".</p>
+            <p className="text-sm text-gray-600 mb-3">Carga im√°genes de fondo para las tarjetas de "Carpinter√≠a" y "Hogar".</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-gray-700">Imagen para CarpinterÌa</label>
+                <label className="block text-gray-700">Imagen para Carpinter√≠a</label>
                 <HeroMediaUploader targetInputName="categoryBannerCarpinteriaUrl" defaultUrl={(settings as any).categoryBannerCarpinteriaUrl || ''} />
                 <input type="hidden" name="categoryBannerCarpinteriaUrl" defaultValue={(settings as any).categoryBannerCarpinteriaUrl || ''} />
               </div>

@@ -38,8 +38,8 @@ export async function getMyOrders(params?: { take?: number }) {
 }
 
 export async function getAllOrders() {
-  // Esta funci�n asume que el caller ya verific� permisos.
-  // Si por alguna raz�n se llama sin sesi�n v�lida, devolvemos lista vac�a
+  // Esta función asume que el caller ya verificó permisos.
+  // Si por alguna razón se llama sin sesión válida, devolvemos lista vacía
   // en lugar de lanzar un error que rompa el render del dashboard.
   try {
     const orders = await prisma.order.findMany({
@@ -104,7 +104,7 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
         const validMethods = ['PAGO_MOVIL','TRANSFERENCIA','ZELLE'];
         if (!validMethods.includes(String(method))) {
             try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Invalid method' } }); } catch {}
-            return { ok: false, error: 'Método de pago inválido' };
+            return { ok: false, error: 'MÃ©todo de pago invÃ¡lido' };
         }
         if (!reference || !reference.trim()) {
             try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Missing reference' } }); } catch {}
@@ -112,15 +112,15 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
         }
         if (String(method) === 'PAGO_MOVIL' && !pmPhone.trim()) {
             try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Missing pm_phone' } }); } catch {}
-            return { ok: false, error: 'Para Pago Móvil, el teléfono es obligatorio' };
+            return { ok: false, error: 'Para Pago MÃ³vil, el telÃ©fono es obligatorio' };
         }
         if (String(method) === 'PAGO_MOVIL' && !pmPayerName.trim()) {
             try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Missing pm_payer_name' } }); } catch {}
-            return { ok: false, error: 'Para Pago Móvil, el nombre del titular es obligatorio' };
+            return { ok: false, error: 'Para Pago MÃ³vil, el nombre del titular es obligatorio' };
         }
         if (String(method) === 'PAGO_MOVIL' && !pmBank.trim()) {
             try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Missing pm_bank' } }); } catch {}
-            return { ok: false, error: 'Para Pago Móvil, el banco del titular es obligatorio' };
+            return { ok: false, error: 'Para Pago MÃ³vil, el banco del titular es obligatorio' };
         }
         if (String(method) === 'ZELLE') {
             if (!zelleEmail.trim() && !zellePayerName.trim()) {
@@ -132,12 +132,12 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
             if (String(paymentCurrency) === 'USD') {
                 if (!depositPayerName.trim() || !depositPayerId.trim() || !depositBank.trim()) {
                     try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Missing deposit fields' } }); } catch {}
-                    return { ok: false, error: 'Para dep�sito en USD, nombre, c�dula y banco son obligatorios' };
+                    return { ok: false, error: 'Para depósito en USD, nombre, cédula y banco son obligatorios' };
                 }
             } else if (String(paymentCurrency) === 'VES') {
                 if (!transferPayerName.trim() || !transferPayerId.trim()) {
                     try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'Missing transfer VES fields' } }); } catch {}
-                    return { ok: false, error: 'Para transferencia en Bs, nombre y c�dula son obligatorios' };
+                    return { ok: false, error: 'Para transferencia en Bs, nombre y cédula son obligatorios' };
                 }
             }
         }
@@ -164,7 +164,7 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
         }
         if (!selectedAddress) {
             try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_VALIDATION_FAILED', details: 'No address on file' } }); } catch {}
-            return { ok: false, error: 'Debes agregar una dirección de envío antes de confirmar.' };
+            return { ok: false, error: 'Debes agregar una direcciÃ³n de envÃ­o antes de confirmar.' };
         }
         
         // Ensure phone is present and sync to user profile
@@ -173,7 +173,7 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
             const digits = phoneRaw.replace(/[^0-9]/g, '');
             if (!digits || digits.length < 7) {
                 try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_VALIDATION_FAILED', details: 'Missing phone in address' } }); } catch {}
-                return { ok: false, error: 'Tu tel�fono es obligatorio en la direcci�n de env�o.' };
+                return { ok: false, error: 'Tu teléfono es obligatorio en la dirección de envío.' };
             }
             const current = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true } });
             if (!current?.phone || String(current.phone) !== phoneRaw) {
@@ -485,7 +485,7 @@ export async function submitDeliveryFeedback(formData: FormData) {
     if (!order || !order.shipping) throw new Error('Order not found');
 
     const carrier = String(order.shipping.carrier || '');
-    if (carrier !== 'DELIVERY') throw new Error('Feedback only allowed for env�os con Delivery local');
+    if (carrier !== 'DELIVERY') throw new Error('Feedback only allowed for envíos con Delivery local');
 
     await prisma.shipping.update({
         where: { orderId },
