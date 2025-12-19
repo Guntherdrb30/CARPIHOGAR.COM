@@ -206,60 +206,134 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
     const contactEmail = (settings as any)?.contactEmail || "";
 
     // Header --------------------------------------------------------
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const margin = doc.page.margins.left;
+    const left = margin;
+    const right = pageWidth - margin;
+    const contentWidth = right - left;
+
+    const colors = {
+      text: "#111111",
+      muted: "#4b5563",
+      border: "#e5e7eb",
+      soft: "#f8fafc",
+      header: "#f3f4f6",
+    };
+    const accent = (settings as any)?.primaryColor || "#E24B3C";
+
+    const drawWatermark = () => {
+      const watermarkSize = Math.min(pageWidth, pageHeight) * 0.55;
+      doc.save();
+      doc.opacity(0.06);
+      if (logoBuf) {
+        doc.image(logoBuf, (pageWidth - watermarkSize) / 2, (pageHeight - watermarkSize) / 2, {
+          fit: [watermarkSize, watermarkSize],
+          align: "center",
+          valign: "center",
+        });
+      } else {
+        doc
+          .fontSize(64)
+          .fillColor("#999")
+          .text(String(brandName), 0, pageHeight / 2 - 40, { align: "center" });
+      }
+      doc.restore();
+    };
+
+    const sectionTitle = (title: string) => {
+      const y = doc.y + 6;
+      doc.save();
+      doc.fillColor(colors.header).rect(left, y, contentWidth, 18).fill();
+      doc.restore();
+      doc
+        .fontSize(10)
+        .font("Helvetica-Bold")
+        .fillColor(colors.text)
+        .text(title, left + 8, y + 4);
+      doc.y = y + 24;
+    };
+
+    drawWatermark();
+
     if (logoBuf) {
       try {
-        doc.image(logoBuf, 40, 30, { height: 40 });
+        doc.image(logoBuf, left, 32, { height: 42 });
       } catch {
         // ignore image error
       }
     }
 
+    const headerLeftX = logoBuf ? left + 60 : left;
+    const headerTop = 34;
+    const docDate = new Date(order.createdAt as any);
+    const docDateLabel = docDate.toLocaleDateString("es-VE");
+    const docNumber = tipo === "factura"
+      ? invoiceNumber
+        ? padLeft(invoiceNumber, 6)
+        : "000000"
+      : receiptNumber
+        ? padLeft(receiptNumber, 6)
+        : "000000";
+
+    doc.fontSize(13).font("Helvetica-Bold").fillColor(colors.text);
+    doc.text(tipo === "factura" ? legalName : brandName, headerLeftX, headerTop);
+    doc.fontSize(9).font("Helvetica").fillColor(colors.muted);
+
     if (tipo === "factura") {
-      // Encabezado legal
-      doc.fontSize(14).fillColor("#111").text(legalName, logoBuf ? 100 : 40, 30);
-      doc.fontSize(10).fillColor("#444");
-      doc.text(`RIF: ${legalRif}`, logoBuf ? 100 : 40);
-      doc.text(legalAddress, logoBuf ? 100 : 40, doc.y);
+      doc.text(`RIF: ${legalRif}`, headerLeftX, doc.y + 2);
+      doc.text(legalAddress, headerLeftX, doc.y);
       if (legalPhone) {
-        doc.text(`Teléfono: ${legalPhone}`, logoBuf ? 100 : 40, doc.y);
+        doc.text(`Telefono: ${legalPhone}`, headerLeftX, doc.y);
       }
-      const rightX = 420;
-      const numStr = invoiceNumber ? padLeft(invoiceNumber, 6) : "000000";
-      doc.fontSize(10).fillColor("#111").text("FORMA LIBRE", rightX, 30);
-      doc.text(`NRO DE CONTROL: 00-${numStr}`, rightX, doc.y);
-      doc.text(`FACTURA ${numStr}`, rightX, doc.y + 10);
-      doc.text(
-        `Fecha: ${new Date(order.createdAt as any).toLocaleDateString("es-VE")}`,
-        rightX,
-        doc.y,
-      );
     } else {
-      // Encabezado de recibo Carpihogar
-      doc
-        .fontSize(18)
-        .fillColor("#111")
-        .text(String(brandName), logoBuf ? 90 : 40, 35);
-      doc.fontSize(10).fillColor("#444");
-      if (contactEmail) doc.text(contactEmail, logoBuf ? 90 : 40);
-      if (contactPhone) doc.text(contactPhone, logoBuf ? 90 : 40);
-      if (receiptNumber) {
-        const rec = padLeft(receiptNumber, 6);
-        doc.text(`RECIBO ${rec}`, 420, 35);
-      }
+      if (contactEmail) doc.text(contactEmail, headerLeftX, doc.y + 2);
+      if (contactPhone) doc.text(contactPhone, headerLeftX, doc.y);
     }
 
-    doc.moveDown();
-    doc.moveTo(40, 90).lineTo(555, 90).strokeColor("#ddd").stroke();
+    const boxWidth = 190;
+    const boxHeight = tipo === "factura" ? 64 : 52;
+    const boxX = right - boxWidth;
+    const boxY = headerTop - 2;
+
+    if (tipo === "factura") {
+      doc
+        .fontSize(8)
+        .font("Helvetica")
+        .fillColor(colors.muted)
+        .text("FORMA LIBRE", boxX, boxY - 12, { width: boxWidth, align: "right" });
+    }
+
+    doc.save();
+    doc.fillColor(colors.header).rect(boxX, boxY, boxWidth, boxHeight).fill();
+    doc.strokeColor(colors.border).rect(boxX, boxY, boxWidth, boxHeight).stroke();
+    doc.restore();
+
+    doc.fontSize(12).font("Helvetica-Bold").fillColor(colors.text);
+    doc.text(tipo === "factura" ? "FACTURA" : "RECIBO", boxX + 10, boxY + 6);
+    doc.fontSize(9).font("Helvetica").fillColor(colors.text);
+    doc.text(`Nro: ${docNumber}`, boxX + 10, boxY + 24);
+    if (tipo === "factura") {
+      doc.text(`Control: 00-${docNumber}`, boxX + 10, boxY + 36);
+      doc.text(`Fecha: ${docDateLabel}`, boxX + 10, boxY + 48);
+    } else {
+      doc.text(`Fecha: ${docDateLabel}`, boxX + 10, boxY + 36);
+    }
+
+    doc.save();
+    doc.strokeColor(accent).lineWidth(2).moveTo(left, 28).lineTo(right, 28).stroke();
+    doc.restore();
+
+    const headerBottomY = Math.max(doc.y, boxY + boxHeight) + 10;
+    doc.moveTo(left, headerBottomY).lineTo(right, headerBottomY).strokeColor(colors.border).stroke();
+    doc.y = headerBottomY + 6;
 
     // Operation info ------------------------------------------------
-    doc.moveDown(0.5);
-    doc.fontSize(11).fillColor("#111").text("Datos de la operación", 40, doc.y);
-    doc.moveDown(0.4);
-    doc.fontSize(9).fillColor("#333");
+    sectionTitle("Datos de la operacion");
 
     const infoTopY = doc.y;
-    const leftX = 40;
-    const rightX = 320;
+    const leftX = left;
+    const rightX = left + Math.round(contentWidth * 0.58);
     const lineHeight = 12;
 
     const phone =
@@ -268,13 +342,13 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
     const leftLines: string[] = [];
     leftLines.push(`Cliente: ${user?.name || user?.email || "-"}`);
     if (order.customerTaxId) {
-      leftLines.push(`Cédula/RIF: ${order.customerTaxId}`);
+      leftLines.push(`Cedula/RIF: ${order.customerTaxId}`);
     }
     if (order.customerFiscalAddress) {
-      leftLines.push(`Dirección fiscal: ${order.customerFiscalAddress}`);
+      leftLines.push(`Direccion fiscal: ${order.customerFiscalAddress}`);
     }
     if (phone) {
-      leftLines.push(`Teléfono: ${phone}`);
+      leftLines.push(`Telefono: ${phone}`);
     }
 
     const rightLines: string[] = [];
@@ -282,7 +356,7 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
       rightLines.push(`Vendedor: ${seller.name || seller.email || ""}`);
     }
     rightLines.push(
-      `Fecha: ${new Date(order.createdAt as any).toLocaleString("es-VE", {
+      `Fecha: ${docDate.toLocaleString("es-VE", {
         dateStyle: "short",
         timeStyle: "short",
       })}`,
@@ -292,46 +366,93 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
 
     if (order.payment) {
       const pay = order.payment as any;
-      rightLines.push(
-        `Pago: ${pay.method || "-"} - ${pay.currency || "USD"}${
-          pay.reference ? ` - Ref: ${pay.reference}` : ""
-        }`,
-      );
+      let paymentLine = `Pago: ${pay.method || "-"} - ${pay.currency || "USD"}`;
+      if (pay.reference) {
+        paymentLine += ` - Ref: ${pay.reference}`;
+      }
+      rightLines.push(paymentLine);
     }
 
+    const infoLines = Math.max(leftLines.length, rightLines.length);
+    const infoBoxHeight = infoLines * lineHeight + 8;
+
+    doc.save();
+    doc.fillColor(colors.soft).rect(left, infoTopY - 4, contentWidth, infoBoxHeight + 8).fill();
+    doc.strokeColor(colors.border).rect(left, infoTopY - 4, contentWidth, infoBoxHeight + 8).stroke();
+    doc.restore();
+
+    doc.fontSize(9).font("Helvetica").fillColor(colors.text);
     leftLines.forEach((line, idx) => {
       doc.text(line, leftX, infoTopY + idx * lineHeight, {
-        width: rightX - leftX - 10,
+        width: rightX - leftX - 12,
       });
     });
 
     rightLines.forEach((line, idx) => {
       doc.text(line, rightX, infoTopY + idx * lineHeight, {
-        width: 555 - rightX,
+        width: right - rightX,
       });
     });
 
-    const infoLines = Math.max(leftLines.length, rightLines.length);
-    doc.y = infoTopY + infoLines * lineHeight + 8;
+    doc.y = infoTopY + infoBoxHeight + 10;
 
     // Products ------------------------------------------------------
-    doc.moveDown(0.8);
-    doc.fontSize(11).fillColor("#111").text("Productos", 40, doc.y);
-    doc.moveDown(0.3);
+    sectionTitle("Productos");
 
-    const startX = 40;
-    // Usable width: from 40 (margin) to 555 -> 515 points
-    const colWidths = [30, 70, 240, 60, 60, 55]; // sum = 515
-    const headers = ["Cant", "Código", "Descripción del Producto", "Precio", "Total", "Kg/Und"];
+    const startX = left;
+    const colWidths = [32, 70, 230, 60, 60, contentWidth - 452];
+    const headers = ["Cant", "Codigo", "Descripcion del producto", "Precio", "Total", "Kg/Und"];
+    const aligns: Array<"left" | "right" | "center"> = [
+      "center",
+      "left",
+      "left",
+      "right",
+      "right",
+      "right",
+    ];
 
-    doc.fontSize(9).fillColor("#333");
+    const headerRowY = doc.y;
+    doc.save();
+    doc.fillColor(colors.header).rect(startX, headerRowY - 2, contentWidth, 18).fill();
+    doc.restore();
+
+    doc.fontSize(9).font("Helvetica-Bold").fillColor(colors.muted);
     headers.forEach((h, i) => {
       const offset = colWidths.slice(0, i).reduce((a, b) => a + b, 0);
-      doc.text(h, startX + offset, doc.y, { width: colWidths[i] });
+      doc.text(h, startX + offset, headerRowY + 2, { width: colWidths[i], align: aligns[i] });
     });
 
-    doc.moveDown(0.3);
-    doc.moveTo(startX, doc.y).lineTo(555, doc.y).strokeColor("#eee").stroke();
+    doc.y = headerRowY + 20;
+    doc.moveTo(startX, doc.y).lineTo(right, doc.y).strokeColor(colors.border).stroke();
+    doc.y += 4;
+
+    let rowIndex = 0;
+    const renderRow = (cols: string[]) => {
+      const rowY = doc.y;
+      const descHeight = doc.heightOfString(cols[2], { width: colWidths[2] });
+      const rowHeight = Math.max(18, descHeight + 6);
+
+      if (rowIndex % 2 === 1) {
+        doc.save();
+        doc.fillColor("#fcfcfd").rect(startX, rowY - 2, contentWidth, rowHeight).fill();
+        doc.restore();
+      }
+
+      cols.forEach((c, i) => {
+        const offset = colWidths.slice(0, i).reduce((a, b) => a + b, 0);
+        doc
+          .font("Helvetica")
+          .fontSize(9)
+          .fillColor(colors.text)
+          .text(c, startX + offset, rowY, {
+            width: colWidths[i],
+            align: aligns[i],
+          });
+      });
+
+      doc.y = rowY + rowHeight;
+      rowIndex += 1;
+    };
 
     for (const it of order.items as any[]) {
       const p = Number((it as any).priceUSD || 0);
@@ -340,86 +461,89 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
       const code =
         (it as any).product?.code || (it as any).product?.sku || (it as any).productId || "";
 
-      const cols = [
+      renderRow([
         String(q),
         String(code || ""),
         (it as any).name || (it as any).product?.name || "Producto",
         money(toMoney(p)),
         money(toMoney(sub)),
-        "", // peso/unidad (no disponible aún)
-      ];
-
-      cols.forEach((c, i) => {
-        const offset = colWidths.slice(0, i).reduce((a, b) => a + b, 0);
-        doc.fillColor("#111").text(c, startX + offset, doc.y, { width: colWidths[i] });
-      });
-      doc.moveDown(0.2);
+        "",
+      ]);
     }
 
     if (deliveryFeeUSD > 0) {
-      const cols = [
+      renderRow([
         "1",
         "",
         "Delivery local (moto)",
         money(toMoney(deliveryFeeUSD)),
         money(toMoney(deliveryFeeUSD)),
         "",
-      ];
-      cols.forEach((c, i) => {
-        const offset = colWidths.slice(0, i).reduce((a, b) => a + b, 0);
-        doc.fillColor("#111").text(c, startX + offset, doc.y, { width: colWidths[i] });
-      });
-      doc.moveDown(0.2);
+      ]);
     }
 
     // Totals --------------------------------------------------------
-    doc.moveDown(1);
+    doc.moveDown(0.8);
 
-    const totalsLabelX = 400;
-    const totalsValueX = 495;
-    const totalsWidth = 90;
-
-    const writeTotalLine = (label: string, value: string, bold = false) => {
-      const lineY = doc.y;
-      doc.font(bold ? "Helvetica-Bold" : "Helvetica");
-      doc.text(label, totalsLabelX, lineY);
-      doc.text(value, totalsValueX, lineY, {
-        align: "right",
-        width: totalsWidth,
-      });
-      doc.moveDown(0.25);
-    };
-
-    doc.fontSize(10).fillColor("#111");
-
-    writeTotalLine("Base imponible:", money(subtotalBs));
-    writeTotalLine(`I.V.A. (${ivaPercent}%):`, money(ivaBs));
+    const totalsLines: Array<{ label: string; value: string; bold?: boolean }> = [
+      { label: "Base imponible", value: money(subtotalBs) },
+      { label: `I.V.A. (${ivaPercent}%)`, value: money(ivaBs) },
+    ];
 
     if (discountUSD > 0) {
       const pctLabel = Number(pricing.usdPaymentDiscountPercent || 0).toFixed(2);
-      writeTotalLine(`Descuento ${pctLabel}% pago USD:`, `- ${money(discountBs)}`);
+      totalsLines.push({
+        label: `Descuento ${pctLabel}% pago USD`,
+        value: `- ${money(discountBs)}`,
+      });
     }
 
-    writeTotalLine("I.G.T.F. 3%:", money(igtfBs));
-    writeTotalLine("Total operación:", money(totalOperacionBs), true);
+    totalsLines.push({ label: "I.G.T.F. 3%", value: money(igtfBs) });
+    totalsLines.push({ label: "Total operacion", value: money(totalOperacionBs), bold: true });
+
+    const totalsBoxWidth = 210;
+    const totalsX = right - totalsBoxWidth;
+    const totalsY = doc.y + 4;
+    const totalsLineHeight = 13;
+    const totalsHeight = totalsLines.length * totalsLineHeight + 12;
+
+    doc.save();
+    doc.fillColor(colors.soft).rect(totalsX, totalsY, totalsBoxWidth, totalsHeight).fill();
+    doc.strokeColor(colors.border).rect(totalsX, totalsY, totalsBoxWidth, totalsHeight).stroke();
+    doc.restore();
+
+    let totalsCursor = totalsY + 6;
+    totalsLines.forEach((line) => {
+      doc.font(line.bold ? "Helvetica-Bold" : "Helvetica");
+      doc.fontSize(9).fillColor(colors.text);
+      doc.text(line.label, totalsX + 8, totalsCursor, { width: totalsBoxWidth - 16 });
+      doc.text(line.value, totalsX + 8, totalsCursor, {
+        width: totalsBoxWidth - 16,
+        align: "right",
+      });
+      totalsCursor += totalsLineHeight;
+    });
+
+    doc.y = totalsY + totalsHeight + 10;
 
     // Footer --------------------------------------------------------
-    doc.moveDown(1);
-    doc.fontSize(9).fillColor("#555");
+    doc.moveTo(left, doc.y).lineTo(right, doc.y).strokeColor(colors.border).stroke();
+    doc.moveDown(0.6);
+    doc.fontSize(8).fillColor(colors.muted);
 
     if (tipo === "factura") {
       doc.text(
-        "Documento generado por sistemas Carpihogar / Trends172, C.A. SOLO EL ORIGINAL DA DERECHO A CRÉDITO FISCAL.",
-        40,
+        "Documento generado por sistemas Carpihogar / Trends172, C.A. SOLO EL ORIGINAL DA DERECHO A CREDITO FISCAL.",
+        left,
         doc.y,
-        { width: 515 },
+        { width: contentWidth, align: "center" },
       );
     } else {
       doc.text(
         "Recibo informativo generado por sistemas Carpihogar. No constituye factura fiscal.",
-        40,
+        left,
         doc.y,
-        { width: 515 },
+        { width: contentWidth, align: "center" },
       );
     }
 
