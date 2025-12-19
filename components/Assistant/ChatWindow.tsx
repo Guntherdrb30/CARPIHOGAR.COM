@@ -20,7 +20,7 @@ export default function ChatWindow({ messages, onAction }: { messages: Assistant
           </div>
         )}
         {content.cart && (
-          <CartView onRelated={() => onAction?.('view_related')} />
+          <CartView cart={content.cart as any} onRelated={() => onAction?.('view_related')} />
         )}
       </div>
     );
@@ -46,4 +46,3 @@ export default function ChatWindow({ messages, onAction }: { messages: Assistant
     </div>
   );
 }
-

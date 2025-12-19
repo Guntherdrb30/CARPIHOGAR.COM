@@ -18,11 +18,13 @@ function selectSpanishFemaleVoice(): SpeechSynthesisVoice | null {
   const esVoices = voices.filter((v) => (v.lang || "").toLowerCase().startsWith("es"));
 
   const preferredNames = [
-    "google español",
-    "google español de estados unidos",
-    "microsoft sabina - spanish (mexico)",
-    "microsoft laura - spanish (spain)",
-    "microsoft helena - spanish (spain)",
+    "microsoft sabina",
+    "microsoft laura",
+    "microsoft helena",
+    "microsoft hilda",
+    "microsoft paulina",
+    "google espanol",
+    "google espanol de estados unidos",
   ];
 
   for (const pref of preferredNames) {
@@ -54,8 +56,8 @@ export function speak(text: string) {
     }
 
     const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 1.0;
-    utter.pitch = 1.05;
+    utter.rate = 0.98;
+    utter.pitch = 1.08;
     utter.volume = 1.0;
     utter.lang = (cachedVoice && cachedVoice.lang) || "es-ES";
     if (cachedVoice) utter.voice = cachedVoice;
@@ -74,4 +76,3 @@ export function stopSpeaking() {
     // no-op
   }
 }
-

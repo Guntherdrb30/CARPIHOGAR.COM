@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   const { sessionId, setCookieHeader } = getOrCreateAssistantSession(req);
 
   if (!text) {
-    const res = NextResponse.json({ type: 'text', message: '¿Puedes escribir tu consulta?' });
+    const res = NextResponse.json({ type: 'text', message: 'Â¿Puedes escribir tu consulta?' });
     if (setCookieHeader) res.headers.append('Set-Cookie', setCookieHeader);
     return res;
   }
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
             return;
           }
 
-          // 2) Búsqueda de productos (fallback) + respuesta conversacional
+          // 2) BÃºsqueda de productos (fallback) + respuesta conversacional
           const res = await ProductsSearch.run({ q: text });
           const products = Array.isArray(res?.data) ? res.data : [];
 
@@ -81,17 +81,17 @@ export async function POST(req: Request) {
                 {
                   role: 'system',
                   content:
-                    'Eres Carpihogar AI, un asistente de compras en español. ' +
-                    'Tu tono es cálido, experto y muy claro. ' +
-                    'Ya se ejecutó una búsqueda de productos en el catálogo de Carpihogar.com. ' +
+                    'Eres Carpihogar AI, un asistente de compras en espaÃ±ol. ' +
+                    'Tu tono es cÃ¡lido, experto y muy claro. ' +
+                    'Ya se ejecutÃ³ una bÃºsqueda de productos en el catÃ¡logo de Carpihogar.com. ' +
                     'Comenta brevemente los resultados (sin listar todos uno por uno), ' +
-                    'sugiere cómo elegir la mejor opción y recuerda que el usuario puede decir cosas como "agrégala al carrito" para añadir el producto que le guste. ' +
-                    'Cuando sea útil, puedes mencionar que existe el personalizador de muebles en /personalizar-muebles y el Moodboard en /moodboard para armar proyectos completos. ' +
-                    'Responde en 1‑3 frases, únicamente texto plano.',
+                    'sugiere cÃ³mo elegir la mejor opciÃ³n y recuerda que el usuario puede decir cosas como "agrÃ©gala al carrito" para aÃ±adir el producto que le guste. ' +
+                    'Mantente enfocado en asesorar la compra y el carrito. ' +
+                    'Responde en 1â€‘3 frases, Ãºnicamente texto plano.',
                 },
                 {
                   role: 'system',
-                  content: `Resultados de búsqueda (resumen JSON): ${JSON.stringify(summary)}`,
+                  content: `Resultados de bÃºsqueda (resumen JSON): ${JSON.stringify(summary)}`,
                 },
                 {
                   role: 'user',
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
               type: 'text',
               message:
                 reply ||
-                'Perfecto, encontré varias opciones que pueden servirte. Te muestro algunas para que elijas la que mejor se adapta a tu espacio.',
+                'Perfecto, encontre varias opciones que pueden servirte. Te muestro algunas para que elijas la que mejor se adapta a tu espacio.',
             });
             emit({ type: 'products', products } as any);
           } else {
@@ -116,10 +116,10 @@ export async function POST(req: Request) {
                 {
                   role: 'system',
                   content:
-                    'Eres Carpihogar AI, un asistente de compras en español. ' +
-                    'No se encontraron productos exactos para la búsqueda del usuario. ' +
-                    'Haz 1‑3 frases muy claras pidiendo más detalles útiles (medidas, color, estilo, ambiente), ' +
-                    'y si tiene sentido sugiere explorar la sección de Moodboard (/moodboard) o el personalizador de muebles (/personalizar-muebles).',
+                    'Eres Carpihogar AI, un asistente de compras en espaÃ±ol. ' +
+                    'No se encontraron productos exactos para la bÃºsqueda del usuario. ' +
+                    'Haz 1â€‘3 frases muy claras pidiendo mÃ¡s detalles Ãºtiles (medidas, color, estilo, ambiente), ' +
+                    'No menciones otras herramientas a menos que el usuario las solicite.',
                 },
                 {
                   role: 'user',
@@ -133,13 +133,13 @@ export async function POST(req: Request) {
               type: 'text',
               message:
                 reply ||
-                'No encontré coincidencias exactas. ¿Puedes darme un poco más de detalles? (marca, tipo, color, medida o dónde lo quieres usar)',
+                'No encontre coincidencias exactas. Puedes darme un poco mas de detalles? (marca, tipo, color, medida o donde lo quieres usar)',
             });
           }
         } catch (e) {
           emit({
             type: 'text',
-            message: 'Tu mensaje fue recibido, pero hubo un problema procesándolo.',
+            message: 'Tu mensaje fue recibido, pero hubo un problema procesÃ¡ndolo.',
           });
         } finally {
           try {
@@ -159,3 +159,4 @@ export async function POST(req: Request) {
   if (setCookieHeader) response.headers.append('Set-Cookie', setCookieHeader);
   return response;
 }
+

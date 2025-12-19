@@ -18,6 +18,9 @@ type AssistantContext = {
   awaitingAddress?: boolean;
   awaitingCurrency?: boolean;
   awaitingPayment?: boolean;
+  deliveryRequested?: boolean;
+  deliveryEligible?: boolean;
+  awaitingDelivery?: boolean;
 };
 
 function normalizeText(text: string) {
@@ -41,6 +44,32 @@ function detectPaymentMethod(text: string): PaymentMethod | undefined {
   if (/pago movil|pago-movil|pagomovil/.test(t)) return "PAGO_MOVIL";
   if (/transferenc/.test(t)) return "TRANSFERENCIA";
   return undefined;
+}
+
+function detectDeliveryPreference(text: string): boolean | undefined {
+  const t = normalizeText(text);
+  if (/(no\s+quiero|sin\s+delivery|retiro|retirar|buscar|pickup)/.test(t)) return false;
+  if (/(delivery|envio|enviar|domicilio|si|claro|ok)/.test(t)) return true;
+  return undefined;
+}
+
+function isBarinasAddress(address?: any): boolean {
+  if (!address) return false;
+  const text =
+    typeof address === "string"
+      ? address
+      : [
+          address.address1,
+          address.address2,
+          address.zone,
+          address.city,
+          address.state,
+          address.notes,
+        ]
+          .filter(Boolean)
+          .join(" ");
+  const t = normalizeText(text);
+  return /\bbarinas\b/.test(t);
 }
 
 function looksLikeAddress(text: string) {
@@ -145,7 +174,7 @@ export async function runPurchaseConversation({
     } else if (section === "contacto") {
       content = "Contacto: " + urlFor(base, "/contacto");
     } else {
-      content = "Puedo ayudarte con Moodboard, personalizador, carrito, novedades o contacto. Dime que necesitas.";
+      content = "Puedo ayudarte con secciones del sitio como carrito, novedades o contacto. Dime que necesitas.";
     }
     return { messages: [{ role: "assistant", type: "text", content }] } as any;
   }
@@ -182,7 +211,12 @@ export async function runPurchaseConversation({
     intent === "buy" ||
     intent === "set_payment" ||
     intent === "set_address" ||
-    Boolean(ctx.awaitingAddress || ctx.awaitingCurrency || ctx.awaitingPayment);
+    Boolean(
+      ctx.awaitingAddress ||
+        ctx.awaitingCurrency ||
+        ctx.awaitingPayment ||
+        ctx.awaitingDelivery,
+    );
 
   if (shouldRunCheckoutFlow) {
     const messages: any[] = [];
@@ -191,6 +225,8 @@ export async function runPurchaseConversation({
     const cart = await CartView.run({ customerId, sessionId });
     const items = cart?.data?.items || [];
     const totals = cart?.data?.totals || {};
+    const preNotes: string[] = [];
+    let addressForDelivery: any | null = null;
 
     if (!items.length) {
       pushText(messages, "Tu carrito esta vacio. Dime que producto deseas y te ayudo.");
@@ -217,6 +253,7 @@ export async function runPurchaseConversation({
       const saved = await SaveAddress.run({ userId: customerId, addressText: message });
       if (saved?.success && saved?.data?.id) {
         ctx.addressId = saved.data.id;
+        addressForDelivery = saved.data;
         pushText(messages, "Direccion guardada. Continuemos con el pago.");
         uiActions.push({
           type: "ui_control",
@@ -227,6 +264,16 @@ export async function runPurchaseConversation({
           type: "ui_control",
           action: "set_flow_state",
           payload: { awaitingAddress: false },
+        });
+        uiActions.push({
+          type: "ui_control",
+          action: "set_flow_state",
+          payload: { awaitingDelivery: false },
+        });
+        uiActions.push({
+          type: "ui_control",
+          action: "set_delivery_context",
+          payload: { deliveryRequested: null, deliveryEligible: null },
         });
       } else {
         pushText(messages, "No pude guardar la direccion. Puedes intentar de nuevo con mas detalle?");
@@ -253,6 +300,73 @@ export async function runPurchaseConversation({
       return { messages, uiActions } as any;
     }
 
+    const selectedAddress =
+      addressForDelivery || addresses.find((a: any) => a.id === ctx.addressId) || null;
+    if (typeof ctx.deliveryEligible !== "boolean" && selectedAddress) {
+      ctx.deliveryEligible = isBarinasAddress(selectedAddress);
+      uiActions.push({
+        type: "ui_control",
+        action: "set_delivery_context",
+        payload: { deliveryEligible: ctx.deliveryEligible },
+      });
+    }
+
+    if (ctx.awaitingDelivery) {
+      const deliveryChoice = detectDeliveryPreference(message);
+      if (deliveryChoice === undefined) {
+        pushText(messages, "Solo necesito saber si deseas delivery (si o no).");
+        uiActions.push({
+          type: "ui_control",
+          action: "set_flow_state",
+          payload: { awaitingDelivery: true },
+        });
+        return { messages, uiActions } as any;
+      }
+      ctx.deliveryRequested = deliveryChoice;
+      preNotes.push(deliveryChoice ? "Delivery solicitado." : "Sin delivery.");
+      uiActions.push({
+        type: "ui_control",
+        action: "set_delivery_context",
+        payload: {
+          deliveryRequested: deliveryChoice,
+          deliveryEligible:
+            typeof ctx.deliveryEligible === "boolean" ? ctx.deliveryEligible : null,
+        },
+      });
+      uiActions.push({
+        type: "ui_control",
+        action: "set_flow_state",
+        payload: { awaitingDelivery: false },
+      });
+    }
+
+    if (typeof ctx.deliveryRequested !== "boolean") {
+      if (ctx.deliveryEligible) {
+        pushText(messages, "Estas en Barinas. Deseas delivery?", [
+          { key: "choose_delivery_yes", label: "Si, delivery" },
+          { key: "choose_delivery_no", label: "No, retiro" },
+        ]);
+        uiActions.push({
+          type: "ui_control",
+          action: "set_flow_state",
+          payload: { awaitingDelivery: true },
+        });
+        uiActions.push({
+          type: "ui_control",
+          action: "set_delivery_context",
+          payload: { deliveryEligible: true },
+        });
+        return { messages, uiActions } as any;
+      }
+      ctx.deliveryRequested = false;
+      preNotes.push("Delivery disponible solo en Barinas.");
+      uiActions.push({
+        type: "ui_control",
+        action: "set_delivery_context",
+        payload: { deliveryRequested: false, deliveryEligible: ctx.deliveryEligible ?? false },
+      });
+    }
+
     if (!ctx.currency) {
       const pricing = await getPriceAdjustmentSettings();
       const discountPct = Number(pricing.usdPaymentDiscountPercent || 0);
@@ -261,7 +375,9 @@ export async function runPurchaseConversation({
         : "";
       pushText(
         messages,
-        ["En que moneda deseas pagar?", discountMsg].filter(Boolean).join(" "),
+        [preNotes.join(" "), "En que moneda deseas pagar?", discountMsg]
+          .filter(Boolean)
+          .join(" "),
         [
           { key: "choose_currency_usd", label: "USD" },
           { key: "choose_currency_ves", label: "VES" },

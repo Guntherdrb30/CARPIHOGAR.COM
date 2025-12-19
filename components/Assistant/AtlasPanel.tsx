@@ -15,6 +15,9 @@ const CONTEXT_KEYS = {
   awaitingAddress: "assistant:awaitingAddress",
   awaitingCurrency: "assistant:awaitingCurrency",
   awaitingPayment: "assistant:awaitingPayment",
+  deliveryRequested: "assistant:deliveryRequested",
+  deliveryEligible: "assistant:deliveryEligible",
+  awaitingDelivery: "assistant:awaitingDelivery",
 };
 
 function safeGet(key: string) {
@@ -99,6 +102,9 @@ export default function AtlasPanel() {
       if (addressId) {
         safeSet(CONTEXT_KEYS.addressId, addressId);
         safeSet(CONTEXT_KEYS.orderId, "");
+        safeSet(CONTEXT_KEYS.deliveryRequested, "");
+        safeSet(CONTEXT_KEYS.deliveryEligible, "");
+        safeSet(CONTEXT_KEYS.awaitingDelivery, "");
         safeSet(CONTEXT_KEYS.awaitingAddress, "");
         await a.sendMessage("Usar esta direccion.");
       }
@@ -135,6 +141,14 @@ export default function AtlasPanel() {
       safeSet(CONTEXT_KEYS.orderId, "");
       safeSet(CONTEXT_KEYS.awaitingPayment, "");
       await a.sendMessage(`Metodo de pago: ${label}.`);
+      return;
+    }
+
+    if (key === "choose_delivery_yes" || key === "choose_delivery_no") {
+      const wantsDelivery = key === "choose_delivery_yes";
+      safeSet(CONTEXT_KEYS.deliveryRequested, wantsDelivery ? "1" : "0");
+      safeSet(CONTEXT_KEYS.awaitingDelivery, "");
+      await a.sendMessage(wantsDelivery ? "Si, deseo delivery." : "No necesito delivery.");
       return;
     }
 

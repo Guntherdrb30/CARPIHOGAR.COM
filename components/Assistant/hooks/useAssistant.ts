@@ -36,6 +36,9 @@ const CONTEXT_KEYS = {
   awaitingAddress: "assistant:awaitingAddress",
   awaitingCurrency: "assistant:awaitingCurrency",
   awaitingPayment: "assistant:awaitingPayment",
+  deliveryRequested: "assistant:deliveryRequested",
+  deliveryEligible: "assistant:deliveryEligible",
+  awaitingDelivery: "assistant:awaitingDelivery",
 };
 
 function safeGet(key: string) {
@@ -61,6 +64,13 @@ function readAssistantContext() {
   const awaitingAddress = safeGet(CONTEXT_KEYS.awaitingAddress) === "1";
   const awaitingCurrency = safeGet(CONTEXT_KEYS.awaitingCurrency) === "1";
   const awaitingPayment = safeGet(CONTEXT_KEYS.awaitingPayment) === "1";
+  const deliveryRequestedRaw = safeGet(CONTEXT_KEYS.deliveryRequested);
+  const deliveryEligibleRaw = safeGet(CONTEXT_KEYS.deliveryEligible);
+  const deliveryRequested =
+    deliveryRequestedRaw === "1" ? true : deliveryRequestedRaw === "0" ? false : undefined;
+  const deliveryEligible =
+    deliveryEligibleRaw === "1" ? true : deliveryEligibleRaw === "0" ? false : undefined;
+  const awaitingDelivery = safeGet(CONTEXT_KEYS.awaitingDelivery) === "1";
   return {
     addressId,
     currency,
@@ -69,6 +79,9 @@ function readAssistantContext() {
     awaitingAddress,
     awaitingCurrency,
     awaitingPayment,
+    deliveryRequested,
+    deliveryEligible,
+    awaitingDelivery,
   };
 }
 
@@ -134,6 +147,20 @@ function mapStreamChunkToContent(raw: any): AssistantContent | null {
       }
       if ("awaitingPayment" in payload) {
         safeSet(CONTEXT_KEYS.awaitingPayment, payload.awaitingPayment ? "1" : "");
+      }
+      if ("awaitingDelivery" in payload) {
+        safeSet(CONTEXT_KEYS.awaitingDelivery, payload.awaitingDelivery ? "1" : "");
+      }
+      return null;
+    }
+    if (action === "set_delivery_context") {
+      if ("deliveryRequested" in payload) {
+        if (payload.deliveryRequested === null) safeSet(CONTEXT_KEYS.deliveryRequested, "");
+        else safeSet(CONTEXT_KEYS.deliveryRequested, payload.deliveryRequested ? "1" : "0");
+      }
+      if ("deliveryEligible" in payload) {
+        if (payload.deliveryEligible === null) safeSet(CONTEXT_KEYS.deliveryEligible, "");
+        else safeSet(CONTEXT_KEYS.deliveryEligible, payload.deliveryEligible ? "1" : "0");
       }
       return null;
     }
@@ -203,7 +230,7 @@ export function useAssistant() {
             content: {
               type: "text",
               message:
-                "Hola, soy tu asistente de Carpihogar. Puedo ayudarte a buscar productos, armar tu carrito, personalizar muebles y usar el Moodboard. Que deseas hacer hoy?",
+                "Hola, soy tu asistente de Carpihogar. Puedo ayudarte a buscar productos, armar tu carrito y guiarte al pago. Que deseas hacer hoy?",
             },
           },
         ],
@@ -600,7 +627,7 @@ export function useAssistant() {
           content: {
             type: "text",
             message:
-                "Hola, soy tu asistente de Carpihogar. Puedo ayudarte a buscar productos, armar tu carrito, personalizar muebles y usar el Moodboard. Que deseas hacer hoy?",
+                "Hola, soy tu asistente de Carpihogar. Puedo ayudarte a buscar productos, armar tu carrito y guiarte al pago. Que deseas hacer hoy?",
           },
         },
       ],
@@ -624,6 +651,7 @@ export function useAssistant() {
     [state, setOpen, sendMessage, sendAudio, reset, append]
   );
 }
+
 
 
 
