@@ -98,6 +98,7 @@ export default function AtlasPanel() {
       const addressId = key.split(":")[1] || "";
       if (addressId) {
         safeSet(CONTEXT_KEYS.addressId, addressId);
+        safeSet(CONTEXT_KEYS.orderId, "");
         safeSet(CONTEXT_KEYS.awaitingAddress, "");
         await a.sendMessage("Usar esta direccion.");
       }
@@ -107,6 +108,7 @@ export default function AtlasPanel() {
     if (key === "choose_currency_usd" || key === "choose_currency_ves") {
       const currency = key === "choose_currency_usd" ? "USD" : "VES";
       safeSet(CONTEXT_KEYS.currency, currency);
+      safeSet(CONTEXT_KEYS.orderId, "");
       safeSet(CONTEXT_KEYS.awaitingCurrency, "");
       await a.sendMessage(`Pago en ${currency}.`);
       return;
@@ -130,6 +132,7 @@ export default function AtlasPanel() {
             ? "Pago movil"
             : "Transferencia";
       safeSet(CONTEXT_KEYS.paymentMethod, method);
+      safeSet(CONTEXT_KEYS.orderId, "");
       safeSet(CONTEXT_KEYS.awaitingPayment, "");
       await a.sendMessage(`Metodo de pago: ${label}.`);
       return;
@@ -242,13 +245,9 @@ export default function AtlasPanel() {
                       const receipt = j?.receiptUrl
                         ? `Recibo: ${j.receiptUrl}`
                         : "";
-                      const submittedOk = Boolean(j?.submitted?.success);
-                      const baseMsg = submittedOk
-                        ? "Recibi tu comprobante y registre el pago."
-                        : "Recibi tu comprobante.";
-                      const follow = submittedOk
-                        ? "Tu pago sera revisado y te enviaremos un email cuando lo confirmemos."
-                        : "Si falta algun dato, dime el monto y la referencia para registrarlo.";
+                      const baseMsg = "Recibi tu comprobante.";
+                      const follow =
+                        "Tu pago esta en revision. Te avisaremos al confirmarlo y luego procederemos al envio.";
                       const message = [baseMsg, receipt, follow]
                         .filter(Boolean)
                         .join(" ");

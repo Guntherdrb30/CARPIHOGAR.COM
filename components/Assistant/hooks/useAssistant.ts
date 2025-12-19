@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { speak } from "./speech";
 import { useCartStore } from "@/store/cart";
@@ -203,7 +203,7 @@ export function useAssistant() {
             content: {
               type: "text",
               message:
-                "Hola, soy tu asistente Carpihogar. Puedo ayudarte a buscar productos, armar tu carrito, personalizar muebles y usar el Moodboard. ¿Qué deseas hacer hoy?",
+                "Hola, soy tu asistente de Carpihogar. Puedo ayudarte a buscar productos, armar tu carrito, personalizar muebles y usar el Moodboard. Que deseas hacer hoy?",
             },
           },
         ],
@@ -271,7 +271,7 @@ export function useAssistant() {
         loading: true,
       }));
 
-      // Comandos simples manejados en el cliente (ej. "agrégala al carrito")
+      // Comandos simples manejados en el cliente (ej. "agrÃ©gala al carrito")
       const normalized = (() => {
         try {
           return text
@@ -350,7 +350,7 @@ export function useAssistant() {
               type: "text",
               message:
                 msg ||
-                "Hubo un problema procesando tu mensaje. ¿Puedes intentar de nuevo?",
+                "Hubo un problema procesando tu mensaje. Â¿Puedes intentar de nuevo?",
             },
           });
           return;
@@ -364,7 +364,7 @@ export function useAssistant() {
             at: Date.now(),
             content: {
               type: "text",
-              message: msg || "Estoy aquí para ayudarte.",
+              message: msg || "Estoy aquÃ­ para ayudarte.",
             },
           });
         } else {
@@ -410,7 +410,7 @@ export function useAssistant() {
                       (content as any).products.length
                     ) {
                       speak(
-                        "Aquí tienes algunas opciones disponibles. ¿Quieres que te ayude a elegir?"
+                        "AquÃ­ tienes algunas opciones disponibles. Â¿Quieres que te ayude a elegir?"
                       );
                     } else if ((content as any)?.cart) {
                       speak("Te muestro tu carrito actualizado.");
@@ -432,7 +432,7 @@ export function useAssistant() {
               content: {
                 type: "text",
                 message:
-                  "Recibí tu mensaje, estoy aquí para ayudarte.",
+                  "RecibÃ­ tu mensaje, estoy aquÃ­ para ayudarte.",
               },
             });
           }
@@ -444,7 +444,7 @@ export function useAssistant() {
           at: Date.now(),
           content: {
             type: "text",
-            message: "Hubo un error. ¿Puedes intentar de nuevo?",
+            message: "Hubo un error. Â¿Puedes intentar de nuevo?",
           },
         });
       } finally {
@@ -515,7 +515,7 @@ export function useAssistant() {
                       (content as any).products.length
                     ) {
                       speak(
-                        "Aquí tienes algunas opciones disponibles. ¿Quieres que te ayude a elegir?"
+                        "AquÃ­ tienes algunas opciones disponibles. Â¿Quieres que te ayude a elegir?"
                       );
                     } else if ((content as any)?.cart) {
                       speak("Te muestro tu carrito actualizado.");
@@ -537,7 +537,7 @@ export function useAssistant() {
               content: {
                 type: "text",
                 message:
-                  "Recibí tu audio, estoy aquí para ayudarte.",
+                  "RecibÃ­ tu audio, estoy aquÃ­ para ayudarte.",
               },
             });
           }
@@ -558,7 +558,7 @@ export function useAssistant() {
               const c: any = content;
               if (c?.products && Array.isArray(c.products) && c.products.length) {
                 speak(
-                  "Aquí tienes algunas opciones disponibles. ¿Quieres que te ayude a elegir?"
+                  "AquÃ­ tienes algunas opciones disponibles. Â¿Quieres que te ayude a elegir?"
                 );
               } else if (c?.cart) {
                 speak("Te muestro tu carrito actualizado.");
@@ -600,7 +600,7 @@ export function useAssistant() {
           content: {
             type: "text",
             message:
-              "Hola, soy tu asistente Carpihogar. Puedo ayudarte a buscar productos, armar tu carrito, personalizar muebles y usar el Moodboard. ¿Qué deseas hacer hoy?",
+                "Hola, soy tu asistente de Carpihogar. Puedo ayudarte a buscar productos, armar tu carrito, personalizar muebles y usar el Moodboard. Que deseas hacer hoy?",
           },
         },
       ],
@@ -624,6 +624,8 @@ export function useAssistant() {
     [state, setOpen, sendMessage, sendAudio, reset, append]
   );
 }
+
+
 
 
 

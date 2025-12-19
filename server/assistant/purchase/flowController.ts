@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import * as CartView from "@/agents/carpihogar-ai-actions/tools/cart/viewCart";
 import * as ListAddresses from "@/agents/carpihogar-ai-actions/tools/customer/listAddresses";
 import * as SaveAddress from "@/agents/carpihogar-ai-actions/tools/customer/saveAddress";
-import * as CreateOrder from "@/agents/carpihogar-ai-actions/tools/order/createOrder";
 import { getSettings } from "@/server/actions/settings";
 import { getPriceAdjustmentSettings } from "@/server/price-adjustments";
 
@@ -16,7 +15,6 @@ type AssistantContext = {
   addressId?: string;
   currency?: Currency;
   paymentMethod?: PaymentMethod;
-  orderId?: string;
   awaitingAddress?: boolean;
   awaitingCurrency?: boolean;
   awaitingPayment?: boolean;
@@ -124,7 +122,7 @@ export async function runPurchaseConversation({
     const saludo = name ? `Hola ${name}.` : "Hola.";
     const texto = [
       saludo,
-      "Soy Atlas, tu asistente de Carpihogar.",
+      "Soy tu asistente de Carpihogar.",
       "Puedo recomendar productos, armar tu carrito y guiarte al pago.",
       "Que te gustaria hacer hoy?",
     ].join(" ");
@@ -198,6 +196,8 @@ export async function runPurchaseConversation({
       pushText(messages, "Tu carrito esta vacio. Dime que producto deseas y te ayudo.");
       return { messages, uiActions } as any;
     }
+
+    uiActions.push({ type: "ui_control", action: "show_cart", payload: { cart: cart?.data || {} } });
 
     if (!customerId) {
       pushText(
@@ -295,41 +295,10 @@ export async function runPurchaseConversation({
       return { messages, uiActions } as any;
     }
 
-    let orderId = ctx.orderId;
-    if (orderId) {
-      const exists = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true, userId: true } });
-      if (!exists || exists.userId !== customerId) orderId = undefined;
-    }
-
-    if (!orderId) {
-      const orderItems = items.map((it: any) => ({
-        productId: String(it.productId || ""),
-        name: String(it.name || ""),
-        priceUSD: Number(it.priceUSD || 0),
-        quantity: Number(it.quantity || 1),
-      }));
-      const created = await CreateOrder.run({
-        userId: customerId,
-        items: orderItems,
-        shippingAddressId: ctx.addressId,
-      });
-      if (!created?.success || !created?.data?.id) {
-        pushText(messages, "No pude crear la orden. Intenta de nuevo en unos minutos.");
-        return { messages, uiActions } as any;
-      }
-      orderId = created.data.id as string;
-      uiActions.push({
-        type: "ui_control",
-        action: "set_order_context",
-        payload: { orderId, currency: ctx.currency, paymentMethod: ctx.paymentMethod, addressId: ctx.addressId },
-      });
-      uiActions.push({ type: "ui_control", action: "set_flow_state", payload: { awaitingPayment: false } });
-    }
-
     const settings = await getSettings();
     const pricing = await getPriceAdjustmentSettings();
-    const ivaPercent = Number((settings as any)?.ivaPercent || totals.ivaPercent || 16);
-    const tasaVES = Number((settings as any)?.tasaVES || totals.tasaVES || 40);
+    const ivaPercent = Number(totals.ivaPercent || (settings as any)?.ivaPercent || 16);
+    const tasaVES = Number(totals.tasaVES || (settings as any)?.tasaVES || 40);
     const subtotalUSD = Number(totals.subtotalUSD || 0);
 
     let totalUSD = Number(totals.totalUSD || 0);
@@ -347,7 +316,7 @@ export async function runPurchaseConversation({
     const totalVES = totalUSD * tasaVES;
 
     const lines: string[] = [];
-    lines.push(`Orden creada: ${orderId}.`);
+    lines.push("Perfecto, te guio con el pago.");
     if (ctx.currency === "USD") {
       if (discountUSD > 0) {
         lines.push(`Descuento USD aplicado: -$${discountUSD.toFixed(2)}.`);
@@ -359,7 +328,7 @@ export async function runPurchaseConversation({
 
     if (ctx.paymentMethod === "ZELLE") {
       const email = String((settings as any)?.paymentZelleEmail || "").trim();
-      lines.push("Metodo: Zelle (USD)." );
+      lines.push("Metodo: Zelle (USD).");
       if (email) lines.push(`Correo Zelle: ${email}`);
     } else if (ctx.paymentMethod === "PAGO_MOVIL") {
       const phone = String((settings as any)?.paymentPmPhone || "").trim();
@@ -391,10 +360,9 @@ export async function runPurchaseConversation({
       }
     }
 
-    const receiptUrl = urlFor(base, `/api/orders/${orderId}/pdf?tipo=recibo&moneda=VES`);
-    lines.push("Luego de pagar, adjunta el comprobante aqui en el chat.");
-    lines.push("Tu pago sera revisado y te enviaremos un email al aprobarlo.");
-    lines.push(`Recibo: ${receiptUrl}`);
+    lines.push("Haz el pago y envia el comprobante por este chat para revisarlo.");
+    lines.push("Tu pago sera revisado; luego procederemos al envio y te enviaremos el recibo de pago.");
+    lines.push("Muchas gracias por tu compra.");
 
     pushText(messages, lines.join("\n"));
     return { messages, uiActions } as any;
