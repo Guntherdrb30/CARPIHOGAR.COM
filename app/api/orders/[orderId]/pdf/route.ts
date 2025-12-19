@@ -80,7 +80,19 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
       include: {
         user: true,
         seller: true,
-        items: true,
+        items: {
+          include: {
+            product: {
+              select: {
+                sku: true,
+                code: true,
+                supplierCode: true,
+                barcode: true,
+                name: true,
+              },
+            },
+          },
+        },
         payment: true,
         shipping: true,
         shippingAddress: true,
@@ -255,16 +267,17 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
 
     drawWatermark();
 
+    const logoBox = { x: left, y: 30, width: 70, height: 42 };
     if (logoBuf) {
       try {
-        doc.image(logoBuf, left, 32, { height: 42 });
+        doc.image(logoBuf, logoBox.x, logoBox.y, { fit: [logoBox.width, logoBox.height] });
       } catch {
         // ignore image error
       }
     }
 
-    const headerLeftX = logoBuf ? left + 60 : left;
-    const headerTop = 34;
+    const headerLeftX = logoBuf ? logoBox.x + logoBox.width + 12 : left;
+    const headerTop = 30;
     const docDate = new Date(order.createdAt as any);
     const docDateLabel = docDate.toLocaleDateString("es-VE");
     const docNumber = tipo === "factura"
@@ -457,13 +470,18 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
       const p = Number((it as any).priceUSD || 0);
       const q = Number((it as any).quantity || 0);
       const sub = p * q;
+      const product = (it as any).product as any | undefined;
       const code =
-        (it as any).product?.code || (it as any).product?.sku || (it as any).productId || "";
+        product?.sku ||
+        product?.code ||
+        product?.supplierCode ||
+        product?.barcode ||
+        "";
 
       renderRow([
         String(q),
-        String(code || ""),
-        (it as any).name || (it as any).product?.name || "Producto",
+        String(code || "SIN CODIGO"),
+        (it as any).name || product?.name || "Producto",
         money(toMoney(p)),
         money(toMoney(sub)),
         "",
