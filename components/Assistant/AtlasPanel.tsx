@@ -57,12 +57,14 @@ export default function AtlasPanel() {
         body: JSON.stringify({ key: "view_cart" }),
       });
       const j = await r.json();
-      if (j?.cart) {
+      const cartData =
+        j?.data?.items ? j.data : j?.data?.data?.items ? j.data.data : j?.cart?.items ? j.cart : null;
+      if (cartData) {
         a.append({
           id: crypto.randomUUID(),
           from: "agent",
           at: Date.now(),
-          content: { type: "rich", message: "Tu carrito", cart: j.cart },
+          content: { type: "rich", message: "Tu carrito", cart: cartData },
         } as any);
       }
     } catch {}

@@ -161,12 +161,18 @@ export async function runPurchaseConversation({
   if (intent === "site_help") {
     const section = String(entities?.section || "").toLowerCase();
     let content = "";
+    const uiActions: any[] = [];
     if (section === "moodboard") {
       content = "Puedes crear Moodboards aqui: " + urlFor(base, "/moodboard");
     } else if (section === "personalizador") {
       content = "Abre el personalizador de muebles aqui: " + urlFor(base, "/personalizar-muebles");
     } else if (section === "cart") {
-      content = "Tu carrito esta en " + urlFor(base, "/carrito") + ". Puedo mostrarte un resumen si quieres.";
+      const cart = await CartView.run({ customerId, sessionId });
+      const count = Number(cart?.data?.items?.length || 0);
+      content = count
+        ? "Aqui tienes el resumen de tu carrito."
+        : "Tu carrito esta vacio. Dime que producto deseas y te ayudo.";
+      uiActions.push({ type: "ui_control", action: "show_cart", payload: { cart: cart?.data || {} } });
     } else if (section === "home") {
       content = "Inicio: " + urlFor(base, "/");
     } else if (section === "novedades") {
@@ -176,7 +182,7 @@ export async function runPurchaseConversation({
     } else {
       content = "Puedo ayudarte con secciones del sitio como carrito, novedades o contacto. Dime que necesitas.";
     }
-    return { messages: [{ role: "assistant", type: "text", content }] } as any;
+    return { messages: [{ role: "assistant", type: "text", content }], uiActions } as any;
   }
 
   if (intent === "add_to_cart") {

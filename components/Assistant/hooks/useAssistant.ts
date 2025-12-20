@@ -309,12 +309,34 @@ export function useAssistant() {
           return text.toLowerCase();
         }
       })();
-      const wantsAddLastToCart =
-        /agreg(a|alo|ala|alos|alas)\s+(al|a[l]?\s+)?carrito/.test(
-          normalized,
-        ) || /meter(l[oa]s?)?\s+al\s+carrito/.test(normalized);
+      const hasAddVerb = /(agreg|anad|meter|pon)/.test(normalized);
+      const hasCartWord = /(carri|carro|carrt)/.test(normalized);
+      const wantsAddLastToCart = hasAddVerb && hasCartWord;
+      const quantityFromText = (() => {
+        const digits = normalized.match(/(\d{1,2})/);
+        if (digits) return Math.max(1, parseInt(digits[1], 10));
+        const map: Record<string, number> = {
+          un: 1,
+          una: 1,
+          uno: 1,
+          dos: 2,
+          tres: 3,
+          cuatro: 4,
+          cinco: 5,
+          seis: 6,
+          siete: 7,
+          ocho: 8,
+          nueve: 9,
+          diez: 10,
+        };
+        for (const [k, v] of Object.entries(map)) {
+          if (new RegExp(`\\b${k}\\b`).test(normalized)) return v;
+        }
+        return 1;
+      })();
       if (wantsAddLastToCart && Array.isArray(lastProductsRef.current) && lastProductsRef.current.length) {
         const p = lastProductsRef.current[0];
+        const qty = quantityFromText;
         try {
           const store = useCartStore.getState();
           const price =
@@ -325,7 +347,7 @@ export function useAssistant() {
               : undefined;
           store.addItem(
             { id: p.id, name: p.name, priceUSD: price, image: img },
-            1,
+            qty,
           );
         } catch {
           // ignore cart sync errors
@@ -337,7 +359,7 @@ export function useAssistant() {
             body: JSON.stringify({
               key: "add_to_cart",
               productId: String(p.id || ""),
-              qty: 1,
+              qty,
             }),
           });
         } catch {
@@ -349,7 +371,7 @@ export function useAssistant() {
           at: Date.now(),
           content: {
             type: "text",
-            message: `Agregado al carrito: ${String(p.name || "")}`,
+            message: `Agregado al carrito: ${String(p.name || "")} x${qty}`,
           },
         });
         setState((s) => ({ ...s, loading: false }));

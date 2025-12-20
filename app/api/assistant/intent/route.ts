@@ -92,7 +92,7 @@ Reglas:
     } else if (/personaliz(ar|ador)|ecpd|configurador/.test(low)) {
       intent = 'site_help';
       entities.section = 'personalizador';
-    } else if (/carrito|mi carrito|ver carrito/.test(low)) {
+    } else if (/carrito|mi carrito|ver carrito|mostrar carrito|muestrame el carrito|muestreme el carrito/.test(low)) {
       intent = 'site_help';
       entities.section = 'cart';
     } else if (/checkout|finalizar compra/.test(low)) {
@@ -147,4 +147,3 @@ Reglas:
     return NextResponse.json({ error: 'intent error' }, { status: 200 });
   }
 }
-
