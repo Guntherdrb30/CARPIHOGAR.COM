@@ -15,7 +15,14 @@ export async function searchProducts(q: string) {
     where,
     take: 20,
     orderBy: { createdAt: 'desc' },
-    select: { id: true, name: true, sku: true, priceUSD: true, categoryId: true },
+    select: {
+      id: true,
+      name: true,
+      sku: true,
+      priceUSD: true,
+      categoryId: true,
+      supplier: { select: { chargeCurrency: true } },
+    },
   });
   const pricing = await getPriceAdjustmentSettings();
   const toNum = (x: any) => (typeof x?.toNumber === 'function' ? x.toNumber() : Number(x || 0));
@@ -24,6 +31,7 @@ export async function searchProducts(q: string) {
     priceUSD: applyPriceAdjustments({
       basePriceUSD: toNum((p as any).priceUSD),
       currency: 'USD',
+      supplierCurrency: (p as any).supplier?.chargeCurrency || null,
       categoryId: (p as any).categoryId || null,
       settings: pricing,
     }),

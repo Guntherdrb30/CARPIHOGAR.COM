@@ -218,12 +218,14 @@ export async function getProducts(filters?: { isNew?: boolean; categorySlug?: st
             const categoryId = (p as any).categoryId || (p as any).category?.id || null;
             const basePrice = dec((p as any).priceUSD, 0)!;
             const baseAlly = dec((p as any).priceAllyUSD, null);
+            const supplierCurrency = (p as any).supplier?.chargeCurrency || null;
             return {
                 ...p,
                 images: Array.isArray((p as any).images) ? (p as any).images : [],
                 priceUSD: applyPriceAdjustments({
                     basePriceUSD: basePrice,
                     currency: 'USD',
+                    supplierCurrency,
                     categoryId,
                     settings: pricing,
                 }),
@@ -231,6 +233,7 @@ export async function getProducts(filters?: { isNew?: boolean; categorySlug?: st
                     ? applyPriceAdjustments({
                         basePriceUSD: baseAlly,
                         currency: 'USD',
+                        supplierCurrency,
                         categoryId,
                         settings: pricing,
                     })
@@ -829,6 +832,12 @@ export async function getProductPageData(slug: string) {
       }
     } catch {}
   }
+  if (product) {
+    product = await prisma.product.findUnique({
+      where: { id: product.id },
+      include: { supplier: true },
+    });
+  }
   const settings = await prisma.siteSettings.findUnique({ where: { id: 1 } });
 
   if (!product || !settings) {
@@ -842,17 +851,17 @@ export async function getProductPageData(slug: string) {
     const curated = await prisma.relatedProduct.findMany({ where: { fromId: product.id }, select: { toId: true } });
     const curatedIds = curated.map((r) => r.toId);
     relatedProducts = curatedIds.length
-      ? await prisma.product.findMany({ where: { id: { in: curatedIds } }, include: { category: true }, take: 12 })
+      ? await prisma.product.findMany({ where: { id: { in: curatedIds } }, include: { category: true, supplier: true }, take: 12 })
       : await prisma.product.findMany({
           where: { categoryId: product.categoryId, id: { not: product.id } },
-          include: { category: true },
+          include: { category: true, supplier: true },
           take: 10,
         });
   } catch (e) {
     // If related table is missing, just use same-category fallback
     relatedProducts = await prisma.product.findMany({
       where: { categoryId: product.categoryId, id: { not: product.id } },
-      include: { category: true },
+      include: { category: true, supplier: true },
       take: 10,
     });
   }
@@ -870,12 +879,14 @@ export async function getProductPageData(slug: string) {
   const categoryId = (product as any).categoryId || (product as any).category?.id || null;
   const basePrice = dec((product as any).priceUSD, 0)!;
   const baseAlly = dec((product as any).priceAllyUSD, null);
+  const supplierCurrency = (product as any).supplier?.chargeCurrency || null;
   const serializableProduct = {
     ...product,
     images: Array.isArray((product as any).images) ? (product as any).images : [],
     priceUSD: applyPriceAdjustments({
       basePriceUSD: basePrice,
       currency: 'USD',
+      supplierCurrency,
       categoryId,
       settings: pricing,
     }),
@@ -883,6 +894,7 @@ export async function getProductPageData(slug: string) {
       ? applyPriceAdjustments({
           basePriceUSD: baseAlly,
           currency: 'USD',
+          supplierCurrency,
           categoryId,
           settings: pricing,
         })
@@ -902,12 +914,14 @@ export async function getProductPageData(slug: string) {
     const relCategoryId = (p as any).categoryId || (p as any).category?.id || null;
     const relBase = dec((p as any).priceUSD, 0)!;
     const relAlly = dec((p as any).priceAllyUSD, null);
+    const relSupplierCurrency = (p as any).supplier?.chargeCurrency || null;
     return {
       ...p,
       images: Array.isArray((p as any).images) ? (p as any).images : [],
       priceUSD: applyPriceAdjustments({
         basePriceUSD: relBase,
         currency: 'USD',
+        supplierCurrency: relSupplierCurrency,
         categoryId: relCategoryId,
         settings: pricing,
       }),
@@ -915,6 +929,7 @@ export async function getProductPageData(slug: string) {
         ? applyPriceAdjustments({
             basePriceUSD: relAlly,
             currency: 'USD',
+            supplierCurrency: relSupplierCurrency,
             categoryId: relCategoryId,
             settings: pricing,
           })
@@ -957,7 +972,7 @@ export async function getTrendingProducts(limit = 9, daysBack = 60) {
       .slice(0, limit);
     const ids = sorted.map(([id]) => id);
     if (!ids.length) return [] as any[];
-    const products = await prisma.product.findMany({ where: { id: { in: ids } }, include: { category: true } });
+    const products = await prisma.product.findMany({ where: { id: { in: ids } }, include: { category: true, supplier: true } });
     // Preserve order by revenue
     const order = new Map(ids.map((id, idx) => [id, idx]));
     const dec = (x: any, fb: number | null = null) => {
@@ -974,12 +989,14 @@ export async function getTrendingProducts(limit = 9, daysBack = 60) {
         const categoryId = p.categoryId || p.category?.id || null;
         const base = dec(p.priceUSD, 0)!;
         const baseAlly = dec(p.priceAllyUSD, null);
+        const supplierCurrency = (p as any).supplier?.chargeCurrency || null;
         return {
           ...p,
           images: Array.isArray(p.images) ? p.images : [],
           priceUSD: applyPriceAdjustments({
             basePriceUSD: base,
             currency: 'USD',
+            supplierCurrency,
             categoryId,
             settings: pricing,
           }),
@@ -987,6 +1004,7 @@ export async function getTrendingProducts(limit = 9, daysBack = 60) {
             ? applyPriceAdjustments({
                 basePriceUSD: baseAlly,
                 currency: 'USD',
+                supplierCurrency,
                 categoryId,
                 settings: pricing,
               })

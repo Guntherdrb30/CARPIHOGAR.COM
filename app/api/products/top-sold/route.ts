@@ -24,7 +24,7 @@ export async function GET(req: Request) {
 
   const rows = await prisma.product.findMany({
     where: { id: { in: ids as string[] } },
-    include: { category: { select: { name: true } } },
+    include: { category: { select: { name: true } }, supplier: true },
   });
   const byId = new Map(rows.map((r) => [r.id, r] as const));
   const settings = await getSettings();
@@ -35,12 +35,14 @@ export async function GET(req: Request) {
     .map((p: any) => {
       const categoryId = p.categoryId || p.category?.id || null;
       const base = toNum(p.priceUSD, 0);
+      const supplierCurrency = (p as any).supplier?.chargeCurrency || null;
       return {
         ...p,
         images: Array.isArray(p.images) ? p.images : [],
         priceUSD: applyPriceAdjustments({
           basePriceUSD: base,
           currency: 'USD',
+          supplierCurrency,
           categoryId,
           settings: pricing,
         }),

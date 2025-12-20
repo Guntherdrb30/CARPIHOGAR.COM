@@ -18,7 +18,7 @@ export async function verifyToken(customerId: string, token: string) {
   const ids = Array.from(new Set(items.map((it) => it.productId)));
   const products = await prisma.product.findMany({
     where: { id: { in: ids } },
-    select: { id: true, priceUSD: true, categoryId: true },
+    select: { id: true, priceUSD: true, categoryId: true, supplier: { select: { chargeCurrency: true } } },
   });
   const byId = new Map(products.map((p) => [p.id, p] as const));
   const pricedItems = items.map((it) => {
@@ -27,10 +27,12 @@ export async function verifyToken(customerId: string, token: string) {
       p && (p as any).priceUSD != null
         ? ((p as any).priceUSD?.toNumber?.() ?? Number((p as any).priceUSD || 0))
         : Number(it.priceUSD || 0);
+    const supplierCurrency = (p as any)?.supplier?.chargeCurrency || null;
     const priceUSD = p
       ? applyPriceAdjustments({
           basePriceUSD: base,
           currency: 'USD',
+          supplierCurrency,
           categoryId: (p as any).categoryId || null,
           settings: pricing,
         })

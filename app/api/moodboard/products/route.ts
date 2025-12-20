@@ -39,19 +39,21 @@ export async function GET(req: Request) {
       where,
       take: 80,
       orderBy: { createdAt: 'desc' },
-      include: { category: true },
+      include: { category: true, supplier: true },
     });
     const pricing = await getPriceAdjustmentSettings();
 
     const items = products.map((p) => {
       const primaryImage = (p.images || [])[0] || '';
       const categoryId = (p as any).categoryId || p.category?.id || null;
+      const supplierCurrency = (p as any).supplier?.chargeCurrency || null;
       const basePrice = typeof (p as any).priceUSD === 'number'
         ? (p as any).priceUSD
         : (p as any).priceUSD?.toNumber?.() ?? Number((p as any).priceUSD || 0);
       const adjusted = applyPriceAdjustments({
         basePriceUSD: basePrice,
         currency: 'USD',
+        supplierCurrency,
         categoryId,
         settings: pricing,
       });

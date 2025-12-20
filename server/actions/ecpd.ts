@@ -34,6 +34,7 @@ export async function getConfigurableProducts(): Promise<
       images: true,
       priceUSD: true,
       categoryId: true,
+      supplier: { select: { chargeCurrency: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -44,6 +45,7 @@ export async function getConfigurableProducts(): Promise<
         ? ((p as any).priceUSD as number)
         : (p as any).priceUSD?.toNumber?.() ?? null;
     const categoryId = (p as any).categoryId || null;
+    const supplierCurrency = (p as any).supplier?.chargeCurrency || null;
     return {
       ...p,
       configSchema: (p as any).configSchema ?? null,
@@ -53,6 +55,7 @@ export async function getConfigurableProducts(): Promise<
           ? applyPriceAdjustments({
               basePriceUSD: base,
               currency: 'USD',
+              supplierCurrency,
               categoryId,
               settings: pricing,
             })
@@ -109,6 +112,7 @@ export async function getConfigurableProductBySlug(rawSlug: string) {
       isConfigurable: true,
       configSchema: true,
       categoryId: true,
+      supplier: { select: { chargeCurrency: true } },
     },
   });
 
@@ -119,6 +123,7 @@ export async function getConfigurableProductBySlug(rawSlug: string) {
       ? ((p as any).priceUSD as number)
       : (p as any).priceUSD?.toNumber?.() ?? null;
   const categoryId = (p as any).categoryId || null;
+  const supplierCurrency = (p as any).supplier?.chargeCurrency || null;
   return {
     ...p,
     images: Array.isArray((p as any).images) ? ((p as any).images as string[]) : [],
@@ -127,6 +132,7 @@ export async function getConfigurableProductBySlug(rawSlug: string) {
         ? applyPriceAdjustments({
             basePriceUSD: base,
             currency: 'USD',
+            supplierCurrency,
             categoryId,
             settings: pricing,
           })

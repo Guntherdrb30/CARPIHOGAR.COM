@@ -43,6 +43,7 @@ export async function GET(req: Request) {
       images: true,
       stock: true,
       isNew: true,
+      supplier: { select: { chargeCurrency: true } },
     },
   });
   const pricing = await getPriceAdjustmentSettings();
@@ -62,11 +63,13 @@ export async function GET(req: Request) {
     const base = toNumberSafe((p as any).priceUSD, 0);
     const baseAlly = toNumberSafe((p as any).priceAllyUSD, 0);
     const baseWholesale = toNumberSafe((p as any).priceWholesaleUSD, 0);
+    const supplierCurrency = (p as any).supplier?.chargeCurrency || null;
     return {
       ...p,
       priceUSD: applyPriceAdjustments({
         basePriceUSD: base,
         currency,
+        supplierCurrency,
         categoryId,
         settings: pricing,
       }),
@@ -75,6 +78,7 @@ export async function GET(req: Request) {
           ? applyPriceAdjustments({
               basePriceUSD: baseAlly,
               currency,
+              supplierCurrency,
               categoryId,
               settings: pricing,
             })
@@ -84,6 +88,7 @@ export async function GET(req: Request) {
           ? applyPriceAdjustments({
               basePriceUSD: baseWholesale,
               currency,
+              supplierCurrency,
               categoryId,
               settings: pricing,
             })

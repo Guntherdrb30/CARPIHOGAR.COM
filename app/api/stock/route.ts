@@ -20,7 +20,14 @@ export async function GET(req: Request) {
     }
     const rows = await prisma.product.findMany({
       where: { id: { in: ids } },
-      select: { id: true, stock: true, stockUnits: true, priceUSD: true, categoryId: true },
+      select: {
+        id: true,
+        stock: true,
+        stockUnits: true,
+        priceUSD: true,
+        categoryId: true,
+        supplier: { select: { chargeCurrency: true } },
+      },
     });
     const map: Record<string, number> = {};
     const priceMap: Record<string, number> = {};
@@ -35,9 +42,11 @@ export async function GET(req: Request) {
           typeof (r as any).priceUSD === 'number'
             ? (r as any).priceUSD
             : (r as any).priceUSD?.toNumber?.() ?? Number((r as any).priceUSD || 0);
+        const supplierCurrency = (r as any).supplier?.chargeCurrency || null;
         priceMap[r.id] = applyPriceAdjustments({
           basePriceUSD: base,
           currency,
+          supplierCurrency,
           categoryId: (r as any).categoryId || null,
           settings: pricing,
         });

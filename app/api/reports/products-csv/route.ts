@@ -5,7 +5,7 @@ import { applyPriceAdjustments, getPriceAdjustmentSettings } from '@/server/pric
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
-      include: { category: true },
+      include: { category: true, supplier: true },
       orderBy: { createdAt: 'desc' },
       take: 5000,
     });
@@ -21,9 +21,11 @@ export async function GET() {
       const baseAlly = (p.priceAllyUSD as any)?.toNumber?.() ?? Number(p.priceAllyUSD || 0);
       const baseWholesale = (p.priceWholesaleUSD as any)?.toNumber?.() ?? Number(p.priceWholesaleUSD || 0);
       const categoryId = (p as any).categoryId || p.category?.id || null;
+      const supplierCurrency = (p as any).supplier?.chargeCurrency || null;
       const adjustedPrice = applyPriceAdjustments({
         basePriceUSD: basePrice,
         currency: 'USD',
+        supplierCurrency,
         categoryId,
         settings: pricing,
       });
@@ -31,6 +33,7 @@ export async function GET() {
         ? applyPriceAdjustments({
             basePriceUSD: baseAlly,
             currency: 'USD',
+            supplierCurrency,
             categoryId,
             settings: pricing,
           })
@@ -39,6 +42,7 @@ export async function GET() {
         ? applyPriceAdjustments({
             basePriceUSD: baseWholesale,
             currency: 'USD',
+            supplierCurrency,
             categoryId,
             settings: pricing,
           })

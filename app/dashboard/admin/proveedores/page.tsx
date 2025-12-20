@@ -107,6 +107,18 @@ export default async function SuppliersPage({
               className="form-input"
             />
           </div>
+          <div>
+            <label className="form-label" htmlFor="chargeCurrency">
+              Moneda de cobro
+            </label>
+            <select id="chargeCurrency" name="chargeCurrency" className="form-select">
+              <option value="USD">USD (cobra en dolares)</option>
+              <option value="VES">VES/BCV (cobra en bolivares)</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Se usa para aplicar el ajuste cambiario solo a proveedores en USD.
+            </p>
+          </div>
 
           <div className="md:col-span-2">
             <label className="form-label" htmlFor="address">
@@ -180,6 +192,7 @@ export default async function SuppliersPage({
                   <th className="px-3 py-2 text-left font-semibold text-gray-700 w-52">Email</th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-700 w-40">Teléfono empresa</th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-700 w-40">Contacto</th>
+                  <th className="px-3 py-2 text-center font-semibold text-gray-700 w-28">Moneda</th>
                   <th className="px-3 py-2 text-center font-semibold text-gray-700 w-32">Crédito</th>
                   <th className="px-3 py-2 text-left font-semibold text-gray-700">Dirección</th>
                   <th className="px-3 py-2 text-center font-semibold text-gray-700 w-32">RIF</th>
@@ -224,6 +237,9 @@ export default async function SuppliersPage({
                       ) : (
                         <span className="text-gray-400">—</span>
                       )}
+                    </td>
+                    <td className="px-3 py-3 text-center text-sm text-gray-700 whitespace-nowrap">
+                      {String((s as any).chargeCurrency || 'USD') === 'VES' ? 'VES/BCV' : 'USD'}
                     </td>
                     <td className="px-3 py-3 text-center text-sm">
                       {s.givesCredit ? (
@@ -321,6 +337,17 @@ export default async function SuppliersPage({
                   className="form-input"
                 />
                 <div className="space-y-1">
+                  <label className="text-xs text-gray-700">Moneda cobro</label>
+                  <select
+                    name="chargeCurrency"
+                    defaultValue={(s as any).chargeCurrency || 'USD'}
+                    className="form-select"
+                  >
+                    <option value="USD">USD</option>
+                    <option value="VES">VES/BCV</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <input
                       id={`givesCredit-${s.id}`}
@@ -383,4 +410,3 @@ export default async function SuppliersPage({
     </div>
   );
 }
-

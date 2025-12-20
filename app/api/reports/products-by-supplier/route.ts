@@ -19,16 +19,18 @@ export async function GET(req: Request) {
   const lines = [
     ['Proveedor','Producto','SKU','Categoría','PrecioUSD','Stock'],
     ...items.map((p) => {
-      const base =
-        typeof (p as any).priceUSD === 'number'
-          ? (p as any).priceUSD
-          : (p as any).priceUSD?.toNumber?.() ?? Number((p as any).priceUSD || 0);
-      const adjusted = applyPriceAdjustments({
-        basePriceUSD: base,
-        currency: 'USD',
-        categoryId: (p as any).categoryId || (p as any).category?.id || null,
-        settings: pricing,
-      });
+    const base =
+      typeof (p as any).priceUSD === 'number'
+        ? (p as any).priceUSD
+        : (p as any).priceUSD?.toNumber?.() ?? Number((p as any).priceUSD || 0);
+    const supplierCurrency = (p as any).supplier?.chargeCurrency || null;
+    const adjusted = applyPriceAdjustments({
+      basePriceUSD: base,
+      currency: 'USD',
+      supplierCurrency,
+      categoryId: (p as any).categoryId || (p as any).category?.id || null,
+      settings: pricing,
+    });
       return [
         p.supplier?.name || '',
         p.name,

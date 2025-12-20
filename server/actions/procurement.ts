@@ -7,6 +7,15 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getSettings, getDeleteSecret } from '@/server/actions/settings';
 
+export async function ensureSupplierColumns() {
+  try {
+    await prisma.$executeRawUnsafe(
+      'ALTER TABLE "public"."Supplier" ' +
+      'ADD COLUMN IF NOT EXISTS "chargeCurrency" "Currency" NOT NULL DEFAULT \'USD\''
+    );
+  } catch {}
+}
+
 function parseCsv(text: string, delimiter?: string): Array<Record<string,string>> {
   const dl = delimiter && delimiter.length ? delimiter : (text.indexOf(';') > -1 ? ';' : ',');
   const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim().length > 0);
@@ -143,6 +152,7 @@ export async function getPurchases(filters?: { q?: string; supplierId?: string; 
   try {
     const session = await getServerSession(authOptions);
     if ((session?.user as any)?.role !== 'ADMIN') throw new Error('Not authorized');
+    await ensureSupplierColumns();
     const where: any = {};
     if (filters?.q) {
       const q = String(filters.q);
@@ -175,6 +185,7 @@ export async function getPurchases(filters?: { q?: string; supplierId?: string; 
 export async function getPurchaseById(id: string) {
   const session = await getServerSession(authOptions);
   if ((session?.user as any)?.role !== 'ADMIN') throw new Error('Not authorized');
+  await ensureSupplierColumns();
   const purchase = await prisma.purchase.findUnique({
     where: { id },
     include: {
@@ -191,6 +202,7 @@ export async function getSuppliers() {
   try {
     const session = await getServerSession(authOptions);
     if ((session?.user as any)?.role !== 'ADMIN') throw new Error('Not authorized');
+    await ensureSupplierColumns();
     return prisma.supplier.findMany({ orderBy: { createdAt: 'desc' } });
   } catch (error) {
     console.error("Error fetching suppliers:", error);
@@ -346,6 +358,7 @@ export async function deletePurchaseByForm(formData: FormData) {
 export async function createSupplier(formData: FormData) {
   const session = await getServerSession(authOptions);
   if ((session?.user as any)?.role !== 'ADMIN') throw new Error('Not authorized');
+  await ensureSupplierColumns();
   const name = String(formData.get('name') || '');
   const email = String(formData.get('email') || '');
   const phone = String(formData.get('phone') || '');
@@ -354,6 +367,8 @@ export async function createSupplier(formData: FormData) {
   const rifImageUrl = String(formData.get('rifImageUrl') || '').trim();
   const contactName = String(formData.get('contactName') || '').trim();
   const contactPhone = String(formData.get('contactPhone') || '').trim();
+  const chargeCurrencyRaw = String(formData.get('chargeCurrency') || 'USD').toUpperCase();
+  const chargeCurrency = chargeCurrencyRaw === 'VES' ? 'VES' : 'USD';
   const givesCreditRaw = formData.get('givesCredit');
   const givesCredit =
     typeof givesCreditRaw === 'string'
@@ -374,6 +389,7 @@ export async function createSupplier(formData: FormData) {
       rifImageUrl: rifImageUrl || null,
       contactName: contactName || null,
       contactPhone: contactPhone || null,
+      chargeCurrency: chargeCurrency as any,
       givesCredit,
       creditDays,
     },
@@ -385,6 +401,7 @@ export async function createSupplier(formData: FormData) {
 export async function updateSupplier(formData: FormData) {
   const session = await getServerSession(authOptions);
   if ((session?.user as any)?.role !== 'ADMIN') throw new Error('Not authorized');
+  await ensureSupplierColumns();
   const id = String(formData.get('id') || '');
   if (!id) { redirect('/dashboard/admin/proveedores?error=ID%20inv%C3%A1lido'); }
   const name = String(formData.get('name') || '').trim();
@@ -395,6 +412,8 @@ export async function updateSupplier(formData: FormData) {
   const rifImageUrlRaw = formData.get('rifImageUrl');
   const contactName = String(formData.get('contactName') || '').trim();
   const contactPhone = String(formData.get('contactPhone') || '').trim();
+  const chargeCurrencyRaw = String(formData.get('chargeCurrency') || 'USD').toUpperCase();
+  const chargeCurrency = chargeCurrencyRaw === 'VES' ? 'VES' : 'USD';
   const givesCreditRaw = formData.get('givesCredit');
   const givesCredit =
     typeof givesCreditRaw === 'string'
@@ -414,6 +433,7 @@ export async function updateSupplier(formData: FormData) {
       address: address || null,
       contactName: contactName || null,
       contactPhone: contactPhone || null,
+      chargeCurrency: chargeCurrency as any,
       givesCredit,
       creditDays,
     };
@@ -433,6 +453,7 @@ export async function getPOs(filters?: { q?: string; supplierId?: string; from?:
   try {
     const session = await getServerSession(authOptions);
     if ((session?.user as any)?.role !== 'ADMIN') throw new Error('Not authorized');
+    await ensureSupplierColumns();
     const where: any = {};
     if (filters?.q) {
       const q = String(filters.q);
@@ -499,6 +520,7 @@ export async function createPO(formData: FormData) {
 export async function getPOById(id: string) {
   const session = await getServerSession(authOptions);
   if ((session?.user as any)?.role !== 'ADMIN') throw new Error('Not authorized');
+  await ensureSupplierColumns();
   return prisma.purchaseOrder.findUnique({ where: { id }, include: { supplier: true, createdBy: true, receivedBy: true, items: { include: { product: true } } } });
 }
 

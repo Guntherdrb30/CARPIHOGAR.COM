@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { getDeleteSecret } from '@/server/actions/settings';
+import { ensureSupplierColumns } from '@/server/actions/procurement';
 
 async function recalcPayable(id: string) {
   const payable = await prisma.payable.findUnique({
@@ -176,6 +177,7 @@ export async function getPayables(filters?: {
   if ((session?.user as any)?.role !== 'ADMIN') {
     throw new Error('Not authorized');
   }
+  await ensureSupplierColumns();
   const where: any = {};
   if (filters?.status) {
     const st = String(filters.status).toUpperCase();

@@ -110,6 +110,7 @@ export async function GET(req: NextRequest) {
         code: true,
         brand: true,
         createdAt: true,
+        supplier: { select: { chargeCurrency: true } },
       },
       take: 80,
     });
@@ -156,6 +157,7 @@ export async function GET(req: NextRequest) {
     const items = scored.slice(0, 12).map(({ r }) => {
       const categoryId = (r as any).categoryId || null;
       const base = toNum((r as any).priceUSD, 0) as number;
+      const supplierCurrency = (r as any).supplier?.chargeCurrency || null;
       return {
         id: r.id,
         name: r.name,
@@ -165,6 +167,7 @@ export async function GET(req: NextRequest) {
         priceUSD: applyPriceAdjustments({
           basePriceUSD: base,
           currency: 'USD',
+          supplierCurrency,
           categoryId,
           settings: pricing,
         }),

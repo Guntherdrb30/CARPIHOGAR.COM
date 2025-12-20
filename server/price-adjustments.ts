@@ -122,11 +122,13 @@ export async function getPriceAdjustmentSettings(): Promise<PriceAdjustmentSetti
 export function applyPriceAdjustments({
   basePriceUSD,
   currency = 'USD',
+  supplierCurrency,
   categoryId,
   settings,
 }: {
   basePriceUSD: number;
   currency?: CurrencyCode;
+  supplierCurrency?: CurrencyCode | string | null;
   categoryId?: string | null;
   settings: PriceAdjustmentSettings;
 }): number {
@@ -137,9 +139,10 @@ export function applyPriceAdjustments({
     price *= 1 + settings.globalPriceAdjustmentPercent / 100;
   }
 
-  if (settings.priceAdjustmentByCurrencyEnabled) {
+  if (settings.priceAdjustmentByCurrencyEnabled && supplierCurrency != null) {
+    const norm = toCurrencyCode(supplierCurrency);
     const pct =
-      currency === 'VES'
+      norm === 'VES'
         ? settings.priceAdjustmentVESPercent
         : settings.priceAdjustmentUSDPercent;
     if (pct) price *= 1 + pct / 100;

@@ -67,6 +67,7 @@ export function computeConfigurablePrice({
   config,
   product,
   currency,
+  supplierCurrency,
   settings,
 }: {
   config: any;
@@ -80,12 +81,14 @@ export function computeConfigurablePrice({
     heightCm?: number | null;
   };
   currency: CurrencyCode;
+  supplierCurrency?: CurrencyCode | string | null;
   settings: PriceAdjustmentSettings;
 }): number {
   const base = toNumberSafe(product.priceUSD, 0);
   const adjustedReferencePrice = applyPriceAdjustments({
     basePriceUSD: base,
     currency,
+    supplierCurrency,
     categoryId: product.categoryId || null,
     settings,
   });

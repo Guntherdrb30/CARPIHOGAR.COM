@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
 import { getPayables, addPayablePayment } from '@/server/actions/payables';
 import { getBankAccounts } from '@/server/actions/banking';
+import { ensureSupplierColumns } from '@/server/actions/procurement';
 
 export default async function CuentasPorPagarPage({
   searchParams,
@@ -20,6 +21,7 @@ export default async function CuentasPorPagarPage({
   const hasta = String(sp.hasta || '').trim();
   const invoiceQ = String(sp.factura || '').trim();
 
+  await ensureSupplierColumns();
   const [payables, suppliers, banks] = await Promise.all([
     getPayables({
       status: statusFilter === 'TODOS' ? undefined : statusFilter,

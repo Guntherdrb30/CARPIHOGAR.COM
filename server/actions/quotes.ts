@@ -42,7 +42,14 @@ async function buildAdjustedQuoteItems(
 
   const products = await prisma.product.findMany({
     where: { id: { in: ids } },
-    select: { id: true, name: true, priceUSD: true, priceAllyUSD: true, categoryId: true },
+    select: {
+      id: true,
+      name: true,
+      priceUSD: true,
+      priceAllyUSD: true,
+      categoryId: true,
+      supplier: { select: { chargeCurrency: true } },
+    },
   });
   const byId = new Map(products.map((p) => [p.id, p] as const));
 
@@ -52,11 +59,13 @@ async function buildAdjustedQuoteItems(
       return { ...it, priceUSD: Number(it.priceUSD || 0) };
     }
     const categoryId = (p as any).categoryId || null;
+    const supplierCurrency = (p as any).supplier?.chargeCurrency || null;
     const baseP1 = toNumberSafe((p as any).priceUSD, 0);
     const baseP2 = (p as any).priceAllyUSD != null ? toNumberSafe((p as any).priceAllyUSD, 0) : null;
     const adjustedP1 = applyPriceAdjustments({
       basePriceUSD: baseP1,
       currency: 'USD',
+      supplierCurrency,
       categoryId,
       settings: pricing,
     });
@@ -65,6 +74,7 @@ async function buildAdjustedQuoteItems(
         ? applyPriceAdjustments({
             basePriceUSD: baseP2,
             currency: 'USD',
+            supplierCurrency,
             categoryId,
             settings: pricing,
           })

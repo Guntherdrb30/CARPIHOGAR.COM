@@ -101,6 +101,7 @@ export async function run(input: { q: string }) {
         categoryId: true,
         sku: true,
         code: true,
+        supplier: { select: { chargeCurrency: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 20,
@@ -126,6 +127,7 @@ export async function run(input: { q: string }) {
           categoryId: true,
           sku: true,
           code: true,
+          supplier: { select: { chargeCurrency: true } },
         },
         orderBy: { createdAt: "desc" },
         take: 20,
@@ -138,9 +140,11 @@ export async function run(input: { q: string }) {
         : p.priceUSD
           ? Number(p.priceUSD)
           : 0;
+      const supplierCurrency = (p as any).supplier?.chargeCurrency || null;
       const priceUSD = applyPriceAdjustments({
         basePriceUSD: base,
         currency: "USD",
+        supplierCurrency,
         categoryId: p.categoryId || null,
         settings: pricing,
       });

@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { ensureSupplierColumns } from '@/server/actions/procurement';
 
 type SaveItem = {
   productId?: string | null;
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
   }
 
   try {
+    await ensureSupplierColumns();
     const schema = z.object({
       supplierId: z.string().optional().nullable(),
       currency: z.enum(['USD', 'VES', 'USDT']).default('USD'),

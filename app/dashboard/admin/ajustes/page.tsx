@@ -239,7 +239,7 @@ export default async function AdminSettingsPage() {
         <div className="bg-white p-4 rounded-lg shadow mt-6 space-y-4">
           <h2 className="text-lg font-bold">Motor de Ajustes de Precio</h2>
           <p className="text-sm text-gray-600">
-            Ajustes centralizados aplicados en tiempo real sin mostrar mensajes al cliente.
+            Ajustes centralizados aplicados en tiempo real sin mostrar mensajes al cliente. El ajuste cambiario usa la moneda de cobro definida en Proveedores.
           </p>
           <div className="text-xs text-gray-500">
             Ultima modificacion: {latestPriceLog ? `${new Date(latestPriceLog.changedAt).toLocaleString()} - ${latestPriceLog.changedBy?.name || latestPriceLog.changedBy?.email || latestPriceLog.changedByUserId || '-'}` : 'Sin cambios registrados'}
@@ -270,22 +270,22 @@ export default async function AdminSettingsPage() {
             <div className="mt-4 space-y-2">
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input type="checkbox" name="priceAdjustmentByCurrencyEnabled" defaultChecked={Boolean(priceData.priceAdjustmentByCurrencyEnabled)} />
-                Activar ajuste por moneda
+                Activar ajuste para proveedores en USD
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <label className="block text-sm text-gray-700">USD (%)</label>
+                  <label className="block text-sm text-gray-700">Porcentaje USD (%)</label>
                   <input type="number" step="0.01" name="priceAdjustmentUSDPercent" defaultValue={Number(priceData.priceAdjustmentUSDPercent ?? 0)} className="w-full px-2 py-1 border rounded" />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-700">Bs (VES) (%)</label>
-                  <input type="number" step="0.01" name="priceAdjustmentVESPercent" defaultValue={Number(priceData.priceAdjustmentVESPercent ?? 0)} className="w-full px-2 py-1 border rounded" />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Solo aplica a productos de proveedores con moneda de cobro USD. Si un producto no tiene proveedor, no se ajusta.
+                  </p>
                 </div>
               </div>
+              <input type="hidden" name="priceAdjustmentVESPercent" value="0" />
             </div>
 
-            <div className="mt-4">
-              <h3 className="text-md font-semibold mb-2">Ajuste por categoria</h3>
+            <details className="mt-4">
+              <summary className="text-md font-semibold cursor-pointer">Ajuste por categoria (opcional)</summary>
               <div className="text-xs text-gray-500 mb-2">Configura un porcentaje adicional por Categoria (solo ROOT).</div>
               <div className="overflow-x-auto">
                 <table className="w-full table-auto text-sm">
@@ -322,7 +322,7 @@ export default async function AdminSettingsPage() {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </details>
 
             <div className="mt-4 space-y-2">
               <label className="flex items-center gap-2 text-sm text-gray-700">

@@ -649,6 +649,8 @@ model Supplier {
   // Persona de contacto principal
   contactName    String?
   contactPhone   String?
+  // Moneda de cobro del proveedor (USD/VES)
+  chargeCurrency Currency        @default(USD)
   // Condiciones de crédito
   givesCredit    Boolean         @default(false)
   creditDays     Int?

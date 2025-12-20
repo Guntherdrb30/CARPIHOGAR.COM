@@ -199,7 +199,20 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
         const ids = Array.from(new Set(items.map(i => i.id)));
         const products = await prisma.product.findMany({
             where: { id: { in: ids } },
-            select: { id: true, name: true, stock: true, stockUnits: true, allowBackorder: true, priceUSD: true, categoryId: true, configSchema: true, widthCm: true, depthCm: true, heightCm: true },
+            select: {
+                id: true,
+                name: true,
+                stock: true,
+                stockUnits: true,
+                allowBackorder: true,
+                priceUSD: true,
+                categoryId: true,
+                configSchema: true,
+                widthCm: true,
+                depthCm: true,
+                heightCm: true,
+                supplier: { select: { chargeCurrency: true } },
+            },
         });
         const byId = new Map(products.map(p => [p.id, p] as const));
         const pricedItems = items.map((it) => {
@@ -209,6 +222,7 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
             }
             const isConfigurable = (it as any).type === 'configurable' || (it as any).config;
             const base = toNumberSafe((p as any).priceUSD, 0);
+            const supplierCurrency = (p as any).supplier?.chargeCurrency || null;
             const priceUSD = isConfigurable
                 ? ((it as any).config
                     ? computeConfigurablePrice({
@@ -223,12 +237,14 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
                           heightCm: (p as any).heightCm ?? null,
                         },
                         currency: currencyCode,
+                        supplierCurrency,
                         settings: pricing,
                       })
                     : Number(it.priceUSD || 0))
                 : applyPriceAdjustments({
                     basePriceUSD: base,
                     currency: currencyCode,
+                    supplierCurrency,
                     categoryId: (p as any).categoryId || null,
                     settings: pricing,
                 });
