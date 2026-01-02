@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import CarpihogarModelViewer from "@/components/3d/CarpihogarModelViewer";
 
 type KitchenPriceTier = "LOW" | "MEDIUM" | "HIGH";
@@ -37,6 +37,20 @@ type SelectedModule = {
   widthMm: number;
   unitPriceUsd: number;
   quantity: number;
+};
+
+type PlacementZone = "FLOOR" | "WALL";
+
+type PlacedModule = {
+  id: string;
+  productId: string;
+  name: string;
+  widthMm: number;
+  depthMm: number;
+  zone: PlacementZone;
+  positionX: number;
+  positionY: number;
+  mountHeightMm: number;
 };
 
 type KitchenStudioProps = {
@@ -80,6 +94,36 @@ const LAYOUT_OPTIONS: Array<{
   { value: "DOUBLE_LINE", label: "Lineal doble", description: "Dos frentes paralelos." },
   { value: "CUSTOM_SPACE", label: "Espacio libre", description: "Diseno personalizado." },
 ];
+
+const LAYOUT_SHAPES: Record<
+  KitchenLayoutType,
+  Array<{ x: number; y: number; w: number; h: number; variant?: "island" | "peninsula" }>
+> = {
+  LINEAL: [{ x: 8, y: 8, w: 84, h: 10 }],
+  LINEAL_WITH_ISLAND: [
+    { x: 8, y: 8, w: 84, h: 10 },
+    { x: 32, y: 32, w: 36, h: 12, variant: "island" },
+  ],
+  L_SHAPE: [
+    { x: 8, y: 8, w: 60, h: 10 },
+    { x: 8, y: 8, w: 10, h: 36 },
+  ],
+  L_WITH_PENINSULA: [
+    { x: 8, y: 8, w: 60, h: 10 },
+    { x: 8, y: 8, w: 10, h: 36 },
+    { x: 48, y: 22, w: 36, h: 10, variant: "peninsula" },
+  ],
+  L_WITH_ISLAND: [
+    { x: 8, y: 8, w: 60, h: 10 },
+    { x: 8, y: 8, w: 10, h: 36 },
+    { x: 40, y: 32, w: 32, h: 12, variant: "island" },
+  ],
+  DOUBLE_LINE: [
+    { x: 8, y: 8, w: 84, h: 10 },
+    { x: 8, y: 36, w: 84, h: 10 },
+  ],
+  CUSTOM_SPACE: [{ x: 18, y: 16, w: 64, h: 24 }],
+};
 
 const LAYOUT_FIELDS: Record<
   KitchenLayoutType,
@@ -126,6 +170,9 @@ const CATEGORY_ORDER = [
   "Condimenteros",
 ];
 
+const DEFAULT_MODULE_DEPTH_MM = 600;
+const WALL_MOUNT_HEIGHT_MM = 1500;
+
 const toNumberSafe = (value: any) => {
   if (value == null) return null;
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -154,48 +201,51 @@ const resolveWidthMm = (product: KitchenModuleProduct) => {
   return width || min || max || 600;
 };
 
-function LayoutPreview({ type }: { type: KitchenLayoutType }) {
-  const bars = {
-    LINEAL: [{ x: 10, y: 30, w: 80, h: 10 }],
-    LINEAL_WITH_ISLAND: [
-      { x: 10, y: 20, w: 80, h: 10 },
-      { x: 32, y: 40, w: 36, h: 10 },
-    ],
-    L_SHAPE: [
-      { x: 10, y: 20, w: 60, h: 10 },
-      { x: 10, y: 20, w: 10, h: 30 },
-    ],
-    L_WITH_PENINSULA: [
-      { x: 10, y: 20, w: 60, h: 10 },
-      { x: 10, y: 20, w: 10, h: 30 },
-      { x: 50, y: 30, w: 30, h: 10 },
-    ],
-    L_WITH_ISLAND: [
-      { x: 10, y: 20, w: 60, h: 10 },
-      { x: 10, y: 20, w: 10, h: 30 },
-      { x: 40, y: 40, w: 30, h: 10 },
-    ],
-    DOUBLE_LINE: [
-      { x: 10, y: 18, w: 80, h: 10 },
-      { x: 10, y: 42, w: 80, h: 10 },
-    ],
-    CUSTOM_SPACE: [{ x: 18, y: 26, w: 64, h: 18 }],
-  } as Record<KitchenLayoutType, Array<{ x: number; y: number; w: number; h: number }>>;
+const resolveDepthMm = (product: KitchenModuleProduct) => {
+  const depth = toNumberSafe(product.depthMm);
+  return depth || DEFAULT_MODULE_DEPTH_MM;
+};
+
+const resolveCategoryLabel = (product: KitchenModuleProduct) =>
+  CATEGORY_LABELS[String(product.kitchenCategory || "OTHER")] || "Sin categoria";
+
+const resolvePlacementZone = (product: KitchenModuleProduct): PlacementZone =>
+  resolveCategoryLabel(product) === "Muebles altos" ? "WALL" : "FLOOR";
+
+const createPlacedId = (productId: string) =>
+  `${productId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+function LayoutPreview({ type, isActive }: { type: KitchenLayoutType; isActive: boolean }) {
+  const shapes = LAYOUT_SHAPES[type] || [];
+  const background = isActive ? "#0f172a" : "#f8fafc";
+  const counter = isActive ? "#f8fafc" : "#334155";
+  const island = isActive ? "#e2e8f0" : "#64748b";
+  const outline = isActive ? "#1f2937" : "#e2e8f0";
 
   return (
-    <div className="relative h-20 w-full rounded-md bg-gray-100 border border-gray-200">
-      {(bars[type] || []).map((bar, index) => (
-        <div
-          key={`${type}-${index}`}
-          className="absolute rounded bg-gray-700/80"
-          style={{
-            left: `${bar.x}%`,
-            top: `${bar.y}%`,
-            width: `${bar.w}%`,
-            height: `${bar.h}%`,
-          }}
-        />
-      ))}
+    <div className="relative h-24 w-full overflow-hidden rounded-lg border border-gray-200">
+      <svg viewBox="0 0 100 60" className="h-full w-full">
+        <rect x="0" y="0" width="100" height="60" rx="6" fill={background} />
+        <rect x="3" y="3" width="94" height="54" rx="6" fill="none" stroke={outline} />
+        {shapes.map((shape, index) => (
+          <rect
+            key={`${type}-shape-${index}`}
+            x={shape.x}
+            y={shape.y}
+            width={shape.w}
+            height={shape.h}
+            rx="2"
+            fill={shape.variant ? island : counter}
+          />
+        ))}
+      </svg>
+      <div
+        className={`absolute right-2 top-2 rounded-full px-2 py-0.5 text-[9px] uppercase tracking-[0.2em] ${
+          isActive ? "bg-white/10 text-white/70" : "bg-slate-200 text-slate-500"
+        }`}
+      >
+        Vista superior
+      </div>
     </div>
   );
 }
@@ -206,10 +256,27 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
   const [activeProductId, setActiveProductId] = useState<string>(modules[0]?.id || "");
   const [selectedModules, setSelectedModules] = useState<SelectedModule[]>([]);
   const [wallInputs, setWallInputs] = useState<Record<string, { widthMm: string; heightMm: string }>>({});
+  const [spaceDimensions, setSpaceDimensions] = useState({
+    widthMm: "",
+    lengthMm: "",
+    heightMm: "",
+  });
+  const [placedModules, setPlacedModules] = useState<PlacedModule[]>([]);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const planRef = useRef<HTMLDivElement | null>(null);
+  const dragStateRef = useRef<{
+    id: string;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
+  const [planSize, setPlanSize] = useState({ width: 0, height: 0 });
 
   const activeProduct = useMemo(
     () => modules.find((item) => item.id === activeProductId) || modules[0] || null,
@@ -229,6 +296,10 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
   }, [modules]);
 
   const layoutFields = layoutType ? LAYOUT_FIELDS[layoutType] : [];
+  const spaceWidthMm = Number(spaceDimensions.widthMm) || 0;
+  const spaceLengthMm = Number(spaceDimensions.lengthMm) || 0;
+  const spaceHeightMm = Number(spaceDimensions.heightMm) || 0;
+  const isPlanReady = spaceWidthMm > 0 && spaceLengthMm > 0 && spaceHeightMm > 0;
 
   const totalBudget = selectedModules.reduce(
     (sum, item) => sum + item.unitPriceUsd * item.quantity,
@@ -248,6 +319,18 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
       }),
     );
   }, [priceTier, modules]);
+
+  useEffect(() => {
+    if (!planRef.current) return;
+    const node = planRef.current;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      setPlanSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   const handleSelectLayout = (value: KitchenLayoutType) => {
     setLayoutType(value);
@@ -282,6 +365,75 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
         },
       ];
     });
+  };
+
+  const handleAddToPlan = (product: KitchenModuleProduct) => {
+    if (!isPlanReady) return;
+    const widthMm = resolveWidthMm(product);
+    const depthMm = resolveDepthMm(product);
+    const zone = resolvePlacementZone(product);
+    setPlacedModules((prev) => [
+      ...prev,
+      {
+        id: createPlacedId(product.id),
+        productId: product.id,
+        name: product.name,
+        widthMm,
+        depthMm,
+        zone,
+        positionX: 0,
+        positionY: 0,
+        mountHeightMm: zone === "WALL" ? WALL_MOUNT_HEIGHT_MM : 0,
+      },
+    ]);
+  };
+
+  const handleRemovePlacedModule = (id: string) => {
+    setPlacedModules((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleMovePlacedModule = (id: string, nextX: number, nextY: number) => {
+    setPlacedModules((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const maxX = Math.max(0, spaceWidthMm - item.widthMm);
+        const maxY = Math.max(0, spaceLengthMm - item.depthMm);
+        const clampedX = Math.min(Math.max(nextX, 0), maxX);
+        const clampedY = item.zone === "WALL" ? 0 : Math.min(Math.max(nextY, 0), maxY);
+        return { ...item, positionX: clampedX, positionY: clampedY };
+      }),
+    );
+  };
+
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>, item: PlacedModule) => {
+    if (!isPlanReady || planScale <= 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDraggingId(item.id);
+    dragStateRef.current = {
+      id: item.id,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: item.positionX,
+      originY: item.positionY,
+    };
+  };
+
+  const handlePointerMove = (event: PointerEvent<HTMLDivElement>, item: PlacedModule) => {
+    if (!dragStateRef.current || draggingId !== item.id || planScale <= 0) return;
+    const deltaX = event.clientX - dragStateRef.current.startX;
+    const deltaY = event.clientY - dragStateRef.current.startY;
+    const nextX = dragStateRef.current.originX + deltaX / planScale;
+    const nextY = dragStateRef.current.originY + deltaY / planScale;
+    handleMovePlacedModule(item.id, nextX, nextY);
+  };
+
+  const handlePointerUp = (event: PointerEvent<HTMLDivElement>, item: PlacedModule) => {
+    if (!dragStateRef.current || draggingId !== item.id) return;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    setDraggingId(null);
+    dragStateRef.current = null;
   };
 
   const handleRemoveModule = (productId: string) => {
@@ -416,6 +568,17 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
     }
   };
 
+  const planScale = useMemo(() => {
+    if (!isPlanReady || planSize.width === 0 || planSize.height === 0) return 0;
+    return Math.min(planSize.width / spaceWidthMm, planSize.height / spaceLengthMm);
+  }, [isPlanReady, planSize.height, planSize.width, spaceLengthMm, spaceWidthMm]);
+
+  const layoutGuides = layoutType ? LAYOUT_SHAPES[layoutType] || [] : [];
+
+  const planWidthPx = planScale > 0 ? spaceWidthMm * planScale : planSize.width;
+  const planHeightPx = planScale > 0 ? spaceLengthMm * planScale : planSize.height;
+  const wallStripPx = Math.max(10, Math.min(28, planHeightPx * 0.14));
+
   return (
     <div className="space-y-6">
       <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-6 space-y-4">
@@ -470,7 +633,7 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
                   : "border-gray-200 bg-white hover:border-gray-400"
               }`}
             >
-              <LayoutPreview type={layout.value} />
+              <LayoutPreview type={layout.value} isActive={layoutType === layout.value} />
               <div className="mt-3">
                 <div className="text-sm font-semibold">{layout.label}</div>
                 <div className={`text-xs ${layoutType === layout.value ? "text-gray-200" : "text-gray-500"}`}>
@@ -491,57 +654,98 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
         </div>
         {!layoutType && (
           <div className="text-sm text-gray-500">
-            Selecciona un tipo de cocina para ver los campos de medidas.
+            Selecciona un tipo de cocina para ver las opciones de medidas.
           </div>
         )}
-        {layoutType && layoutFields.length === 0 && (
-          <div className="text-sm text-gray-500">
-            Para espacio libre podras definir medidas avanzadas en una fase posterior.
-          </div>
-        )}
-        {layoutType && layoutFields.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {layoutFields.map((field) => (
-              <div key={field.wallName} className="rounded-lg border border-gray-200 p-3">
-                <div className="text-xs font-semibold text-gray-700">{field.label}</div>
-                <div className="mt-2 space-y-2">
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder="Ancho (mm)"
-                    value={wallInputs[field.wallName]?.widthMm || ""}
-                    onChange={(event) =>
-                      setWallInputs((prev) => ({
-                        ...prev,
-                        [field.wallName]: {
-                          ...prev[field.wallName],
-                          widthMm: event.target.value,
-                        },
-                      }))
-                    }
-                    className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
-                  />
-                  {!field.isSeparation && (
-                    <input
-                      type="number"
-                      min={0}
-                      placeholder="Alto (mm)"
-                      value={wallInputs[field.wallName]?.heightMm || ""}
-                      onChange={(event) =>
-                        setWallInputs((prev) => ({
-                          ...prev,
-                          [field.wallName]: {
-                            ...prev[field.wallName],
-                            heightMm: event.target.value,
-                          },
-                        }))
-                      }
-                      className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
-                    />
-                  )}
-                </div>
+        {layoutType && (
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-4">
+            <div className="rounded-lg border border-gray-200 p-3">
+              <div className="text-xs font-semibold text-gray-700">Medidas del ambiente</div>
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Ancho (mm)"
+                  value={spaceDimensions.widthMm}
+                  onChange={(event) =>
+                    setSpaceDimensions((prev) => ({ ...prev, widthMm: event.target.value }))
+                  }
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Largo (mm)"
+                  value={spaceDimensions.lengthMm}
+                  onChange={(event) =>
+                    setSpaceDimensions((prev) => ({ ...prev, lengthMm: event.target.value }))
+                  }
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Alto (mm)"
+                  value={spaceDimensions.heightMm}
+                  onChange={(event) =>
+                    setSpaceDimensions((prev) => ({ ...prev, heightMm: event.target.value }))
+                  }
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                />
               </div>
-            ))}
+              <div className="mt-2 text-[11px] text-gray-500">
+                Se usa esta medida para el plano y el montaje de muebles altos.
+              </div>
+            </div>
+            {layoutFields.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {layoutFields.map((field) => (
+                  <div key={field.wallName} className="rounded-lg border border-gray-200 p-3">
+                    <div className="text-xs font-semibold text-gray-700">{field.label}</div>
+                    <div className="mt-2 space-y-2">
+                      <input
+                        type="number"
+                        min={0}
+                        placeholder="Ancho (mm)"
+                        value={wallInputs[field.wallName]?.widthMm || ""}
+                        onChange={(event) =>
+                          setWallInputs((prev) => ({
+                            ...prev,
+                            [field.wallName]: {
+                              ...prev[field.wallName],
+                              widthMm: event.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                      />
+                      {!field.isSeparation && (
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="Alto (mm)"
+                          value={wallInputs[field.wallName]?.heightMm || ""}
+                          onChange={(event) =>
+                            setWallInputs((prev) => ({
+                              ...prev,
+                              [field.wallName]: {
+                                ...prev[field.wallName],
+                                heightMm: event.target.value,
+                              },
+                            }))
+                          }
+                          className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                        />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-gray-200 p-3 text-xs text-gray-500">
+                Para espacio libre podras definir medidas avanzadas en una fase posterior.
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -563,6 +767,115 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
 
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
           <div className="space-y-3">
+            <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-gray-400">Plano 2D</div>
+                  <div className="text-sm font-semibold text-gray-900">Distribucion en planta</div>
+                  <div className="text-xs text-gray-500">
+                    Arrastra los muebles. Los altos se montan en pared a 1500 mm.
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500">
+                  {isPlanReady
+                    ? `Ancho ${spaceWidthMm} mm · Largo ${spaceLengthMm} mm · Alto ${spaceHeightMm} mm`
+                    : "Completa ancho, largo y alto para activar el plano."}
+                </div>
+              </div>
+
+              <div
+                ref={planRef}
+                className="relative mt-3 h-[360px] w-full overflow-hidden rounded-lg border border-dashed border-gray-300 bg-slate-50"
+              >
+                {isPlanReady ? (
+                  <div className="absolute inset-3 flex items-center justify-center">
+                    <div
+                      className="relative rounded-md border border-slate-300 bg-white shadow-inner"
+                      style={{ width: planWidthPx, height: planHeightPx }}
+                    >
+                      <div
+                        className="absolute inset-0"
+                        style={{
+                          backgroundImage:
+                            "linear-gradient(0deg, rgba(148,163,184,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.15) 1px, transparent 1px)",
+                          backgroundSize: "24px 24px",
+                        }}
+                      />
+                      <div
+                        className="absolute left-0 top-0 w-full border-b border-slate-200 bg-slate-100/80"
+                        style={{ height: wallStripPx }}
+                      />
+                      <div className="absolute left-2 top-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                        Pared 1500 mm
+                      </div>
+
+                      {layoutGuides.map((shape, index) => (
+                        <div
+                          key={`guide-${layoutType}-${index}`}
+                          className="absolute rounded bg-slate-200/70"
+                          style={{
+                            left: `${shape.x}%`,
+                            top: `${shape.y}%`,
+                            width: `${shape.w}%`,
+                            height: `${shape.h}%`,
+                          }}
+                        />
+                      ))}
+
+                      {placedModules.map((item) => {
+                        const leftPx = item.positionX * planScale;
+                        const topPx = item.positionY * planScale;
+                        const widthPx = item.widthMm * planScale;
+                        const depthPx = item.depthMm * planScale;
+                        const isWall = item.zone === "WALL";
+                        return (
+                          <div
+                            key={item.id}
+                            onPointerDown={(event) => handlePointerDown(event, item)}
+                            onPointerMove={(event) => handlePointerMove(event, item)}
+                            onPointerUp={(event) => handlePointerUp(event, item)}
+                            className={`absolute flex items-center justify-between gap-1 overflow-hidden rounded border px-1 text-[10px] font-semibold ${
+                              isWall
+                                ? "border-amber-300 bg-amber-100 text-amber-900"
+                                : "border-emerald-300 bg-emerald-100 text-emerald-900"
+                            } ${draggingId === item.id ? "ring-2 ring-slate-900" : ""}`}
+                            style={{
+                              left: leftPx,
+                              top: isWall ? 0 : topPx,
+                              width: Math.max(widthPx, 18),
+                              height: Math.max(depthPx, 18),
+                              cursor: "grab",
+                            }}
+                          >
+                            <span className="truncate" title={item.name}>
+                              {item.name}
+                            </span>
+                            <button
+                              type="button"
+                              className="text-[10px] text-slate-500 hover:text-slate-700"
+                              onClick={() => handleRemovePlacedModule(item.id)}
+                            >
+                              x
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500">
+                    Define las medidas del ambiente para habilitar el plano.
+                  </div>
+                )}
+              </div>
+
+              {placedModules.length === 0 && (
+                <div className="mt-2 text-xs text-gray-500">
+                  Usa "Agregar al plano" para colocar muebles y arrastrarlos.
+                </div>
+              )}
+            </div>
+
             {activeProduct && (
               <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
                 <div className="text-xs uppercase tracking-wide text-gray-400">Modulo activo</div>
@@ -587,18 +900,16 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
               </div>
             )}
             {activeProduct ? (
-              <CarpihogarModelViewer
-                productId={activeProduct.id}
-                productName={activeProduct.name}
-                sku={activeProduct.sku || activeProduct.code || null}
-                category={
-                  CATEGORY_LABELS[String(activeProduct.kitchenCategory || "OTHER")] || "Sin categoria"
-                }
-                furnitureType="Modulo de cocina"
-                widthCm={activeProduct.widthMm ? activeProduct.widthMm / 10 : null}
-                heightCm={activeProduct.heightMm ? activeProduct.heightMm / 10 : null}
-                depthCm={activeProduct.depthMm ? activeProduct.depthMm / 10 : null}
-                isAdmin={isRoot}
+                <CarpihogarModelViewer
+                  productId={activeProduct.id}
+                  productName={activeProduct.name}
+                  sku={activeProduct.sku || activeProduct.code || null}
+                  category={resolveCategoryLabel(activeProduct)}
+                  furnitureType="Modulo de cocina"
+                  widthCm={activeProduct.widthMm ? activeProduct.widthMm / 10 : null}
+                  heightCm={activeProduct.heightMm ? activeProduct.heightMm / 10 : null}
+                  depthCm={activeProduct.depthMm ? activeProduct.depthMm / 10 : null}
+                  isAdmin={isRoot}
                 showPanel={false}
                 viewerClassName="w-full h-[520px] rounded-lg overflow-hidden"
               />
@@ -680,6 +991,18 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
                               disabled={!priceTier}
                             >
                               Agregar al presupuesto
+                            </button>
+                            <button
+                              type="button"
+                              className={`rounded px-3 py-1 text-xs font-semibold border ${
+                                isPlanReady
+                                  ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                  : "border-gray-200 text-gray-400 cursor-not-allowed"
+                              }`}
+                              onClick={() => handleAddToPlan(item)}
+                              disabled={!isPlanReady}
+                            >
+                              Agregar al plano
                             </button>
                             <button
                               type="button"
