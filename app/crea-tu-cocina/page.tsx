@@ -49,7 +49,7 @@ export default async function CreaTuCocinaPage({
       product = await prisma.product.findFirst({
         where: { isVisibleInKitchenDesigner: true },
         include: { category: true },
-        orderBy: { updatedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
       });
     } catch {
       // Fallback if the column is missing in older DBs.
@@ -59,7 +59,7 @@ export default async function CreaTuCocinaPage({
   if (!product) {
     product = await prisma.product.findFirst({
       include: { category: true },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
