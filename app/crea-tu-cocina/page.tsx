@@ -45,11 +45,16 @@ export default async function CreaTuCocinaPage({
     });
   }
   if (!product) {
-    product = await prisma.product.findFirst({
-      where: { isVisibleInKitchenDesigner: true },
-      include: { category: true },
-      orderBy: { updatedAt: 'desc' },
-    });
+    try {
+      product = await prisma.product.findFirst({
+        where: { isVisibleInKitchenDesigner: true },
+        include: { category: true },
+        orderBy: { updatedAt: 'desc' },
+      });
+    } catch {
+      // Fallback if the column is missing in older DBs.
+      product = null;
+    }
   }
   if (!product) {
     product = await prisma.product.findFirst({
