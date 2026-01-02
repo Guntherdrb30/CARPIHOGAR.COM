@@ -48,6 +48,50 @@ enum ProductStatus {
   CLEARANCE
 }
 
+enum ProductFamily {
+  STANDARD
+  PARAMETRIC_FURNITURE
+  KITCHEN_MODULE
+}
+
+enum KitchenCategory {
+  LOW
+  HIGH
+  PANTRY
+  TOWER
+  OTHER
+}
+
+enum KitchenLayoutType {
+  LINEAL
+  L_SHAPE
+  DOUBLE_LINE
+  LINEAL_WITH_ISLAND
+  L_WITH_ISLAND
+  L_WITH_PENINSULA
+  CUSTOM_SPACE
+}
+
+enum KitchenDesignStatus {
+  DRAFT
+  SAVED
+  ARCHIVED
+}
+
+enum Model3DAssetStatus {
+  PENDING
+  PROCESSING
+  READY
+  ERROR
+}
+
+enum Model3DJobStatus {
+  PENDING
+  PROCESSING
+  DONE
+  ERROR
+}
+
 // Sucursales físicas de la empresa (Barinas, otras ciudades)
 model Branch {
   id               String   @id @default(cuid())
@@ -121,6 +165,7 @@ model User {
   moodboards  Moodboard[]
   // Diseños personalizados del configurador ECPD
   ecpdDesigns EcpdDesign[]
+  kitchenDesigns KitchenDesign[]
   adminSettingsAuditLogs AdminSettingsAuditLog[]
 
   passwordResetToken          String?   @unique
@@ -261,6 +306,23 @@ model Product {
   videoUrl          String?
   // Show Instagram/TikTok buttons in PDP
   showSocialButtons Boolean  @default(false)
+  // Base catalog activation
+  isActive          Boolean  @default(true)
+  basePriceUsd      Decimal  @default(0) @db.Decimal(10, 2)
+  productFamily     ProductFamily @default(STANDARD)
+  kitchenCategory   KitchenCategory?
+  isVisibleInKitchenDesigner Boolean @default(false)
+  usableInQuickBudget Boolean @default(false)
+  usableInKitchenDesigner Boolean @default(false)
+  isParametric      Boolean  @default(false)
+  widthMm           Int?
+  heightMm          Int?
+  depthMm           Int?
+  widthMinMm        Int?
+  widthMaxMm        Int?
+  heightMinMm       Int?
+  heightMaxMm       Int?
+  parametricPricingFormula String?
   // ECPD: marca si el producto tiene configurador de muebles asociado
   isConfigurable    Boolean  @default(false)
   // ECPD: esquema JSON del configurador (dimensiones, componentes, etc.)
@@ -345,8 +407,10 @@ model Product {
   assistantCartItems  AssistantCartItem[]
   // Diseños personalizados vinculados a este producto
   ecpdDesigns         EcpdDesign[]
+  kitchenModules      KitchenModule[]
   // Ventas secretas de root asociadas
   rootSecretSaleItems RootSecretSaleItem[]
+  model3dAssets       Model3DAsset[]
 }
 
 // Join table for Product <-> Product related items
@@ -1107,6 +1171,94 @@ model EcpdDesign {
   updatedAt       DateTime @updatedAt
 
   @@index([userId, createdAt])
+}
+
+// Diseños guardados del creador de cocinas
+model KitchenDesign {
+  id            String              @id @default(cuid())
+  userId        String
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  layoutType    KitchenLayoutType
+  status        KitchenDesignStatus @default(DRAFT)
+  totalPriceUsd Decimal             @default(0) @db.Decimal(12, 2)
+  planJson      Json?
+  modulesJson   Json?
+  budgetJson    Json?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  spaces        KitchenSpace[]
+  kitchenModules KitchenModule[]
+
+  @@index([userId, updatedAt])
+  @@index([userId, status])
+}
+
+model KitchenSpace {
+  id        String        @id @default(cuid())
+  kitchenId String
+  kitchen   KitchenDesign @relation(fields: [kitchenId], references: [id], onDelete: Cascade)
+  wallName  String
+  widthMm   Int
+  heightMm  Int?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([kitchenId, wallName])
+  @@index([kitchenId])
+}
+
+model KitchenModule {
+  id                 String        @id @default(cuid())
+  kitchenId          String
+  kitchen            KitchenDesign @relation(fields: [kitchenId], references: [id], onDelete: Cascade)
+  productId          String
+  product            Product       @relation(fields: [productId], references: [id])
+  positionX          Int
+  positionY          Int
+  widthMm            Int
+  depthMm            Int
+  lockedHeight       Int
+  priceCalculatedUsd Decimal       @db.Decimal(12, 2)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([kitchenId])
+  @@index([productId])
+}
+
+// 3D model assets for products
+model Model3DAsset {
+  id                   String             @id @default(cuid())
+  productId            String
+  product              Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  status               Model3DAssetStatus @default(PENDING)
+  originalFileName     String
+  originalFileMime     String
+  originalFileTempPath String?
+  glbPath              String?
+  previewImagePath     String?
+  processingError      String?
+  archived             Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  jobs                 Model3DJob[]
+
+  @@index([productId])
+}
+
+// 3D conversion job queue
+model Model3DJob {
+  id             String           @id @default(cuid())
+  model3dAssetId String
+  model3dAsset   Model3DAsset     @relation(fields: [model3dAssetId], references: [id], onDelete: Cascade)
+  status         Model3DJobStatus @default(PENDING)
+  attempts       Int              @default(0)
+  lastError      String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([model3dAssetId])
 }
 
 // Notificaciones internas (drivers, clientes, etc.)

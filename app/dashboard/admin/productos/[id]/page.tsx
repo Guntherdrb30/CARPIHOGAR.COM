@@ -3,6 +3,7 @@ import { getSuppliers } from "@/server/actions/procurement";
 import { getProductById, updateProductFull, getRelatedIds, getProducts } from "@/server/actions/products";
 import ProductMediaManager from "@/components/admin/product-media-manager";
 import RelatedProductsPicker from "@/components/admin/related-products-picker";
+import Model3DPanel from "@/components/admin/model3d-panel";
 
 export default async function EditProductPage({ params }: { params: { id: string } }) {
   const { id } = params;
@@ -405,6 +406,7 @@ export default async function EditProductPage({ params }: { params: { id: string
           </a>
         </div>
       </form>
+      <Model3DPanel productId={product.id} />
     </div>
   );
 }

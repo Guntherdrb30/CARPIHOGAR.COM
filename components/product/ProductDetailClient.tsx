@@ -286,6 +286,7 @@ export default function ProductDetailClient({
       )}`
     : null;
 
+
   return (
     <>
       <ProductJsonLd product={product} baseUrl="https://carpihogar.com" />

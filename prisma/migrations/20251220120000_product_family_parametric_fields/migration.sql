@@ -1,0 +1,21 @@
+-- Product family enum for parametric products
+DO $$ BEGIN
+  CREATE TYPE "public"."ProductFamily" AS ENUM ('STANDARD', 'PARAMETRIC_FURNITURE', 'KITCHEN_MODULE');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- Add parametric product fields
+ALTER TABLE "public"."Product"
+  ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS "basePriceUsd" DECIMAL(10,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS "productFamily" "public"."ProductFamily" NOT NULL DEFAULT 'STANDARD',
+  ADD COLUMN IF NOT EXISTS "isParametric" BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS "widthMm" INTEGER,
+  ADD COLUMN IF NOT EXISTS "heightMm" INTEGER,
+  ADD COLUMN IF NOT EXISTS "depthMm" INTEGER,
+  ADD COLUMN IF NOT EXISTS "widthMinMm" INTEGER,
+  ADD COLUMN IF NOT EXISTS "widthMaxMm" INTEGER,
+  ADD COLUMN IF NOT EXISTS "heightMinMm" INTEGER,
+  ADD COLUMN IF NOT EXISTS "heightMaxMm" INTEGER,
+  ADD COLUMN IF NOT EXISTS "parametricPricingFormula" TEXT;
