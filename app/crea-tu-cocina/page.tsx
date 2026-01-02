@@ -32,9 +32,11 @@ export default async function CreaTuCocinaPage() {
     select: {
       id: true,
       name: true,
+      description: true,
       sku: true,
       code: true,
       kitchenCategory: true,
+      images: true,
       widthMm: true,
       heightMm: true,
       depthMm: true,

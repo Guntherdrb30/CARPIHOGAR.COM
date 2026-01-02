@@ -16,9 +16,11 @@ type KitchenLayoutType =
 type KitchenModuleProduct = {
   id: string;
   name: string;
+  description?: string | null;
   sku?: string | null;
   code?: string | null;
   kitchenCategory?: string | null;
+  images?: string[] | null;
   widthMm?: number | null;
   heightMm?: number | null;
   depthMm?: number | null;
@@ -172,6 +174,7 @@ const CATEGORY_ORDER = [
 
 const DEFAULT_MODULE_DEPTH_MM = 600;
 const WALL_MOUNT_HEIGHT_MM = 1500;
+const FALLBACK_MODULE_IMAGE = "/images/hero-carpinteria-1.svg";
 
 const toNumberSafe = (value: any) => {
   if (value == null) return null;
@@ -211,6 +214,11 @@ const resolveCategoryLabel = (product: KitchenModuleProduct) =>
 
 const resolvePlacementZone = (product: KitchenModuleProduct): PlacementZone =>
   resolveCategoryLabel(product) === "Muebles altos" ? "WALL" : "FLOOR";
+
+const resolveProductImage = (product: KitchenModuleProduct) => {
+  const images = Array.isArray(product.images) ? product.images : [];
+  return images[0] || FALLBACK_MODULE_IMAGE;
+};
 
 const createPlacedId = (productId: string) =>
   `${productId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -577,7 +585,11 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
 
   const planWidthPx = planScale > 0 ? spaceWidthMm * planScale : planSize.width;
   const planHeightPx = planScale > 0 ? spaceLengthMm * planScale : planSize.height;
-  const wallStripPx = Math.max(10, Math.min(28, planHeightPx * 0.14));
+  const wallThicknessPx = Math.max(
+    6,
+    Math.min(16, Math.min(planWidthPx || 0, planHeightPx || 0) * 0.05),
+  );
+  const wallZonePx = Math.max(18, Math.min(32, planHeightPx * 0.18));
 
   return (
     <div className="space-y-6">
@@ -789,7 +801,7 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
               >
                 {isPlanReady ? (
                   <div className="absolute inset-3 flex items-center justify-center">
-                    <div
+                  <div
                       className="relative rounded-md border border-slate-300 bg-white shadow-inner"
                       style={{ width: planWidthPx, height: planHeightPx }}
                     >
@@ -801,12 +813,30 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
                           backgroundSize: "24px 24px",
                         }}
                       />
+                      <div className="absolute inset-0 pointer-events-none">
+                        <div
+                          className="absolute left-0 top-0 w-full bg-slate-300"
+                          style={{ height: wallThicknessPx }}
+                        />
+                        <div
+                          className="absolute left-0 bottom-0 w-full bg-slate-300"
+                          style={{ height: wallThicknessPx }}
+                        />
+                        <div
+                          className="absolute left-0 top-0 h-full bg-slate-300"
+                          style={{ width: wallThicknessPx }}
+                        />
+                        <div
+                          className="absolute right-0 top-0 h-full bg-slate-300"
+                          style={{ width: wallThicknessPx }}
+                        />
+                      </div>
                       <div
                         className="absolute left-0 top-0 w-full border-b border-slate-200 bg-slate-100/80"
-                        style={{ height: wallStripPx }}
+                        style={{ height: wallZonePx }}
                       />
                       <div className="absolute left-2 top-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                        Pared 1500 mm
+                        Paredes {spaceHeightMm} mm · Zona aerea {WALL_MOUNT_HEIGHT_MM} mm
                       </div>
 
                       {layoutGuides.map((shape, index) => (
@@ -937,92 +967,129 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
             )}
           </div>
 
-          <div className="space-y-4">
-            {CATEGORY_ORDER.map((section) => {
-              const items = groupedModules[section] || [];
-              if (!items.length) return null;
-              return (
-                <div key={section} className="space-y-2">
-                  <div className="text-sm font-semibold text-gray-900">{section}</div>
-                  <div className="space-y-2">
-                    {items.map((item) => {
-                      const price = priceTier ? resolveTierPrice(item, priceTier) : 0;
-                      const widthLabel = resolveWidthMm(item);
-                      return (
-                        <div
-                          key={item.id}
-                          className={`rounded-lg border p-3 transition ${
-                            activeProductId === item.id ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <button
-                              type="button"
-                              onClick={() => setActiveProductId(item.id)}
-                              className="text-left"
-                            >
-                              <div className="text-sm font-semibold">{item.name}</div>
-                              <div
-                                className={`text-xs ${
-                                  activeProductId === item.id ? "text-gray-200" : "text-gray-500"
-                                }`}
-                              >
-                                Ancho base: {widthLabel} mm
-                              </div>
-                            </button>
-                            <div className="text-sm font-semibold">
-                              {priceTier ? formatMoney(price) : "--"}
-                            </div>
-                          </div>
-                          {!priceTier && (
-                            <div className="mt-2 text-xs text-gray-500">
-                              Selecciona una gama para ver precios y agregar este modulo.
-                            </div>
-                          )}
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              className={`rounded px-3 py-1 text-xs font-semibold ${
-                                priceTier
-                                  ? "bg-gray-900 text-white"
-                                  : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                              }`}
-                              onClick={() => handleAddModule(item)}
-                              disabled={!priceTier}
-                            >
-                              Agregar al presupuesto
-                            </button>
-                            <button
-                              type="button"
-                              className={`rounded px-3 py-1 text-xs font-semibold border ${
-                                isPlanReady
-                                  ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                                  : "border-gray-200 text-gray-400 cursor-not-allowed"
-                              }`}
-                              onClick={() => handleAddToPlan(item)}
-                              disabled={!isPlanReady}
-                            >
-                              Agregar al plano
-                            </button>
-                            <button
-                              type="button"
-                              className={`rounded px-3 py-1 text-xs font-semibold border ${
-                                activeProductId === item.id
-                                  ? "border-white/60 text-white"
-                                  : "border-gray-300 text-gray-700"
-                              }`}
-                              onClick={() => setActiveProductId(item.id)}
-                            >
-                              Ver en visor 3D
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-gray-400">
+                  Catalogo de muebles
                 </div>
-              );
-            })}
+                <div className="text-sm font-semibold text-gray-900">
+                  Selecciona y agrega al plano
+                </div>
+              </div>
+              <div className="text-xs text-gray-500">{modules.length} items</div>
+            </div>
+            <div className="mt-4 space-y-4">
+              {CATEGORY_ORDER.map((section) => {
+                const items = groupedModules[section] || [];
+                if (!items.length) return null;
+                return (
+                  <div key={section} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-semibold text-gray-900">{section}</div>
+                      <div className="text-[11px] text-gray-400">{items.length}</div>
+                    </div>
+                    <div className="space-y-3">
+                      {items.map((item) => {
+                        const price = priceTier ? resolveTierPrice(item, priceTier) : 0;
+                        const widthLabel = resolveWidthMm(item);
+                        const placement = resolvePlacementZone(item);
+                        return (
+                          <div
+                            key={item.id}
+                            className={`rounded-lg border p-3 transition ${
+                              activeProductId === item.id ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200"
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setActiveProductId(item.id)}
+                                className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-100"
+                              >
+                                <img
+                                  src={resolveProductImage(item)}
+                                  alt={item.name}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              </button>
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveProductId(item.id)}
+                                    className="text-left"
+                                  >
+                                    <div className="text-sm font-semibold">{item.name}</div>
+                                  </button>
+                                  <div className="text-sm font-semibold">
+                                    {priceTier ? formatMoney(price) : "--"}
+                                  </div>
+                                </div>
+                                <div
+                                  className={`mt-1 text-xs line-clamp-2 ${
+                                    activeProductId === item.id ? "text-gray-200" : "text-gray-500"
+                                  }`}
+                                >
+                                  {item.description || "Modulo de cocina disponible para tu diseno."}
+                                </div>
+                                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+                                  <span>Ancho base: {widthLabel} mm</span>
+                                  <span>Zona: {placement === "WALL" ? "Pared" : "Piso"}</span>
+                                </div>
+                              </div>
+                            </div>
+                            {!priceTier && (
+                              <div className="mt-2 text-xs text-gray-500">
+                                Selecciona una gama para ver precios y agregar este modulo.
+                              </div>
+                            )}
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                className={`rounded px-3 py-1 text-xs font-semibold border ${
+                                  isPlanReady
+                                    ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                    : "border-gray-200 text-gray-400 cursor-not-allowed"
+                                }`}
+                                onClick={() => handleAddToPlan(item)}
+                                disabled={!isPlanReady}
+                              >
+                                Agregar al plano
+                              </button>
+                              <button
+                                type="button"
+                                className={`rounded px-3 py-1 text-xs font-semibold ${
+                                  priceTier
+                                    ? "bg-gray-900 text-white"
+                                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                }`}
+                                onClick={() => handleAddModule(item)}
+                                disabled={!priceTier}
+                              >
+                                Agregar al presupuesto
+                              </button>
+                              <button
+                                type="button"
+                                className={`rounded px-3 py-1 text-xs font-semibold border ${
+                                  activeProductId === item.id
+                                    ? "border-white/60 text-white"
+                                    : "border-gray-300 text-gray-700"
+                                }`}
+                                onClick={() => setActiveProductId(item.id)}
+                              >
+                                Ver en visor 3D
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
