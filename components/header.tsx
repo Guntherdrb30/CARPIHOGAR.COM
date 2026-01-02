@@ -70,11 +70,13 @@ export default function Header({ logoUrl, brandName }: HeaderProps) {
   const solutionsLinks = [
     { href: '/moodboard', label: 'Moodboard' },
     { href: '/personalizar-muebles', label: 'Configurador de mobiliario' },
+    { href: '/crea-tu-cocina', label: 'Crea tu cocina' },
   ];
 
   const navLinks = [
     { href: '/', label: 'Home', icon: Home },
     { href: '/productos', label: 'Productos', icon: Box },
+    { href: '/crea-tu-cocina', label: 'Crea tu cocina', icon: Sparkles },
     { href: '/novedades', label: 'Novedades', icon: Star },
     { href: '/contacto', label: 'Contacto', icon: Mail },
   ];
