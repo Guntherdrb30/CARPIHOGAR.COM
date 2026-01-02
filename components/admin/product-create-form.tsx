@@ -97,6 +97,15 @@ export default function ProductCreateForm({
     const kitchenCategory = isKitchenModule && kitchenCategoryInput ? kitchenCategoryInput : null;
     const isVisibleInKitchenDesigner =
       isKitchenModule && String(formData.get("isVisibleInKitchenDesigner") || "") === "on";
+    const kitchenPriceLowUsd = isKitchenModule && String(formData.get("kitchenPriceLowUsd") || "").length
+      ? parseFloat(String(formData.get("kitchenPriceLowUsd")))
+      : null;
+    const kitchenPriceMidUsd = isKitchenModule && String(formData.get("kitchenPriceMidUsd") || "").length
+      ? parseFloat(String(formData.get("kitchenPriceMidUsd")))
+      : null;
+    const kitchenPriceHighUsd = isKitchenModule && String(formData.get("kitchenPriceHighUsd") || "").length
+      ? parseFloat(String(formData.get("kitchenPriceHighUsd")))
+      : null;
 
     await createProduct({
       name: String(formData.get("name") || ""),
@@ -123,6 +132,9 @@ export default function ProductCreateForm({
       parametricPricingFormula,
       kitchenCategory,
       isVisibleInKitchenDesigner,
+      kitchenPriceLowUsd,
+      kitchenPriceMidUsd,
+      kitchenPriceHighUsd,
       stock: stockUnits,
       stockUnits,
       stockMinUnits,

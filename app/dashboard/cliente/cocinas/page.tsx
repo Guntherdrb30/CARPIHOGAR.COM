@@ -42,7 +42,9 @@ export default async function MisDisenosCocinaPage({
   const designs = await (prisma as any).kitchenDesign.findMany({
     where: { userId },
     orderBy: { updatedAt: "desc" },
+    take: 5,
   });
+  const latestDesign = designs[0] || null;
 
   async function deleteDesign(formData: FormData) {
     "use server";
@@ -76,7 +78,7 @@ export default async function MisDisenosCocinaPage({
     const activeCount = await (prisma as any).kitchenDesign.count({
       where: { userId: userIdInner, status: { in: ["DRAFT", "SAVED"] } },
     });
-    if (activeCount >= 2) {
+    if (activeCount >= 5) {
       redirect("/dashboard/cliente/cocinas?error=Limite%20de%20disenos%20activos%20alcanzado");
     }
 
@@ -151,7 +153,7 @@ export default async function MisDisenosCocinaPage({
     const activeCount = await (prisma as any).kitchenDesign.count({
       where: { userId: userIdInner, status: { in: ["DRAFT", "SAVED"] } },
     });
-    if (activeCount >= 2) {
+    if (activeCount >= 5) {
       redirect("/dashboard/cliente/cocinas?error=Limite%20de%20disenos%20activos%20alcanzado");
     }
 
@@ -179,7 +181,7 @@ export default async function MisDisenosCocinaPage({
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-bold text-gray-800">Mis Disenos de Cocina</h1>
         <p className="text-xs text-gray-500">
-          Puedes guardar hasta 2 disenos activos. El resto quedara archivado.
+          Puedes guardar hasta 5 disenos activos. El resto quedara archivado.
         </p>
       </div>
 
@@ -207,43 +209,73 @@ export default async function MisDisenosCocinaPage({
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <h2 className="text-lg font-semibold text-gray-800 mb-2">Tus disenos guardados</h2>
-        {designs.length === 0 ? (
+        <h2 className="text-lg font-semibold text-gray-800 mb-2">Ultimo diseno guardado</h2>
+        {!latestDesign ? (
           <div className="text-sm text-gray-600">
             Aun no tienes disenos de cocina guardados. Selecciona un tipo para comenzar.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {designs.map((d: any) => (
-              <div key={d.id} className="border rounded-lg p-3 flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">{d.name}</div>
-                  <div className="text-xs text-gray-500">
-                    {String(d.layoutType).replace(/_/g, " ")} · {String(d.status)}
+          <div className="border rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-gray-900">{latestDesign.name}</div>
+              <div className="text-xs text-gray-500">
+                {String(latestDesign.layoutType).replace(/_/g, " ")} - {String(latestDesign.status)}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 items-center justify-end">
+              <Link
+                href={`/dashboard/cliente/cocinas/${latestDesign.id}/medidas`}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Continuar
+              </Link>
+              <form action={duplicateDesign}>
+                <input type="hidden" name="designId" value={latestDesign.id} />
+                <button type="submit" className="text-xs text-gray-700 underline">
+                  Duplicar
+                </button>
+              </form>
+              <form action={deleteDesign}>
+                <input type="hidden" name="designId" value={latestDesign.id} />
+                <button type="submit" className="text-xs text-red-600 underline">
+                  Eliminar
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <h2 className="text-lg font-semibold text-gray-800 mb-2">Ultimos 5 presupuestos</h2>
+        {designs.length === 0 ? (
+          <div className="text-sm text-gray-600">Aun no tienes presupuestos guardados.</div>
+        ) : (
+          <div className="space-y-2">
+            {designs.map((d: any) => {
+              const totalFromBudget = Number((d as any)?.budgetJson?.total ?? 0);
+              const totalFromDesign = Number(d.totalPriceUsd ?? 0);
+              const total = totalFromBudget > 0 ? totalFromBudget : totalFromDesign;
+              return (
+                <div key={d.id} className="border rounded-lg px-3 py-2 flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">{d.name}</div>
+                    <div className="text-xs text-gray-500">
+                      {String(d.layoutType).replace(/_/g, " ")} - {String(d.status)}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-sm font-semibold text-gray-900">${total.toFixed(2)}</div>
+                    <Link
+                      href={`/dashboard/cliente/cocinas/${d.id}/modulos`}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Ver
+                    </Link>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2 items-center justify-end">
-                  <Link
-                    href={`/dashboard/cliente/cocinas/${d.id}/medidas`}
-                    className="text-sm text-blue-600 hover:underline"
-                  >
-                    Continuar
-                  </Link>
-                  <form action={duplicateDesign}>
-                    <input type="hidden" name="designId" value={d.id} />
-                    <button type="submit" className="text-xs text-gray-700 underline">
-                      Duplicar
-                    </button>
-                  </form>
-                  <form action={deleteDesign}>
-                    <input type="hidden" name="designId" value={d.id} />
-                    <button type="submit" className="text-xs text-red-600 underline">
-                      Eliminar
-                    </button>
-                  </form>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

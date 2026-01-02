@@ -27,6 +27,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   HIGH: "Muebles Altos",
   TOWER: "Torres",
   PANTRY: "Alacenas / Despensas",
+  FRIDGE: "Neveras",
+  CONDIMENT: "Condimenteros",
   OTHER: "Alacenas / Despensas",
 };
 
@@ -35,10 +37,19 @@ const DISPLAY_CATEGORY: Record<string, string> = {
   HIGH: "Alto",
   TOWER: "Torre",
   PANTRY: "Alacena / Despensa",
+  FRIDGE: "Nevera",
+  CONDIMENT: "Condimentero",
   OTHER: "Otro",
 };
 
-const SECTION_ORDER = ["Muebles Bajos", "Muebles Altos", "Torres", "Alacenas / Despensas"];
+const SECTION_ORDER = [
+  "Muebles Bajos",
+  "Muebles Altos",
+  "Torres",
+  "Alacenas / Despensas",
+  "Neveras",
+  "Condimenteros",
+];
 
 const toNumberSafe = (value: any, fallback = 0) => {
   try {
@@ -50,6 +61,12 @@ const toNumberSafe = (value: any, fallback = 0) => {
   } catch {
     return fallback;
   }
+};
+
+const normalizePriceTier = (value: any) => {
+  const tier = String(value || "").toUpperCase();
+  if (tier === "LOW" || tier === "MEDIUM" || tier === "HIGH") return tier;
+  return "MEDIUM";
 };
 
 const formatMoney = (value: number) => `$${value.toFixed(2)}`;
@@ -151,12 +168,15 @@ export default async function KitchenModulesPage({
 
     const designInner = await (prisma as any).kitchenDesign.findFirst({
       where: { id, userId: userIdInner },
-      select: { id: true },
+      select: { id: true, planJson: true, budgetJson: true },
     });
 
     if (!designInner) {
       redirect(`/dashboard/cliente/cocinas?error=Diseno%20no%20encontrado`);
     }
+    const priceTier = normalizePriceTier(
+      (designInner as any)?.planJson?.priceTier || (designInner as any)?.budgetJson?.priceTier,
+    );
 
     const product = await prisma.product.findFirst({
       where: {
@@ -174,6 +194,10 @@ export default async function KitchenModulesPage({
         widthMinMm: true,
         widthMaxMm: true,
         basePriceUsd: true,
+        priceUSD: true,
+        kitchenPriceLowUsd: true,
+        kitchenPriceMidUsd: true,
+        kitchenPriceHighUsd: true,
         parametricPricingFormula: true,
         categoryId: true,
         supplier: { select: { chargeCurrency: true } },
@@ -244,6 +268,10 @@ export default async function KitchenModulesPage({
         id: product.id,
         productFamily: "KITCHEN_MODULE",
         basePriceUsd: product.basePriceUsd,
+        priceUSD: (product as any).priceUSD,
+        kitchenPriceLowUsd: (product as any).kitchenPriceLowUsd,
+        kitchenPriceMidUsd: (product as any).kitchenPriceMidUsd,
+        kitchenPriceHighUsd: (product as any).kitchenPriceHighUsd,
         parametricPricingFormula: product.parametricPricingFormula,
         widthMm: product.widthMm ?? null,
         heightMm: product.heightMm ?? null,
@@ -256,6 +284,7 @@ export default async function KitchenModulesPage({
         supplierCurrency: product.supplier?.chargeCurrency || null,
       },
       widthMm: validation.normalized.widthMm,
+      priceTier,
     });
 
     await prisma.$transaction(async (tx) => {
@@ -285,6 +314,7 @@ export default async function KitchenModulesPage({
             subtotalModules: totalPriceUsd,
             subtotalHardware: 0,
             total: totalPriceUsd,
+            priceTier,
           },
         },
       });
@@ -311,11 +341,14 @@ export default async function KitchenModulesPage({
 
     const designInner = await (prisma as any).kitchenDesign.findFirst({
       where: { id: kitchenId, userId: userIdInner },
-      select: { id: true },
+      select: { id: true, planJson: true, budgetJson: true },
     });
     if (!designInner) {
       redirect(`/dashboard/cliente/cocinas?error=Diseno%20no%20encontrado`);
     }
+    const priceTier = normalizePriceTier(
+      (designInner as any)?.planJson?.priceTier || (designInner as any)?.budgetJson?.priceTier,
+    );
 
     const moduleRecord = await (prisma as any).kitchenModule.findFirst({
       where: { id: moduleId, kitchenId },
@@ -330,6 +363,10 @@ export default async function KitchenModulesPage({
         id: true,
         productFamily: true,
         basePriceUsd: true,
+        priceUSD: true,
+        kitchenPriceLowUsd: true,
+        kitchenPriceMidUsd: true,
+        kitchenPriceHighUsd: true,
         parametricPricingFormula: true,
         widthMm: true,
         heightMm: true,
@@ -386,6 +423,10 @@ export default async function KitchenModulesPage({
         id: product.id,
         productFamily: String(product.productFamily || "KITCHEN_MODULE"),
         basePriceUsd: product.basePriceUsd,
+        priceUSD: (product as any).priceUSD,
+        kitchenPriceLowUsd: (product as any).kitchenPriceLowUsd,
+        kitchenPriceMidUsd: (product as any).kitchenPriceMidUsd,
+        kitchenPriceHighUsd: (product as any).kitchenPriceHighUsd,
         parametricPricingFormula: product.parametricPricingFormula,
         widthMm: product.widthMm ?? null,
         heightMm: product.heightMm ?? null,
@@ -398,6 +439,7 @@ export default async function KitchenModulesPage({
         supplierCurrency: product.supplier?.chargeCurrency || null,
       },
       widthMm: validation.normalized.widthMm,
+      priceTier,
     });
 
     await prisma.$transaction(async (tx) => {
@@ -426,6 +468,7 @@ export default async function KitchenModulesPage({
             subtotalModules: totalPriceUsd,
             subtotalHardware: 0,
             total: totalPriceUsd,
+            priceTier,
           },
         },
       });
@@ -450,11 +493,14 @@ export default async function KitchenModulesPage({
 
     const designInner = await (prisma as any).kitchenDesign.findFirst({
       where: { id: kitchenId, userId: userIdInner },
-      select: { id: true },
+      select: { id: true, planJson: true, budgetJson: true },
     });
     if (!designInner) {
       redirect(`/dashboard/cliente/cocinas?error=Diseno%20no%20encontrado`);
     }
+    const priceTier = normalizePriceTier(
+      (designInner as any)?.planJson?.priceTier || (designInner as any)?.budgetJson?.priceTier,
+    );
 
     await prisma.$transaction(async (tx) => {
       await (tx as any).kitchenModule.deleteMany({
@@ -474,6 +520,7 @@ export default async function KitchenModulesPage({
             subtotalModules: totalPriceUsd,
             subtotalHardware: 0,
             total: totalPriceUsd,
+            priceTier,
           },
         },
       });
@@ -492,16 +539,20 @@ export default async function KitchenModulesPage({
 
     const designInner = await (prisma as any).kitchenDesign.findFirst({
       where: { id, userId: userIdInner },
+      select: { id: true, status: true, planJson: true, budgetJson: true },
     });
     if (!designInner) {
       redirect(`/dashboard/cliente/cocinas?error=Diseno%20no%20encontrado`);
     }
+    const priceTier = normalizePriceTier(
+      (designInner as any)?.planJson?.priceTier || (designInner as any)?.budgetJson?.priceTier,
+    );
 
     if (designInner.status === "ARCHIVED") {
       const activeCount = await (prisma as any).kitchenDesign.count({
         where: { userId: userIdInner, status: { in: ["DRAFT", "SAVED"] } },
       });
-      if (activeCount >= 2) {
+      if (activeCount >= 5) {
         redirect(`/dashboard/cliente/cocinas?error=Limite%20de%20disenos%20activos%20alcanzado`);
       }
     }
@@ -520,6 +571,7 @@ export default async function KitchenModulesPage({
           subtotalModules: totalPriceUsd,
           subtotalHardware: 0,
           total: totalPriceUsd,
+          priceTier,
         },
       },
     });

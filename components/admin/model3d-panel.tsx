@@ -16,7 +16,13 @@ const initialState: Model3DState = {
   lastError: null,
 };
 
-export default function Model3DPanel({ productId }: { productId: string }) {
+export default function Model3DPanel({
+  productId,
+  canUpload = true,
+}: {
+  productId: string;
+  canUpload?: boolean;
+}) {
   const [state, setState] = useState<Model3DState>(initialState);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -146,16 +152,22 @@ export default function Model3DPanel({ productId }: { productId: string }) {
         </div>
       )}
 
-      <form className="mt-3 flex flex-col md:flex-row md:items-center gap-2" onSubmit={handleUpload}>
-        <input type="file" name="file" accept=".skp" className="text-sm" />
-        <button
-          type="submit"
-          className="bg-emerald-600 text-white px-3 py-1 rounded"
-          disabled={uploading}
-        >
-          {uploading ? 'Subiendo...' : 'Subir nuevo modelo .skp'}
-        </button>
-      </form>
+      {canUpload ? (
+        <form className="mt-3 flex flex-col md:flex-row md:items-center gap-2" onSubmit={handleUpload}>
+          <input type="file" name="file" accept=".skp" className="text-sm" />
+          <button
+            type="submit"
+            className="bg-emerald-600 text-white px-3 py-1 rounded"
+            disabled={uploading}
+          >
+            {uploading ? 'Subiendo...' : 'Subir nuevo modelo .skp'}
+          </button>
+        </form>
+      ) : (
+        <div className="mt-3 text-xs text-gray-500">
+          Solo el usuario root puede subir nuevos modelos 3D.
+        </div>
+      )}
 
       {message && <div className="mt-1 text-xs text-gray-600">{message}</div>}
     </div>

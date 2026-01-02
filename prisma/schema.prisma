@@ -59,6 +59,8 @@ enum KitchenCategory {
   HIGH
   PANTRY
   TOWER
+  FRIDGE
+  CONDIMENT
   OTHER
 }
 
@@ -343,6 +345,10 @@ model Product {
   priceAllyUSD       Decimal?      @db.Decimal(10, 2)
   // Nuevo: Precio mayorista (calculado)
   priceWholesaleUSD  Decimal?      @db.Decimal(10, 2)
+  // Kitchen designer price tiers (optional, only for kitchen modules)
+  kitchenPriceLowUsd  Decimal?     @db.Decimal(10, 2)
+  kitchenPriceMidUsd  Decimal?     @db.Decimal(10, 2)
+  kitchenPriceHighUsd Decimal?     @db.Decimal(10, 2)
   // Nuevo: costos y mâ”œÃ­rgenes de referencia
   costUSD            Decimal?      @db.Decimal(10, 2)
   marginClientPct    Decimal?      @db.Decimal(5, 2)

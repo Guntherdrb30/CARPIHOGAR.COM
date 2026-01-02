@@ -28,6 +28,7 @@ type ViewerProps = {
   heightCm?: number | null;
   depthCm?: number | null;
   isAdmin?: boolean;
+  showPanel?: boolean;
   className?: string;
   viewerClassName?: string;
 };
@@ -197,6 +198,7 @@ export default function CarpihogarModelViewer({
   heightCm,
   depthCm,
   isAdmin = false,
+  showPanel = true,
   className,
   viewerClassName,
 }: ViewerProps) {
@@ -286,7 +288,7 @@ export default function CarpihogarModelViewer({
   const frameClass = viewerClassName || 'w-full h-[520px] rounded-lg overflow-hidden';
   const containerClass =
     className ||
-    'grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] items-start';
+    (showPanel ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] items-start' : 'w-full');
 
   const statusLabel =
     status === 'READY'
@@ -358,189 +360,193 @@ export default function CarpihogarModelViewer({
         )}
       </div>
 
-      <div className="hidden lg:block">
-        <aside className="rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900">Informacion del producto</h3>
-            <p className="text-xs text-gray-500">
-              Datos base del mueble y estado del modelo 3D.
-            </p>
-          </div>
+      {showPanel && (
+        <>
+          <div className="hidden lg:block">
+            <aside className="rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Informacion del producto</h3>
+                <p className="text-xs text-gray-500">
+                  Datos base del mueble y estado del modelo 3D.
+                </p>
+              </div>
 
-          <div className="grid gap-3">
-            <PanelCard label="Nombre" value={productName || '--'} />
-            <PanelCard label="SKU / Codigo" value={sku || '--'} />
-            <PanelCard label="Categoria" value={category || '--'} />
-            <PanelCard label="Tipo de mueble" value={furnitureType || '--'} />
-          </div>
+              <div className="grid gap-3">
+                <PanelCard label="Nombre" value={productName || '--'} />
+                <PanelCard label="SKU / Codigo" value={sku || '--'} />
+                <PanelCard label="Categoria" value={category || '--'} />
+                <PanelCard label="Tipo de mueble" value={furnitureType || '--'} />
+              </div>
 
-          <div className="space-y-2">
-            <div className="text-xs font-semibold text-gray-700">Medidas base</div>
-            <div className="grid grid-cols-3 gap-2">
-              <PanelCard label="Ancho" value={formatDimension(widthCm)} />
-              <PanelCard label="Alto" value={formatDimension(heightCm)} />
-              <PanelCard label="Prof." value={formatDimension(depthCm)} />
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm">
-            <div className="text-[11px] uppercase tracking-wide text-gray-400">
-              Estado modelo 3D
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-900">{statusLabel}</span>
-              <span
-                className={
-                  statusLabel === 'READY'
-                    ? 'text-[11px] font-semibold text-emerald-600'
-                    : statusLabel === 'EN PROCESO'
-                      ? 'text-[11px] font-semibold text-amber-600'
-                      : 'text-[11px] font-semibold text-gray-400'
-                }
-              >
-                {statusLabel === 'READY'
-                  ? 'Listo'
-                  : statusLabel === 'EN PROCESO'
-                    ? 'Procesando'
-                    : 'Sin archivo'}
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {canDownload ? (
-              <a
-                className="inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white"
-                href={`/api/3d/model-file?productId=${encodeURIComponent(productId)}`}
-                download={`${productName || 'modelo'}.glb`}
-              >
-                Descargar archivo GLB
-              </a>
-            ) : (
-              <button
-                type="button"
-                disabled
-                className="inline-flex w-full items-center justify-center rounded-lg bg-gray-200 px-3 py-2 text-sm font-semibold text-gray-500"
-              >
-                Descargar archivo GLB
-              </button>
-            )}
-
-            {isAdmin && (
               <div className="space-y-2">
-                <button
-                  type="button"
-                  className="inline-flex w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  {uploading ? 'Subiendo...' : 'Subir nuevo modelo 3D'}
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".skp"
-                  className="hidden"
-                  onChange={handleAdminUpload}
-                />
-                {uploadMessage && (
-                  <div className="text-[11px] text-gray-500">{uploadMessage}</div>
+                <div className="text-xs font-semibold text-gray-700">Medidas base</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <PanelCard label="Ancho" value={formatDimension(widthCm)} />
+                  <PanelCard label="Alto" value={formatDimension(heightCm)} />
+                  <PanelCard label="Prof." value={formatDimension(depthCm)} />
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm">
+                <div className="text-[11px] uppercase tracking-wide text-gray-400">
+                  Estado modelo 3D
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-gray-900">{statusLabel}</span>
+                  <span
+                    className={
+                      statusLabel === 'READY'
+                        ? 'text-[11px] font-semibold text-emerald-600'
+                        : statusLabel === 'EN PROCESO'
+                          ? 'text-[11px] font-semibold text-amber-600'
+                          : 'text-[11px] font-semibold text-gray-400'
+                    }
+                  >
+                    {statusLabel === 'READY'
+                      ? 'Listo'
+                      : statusLabel === 'EN PROCESO'
+                        ? 'Procesando'
+                        : 'Sin archivo'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {canDownload ? (
+                  <a
+                    className="inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white"
+                    href={`/api/3d/model-file?productId=${encodeURIComponent(productId)}`}
+                    download={`${productName || 'modelo'}.glb`}
+                  >
+                    Descargar archivo GLB
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex w-full items-center justify-center rounded-lg bg-gray-200 px-3 py-2 text-sm font-semibold text-gray-500"
+                  >
+                    Descargar archivo GLB
+                  </button>
+                )}
+
+                {isAdmin && (
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      className="inline-flex w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      {uploading ? 'Subiendo...' : 'Subir nuevo modelo 3D'}
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".skp"
+                      className="hidden"
+                      onChange={handleAdminUpload}
+                    />
+                    {uploadMessage && (
+                      <div className="text-[11px] text-gray-500">{uploadMessage}</div>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-        </aside>
-      </div>
-
-      <details className="lg:hidden rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
-        <summary className="cursor-pointer text-sm font-semibold text-gray-900">
-          Informacion del producto
-        </summary>
-        <div className="mt-4 space-y-4">
-          <div className="grid gap-3">
-            <PanelCard label="Nombre" value={productName || '--'} />
-            <PanelCard label="SKU / Codigo" value={sku || '--'} />
-            <PanelCard label="Categoria" value={category || '--'} />
-            <PanelCard label="Tipo de mueble" value={furnitureType || '--'} />
+            </aside>
           </div>
 
-          <div className="space-y-2">
-            <div className="text-xs font-semibold text-gray-700">Medidas base</div>
-            <div className="grid grid-cols-3 gap-2">
-              <PanelCard label="Ancho" value={formatDimension(widthCm)} />
-              <PanelCard label="Alto" value={formatDimension(heightCm)} />
-              <PanelCard label="Prof." value={formatDimension(depthCm)} />
-            </div>
-          </div>
+          <details className="lg:hidden rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
+            <summary className="cursor-pointer text-sm font-semibold text-gray-900">
+              Informacion del producto
+            </summary>
+            <div className="mt-4 space-y-4">
+              <div className="grid gap-3">
+                <PanelCard label="Nombre" value={productName || '--'} />
+                <PanelCard label="SKU / Codigo" value={sku || '--'} />
+                <PanelCard label="Categoria" value={category || '--'} />
+                <PanelCard label="Tipo de mueble" value={furnitureType || '--'} />
+              </div>
 
-          <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm">
-            <div className="text-[11px] uppercase tracking-wide text-gray-400">
-              Estado modelo 3D
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-900">{statusLabel}</span>
-              <span
-                className={
-                  statusLabel === 'READY'
-                    ? 'text-[11px] font-semibold text-emerald-600'
-                    : statusLabel === 'EN PROCESO'
-                      ? 'text-[11px] font-semibold text-amber-600'
-                      : 'text-[11px] font-semibold text-gray-400'
-                }
-              >
-                {statusLabel === 'READY'
-                  ? 'Listo'
-                  : statusLabel === 'EN PROCESO'
-                    ? 'Procesando'
-                    : 'Sin archivo'}
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            {canDownload ? (
-              <a
-                className="inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white"
-                href={`/api/3d/model-file?productId=${encodeURIComponent(productId)}`}
-                download={`${productName || 'modelo'}.glb`}
-              >
-                Descargar archivo GLB
-              </a>
-            ) : (
-              <button
-                type="button"
-                disabled
-                className="inline-flex w-full items-center justify-center rounded-lg bg-gray-200 px-3 py-2 text-sm font-semibold text-gray-500"
-              >
-                Descargar archivo GLB
-              </button>
-            )}
-
-            {isAdmin && (
               <div className="space-y-2">
-                <button
-                  type="button"
-                  className="inline-flex w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  {uploading ? 'Subiendo...' : 'Subir nuevo modelo 3D'}
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".skp"
-                  className="hidden"
-                  onChange={handleAdminUpload}
-                />
-                {uploadMessage && (
-                  <div className="text-[11px] text-gray-500">{uploadMessage}</div>
+                <div className="text-xs font-semibold text-gray-700">Medidas base</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <PanelCard label="Ancho" value={formatDimension(widthCm)} />
+                  <PanelCard label="Alto" value={formatDimension(heightCm)} />
+                  <PanelCard label="Prof." value={formatDimension(depthCm)} />
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm">
+                <div className="text-[11px] uppercase tracking-wide text-gray-400">
+                  Estado modelo 3D
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-gray-900">{statusLabel}</span>
+                  <span
+                    className={
+                      statusLabel === 'READY'
+                        ? 'text-[11px] font-semibold text-emerald-600'
+                        : statusLabel === 'EN PROCESO'
+                          ? 'text-[11px] font-semibold text-amber-600'
+                          : 'text-[11px] font-semibold text-gray-400'
+                    }
+                  >
+                    {statusLabel === 'READY'
+                      ? 'Listo'
+                      : statusLabel === 'EN PROCESO'
+                        ? 'Procesando'
+                        : 'Sin archivo'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {canDownload ? (
+                  <a
+                    className="inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white"
+                    href={`/api/3d/model-file?productId=${encodeURIComponent(productId)}`}
+                    download={`${productName || 'modelo'}.glb`}
+                  >
+                    Descargar archivo GLB
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex w-full items-center justify-center rounded-lg bg-gray-200 px-3 py-2 text-sm font-semibold text-gray-500"
+                  >
+                    Descargar archivo GLB
+                  </button>
+                )}
+
+                {isAdmin && (
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      className="inline-flex w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      {uploading ? 'Subiendo...' : 'Subir nuevo modelo 3D'}
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".skp"
+                      className="hidden"
+                      onChange={handleAdminUpload}
+                    />
+                    {uploadMessage && (
+                      <div className="text-[11px] text-gray-500">{uploadMessage}</div>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
-      </details>
+            </div>
+          </details>
+        </>
+      )}
     </div>
   );
 }

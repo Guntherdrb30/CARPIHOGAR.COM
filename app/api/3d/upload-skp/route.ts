@@ -25,7 +25,10 @@ export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions as any);
     const role = String((session?.user as any)?.role || "");
-    if (!session || role !== "ADMIN") {
+    const email = String((session?.user as any)?.email || "").toLowerCase();
+    const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
+    const isRoot = role === "ADMIN" && email === rootEmail;
+    if (!session || !isRoot) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 403 });
     }
 

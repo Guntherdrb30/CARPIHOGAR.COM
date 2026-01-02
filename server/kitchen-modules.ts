@@ -5,6 +5,10 @@ type ProductInput = {
   id: string;
   productFamily?: string | null;
   basePriceUsd?: any;
+  priceUSD?: any;
+  kitchenPriceLowUsd?: any;
+  kitchenPriceMidUsd?: any;
+  kitchenPriceHighUsd?: any;
   parametricPricingFormula?: string | null;
   widthMm?: number | null;
   heightMm?: number | null;
@@ -16,6 +20,8 @@ type ProductInput = {
   categoryId?: string | null;
   supplierCurrency?: string | null;
 };
+
+export type KitchenPriceTier = "LOW" | "MEDIUM" | "HIGH";
 
 export type KitchenModuleDraft = {
   id?: string;
@@ -48,6 +54,27 @@ const toNumberSafe = (value: any, fallback = 0) => {
 
 const overlaps1d = (aStart: number, aEnd: number, bStart: number, bEnd: number) =>
   aStart < bEnd && aEnd > bStart;
+
+const normalizeTier = (value?: string | null): KitchenPriceTier => {
+  const tier = String(value || "").toUpperCase();
+  if (tier === "LOW" || tier === "MEDIUM" || tier === "HIGH") return tier;
+  return "MEDIUM";
+};
+
+const resolveKitchenTierPrice = (product: ProductInput, tier?: KitchenPriceTier | string | null) => {
+  const normalized = normalizeTier(tier);
+  const low = toNumberSafe(product.kitchenPriceLowUsd, 0);
+  const mid = toNumberSafe(product.kitchenPriceMidUsd, 0);
+  const high = toNumberSafe(product.kitchenPriceHighUsd, 0);
+  if (normalized === "LOW" && low > 0) return low;
+  if (normalized === "MEDIUM" && mid > 0) return mid;
+  if (normalized === "HIGH" && high > 0) return high;
+  const base = toNumberSafe(product.basePriceUsd, 0);
+  if (base > 0) return base;
+  const fallback = toNumberSafe(product.priceUSD, 0);
+  if (fallback > 0) return fallback;
+  return 0;
+};
 
 export function validateModulePlacement(args: {
   draft: KitchenModuleDraft;
@@ -111,13 +138,15 @@ export async function calculateKitchenModulePrice(args: {
   product: ProductInput;
   widthMm: number;
   currency?: CurrencyCode;
+  priceTier?: KitchenPriceTier | string | null;
 }) {
-  const { product, widthMm, currency = "USD" } = args;
+  const { product, widthMm, currency = "USD", priceTier } = args;
   const settings = await getPriceAdjustmentSettings();
+  const tierPrice = resolveKitchenTierPrice(product, priceTier);
   return computeParametricKitchenDesignerPrice({
     product: {
-      basePriceUsd: product.basePriceUsd,
-      priceUSD: product.basePriceUsd,
+      basePriceUsd: tierPrice || product.basePriceUsd,
+      priceUSD: tierPrice || product.basePriceUsd || product.priceUSD,
       parametricPricingFormula: product.parametricPricingFormula,
       widthMm: product.widthMm,
       heightMm: product.heightMm,

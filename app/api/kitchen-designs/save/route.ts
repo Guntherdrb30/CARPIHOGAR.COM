@@ -13,6 +13,7 @@ const LAYOUT_TYPES = new Set([
 ]);
 
 const STATUS_TYPES = new Set(["DRAFT", "SAVED", "ARCHIVED"]);
+const PRICE_TIERS = new Set(["LOW", "MEDIUM", "HIGH"]);
 
 export async function POST(req: Request) {
   if (req.method !== "POST") {
@@ -36,6 +37,7 @@ export async function POST(req: Request) {
     const name = String(body.name || "").trim();
     const layoutType = String(body.layoutType || "").trim().toUpperCase();
     const statusRaw = String(body.status || "DRAFT").trim().toUpperCase();
+    const priceTierRaw = String(body.priceTier || "").trim().toUpperCase();
 
     if (!name) {
       return NextResponse.json(
@@ -59,21 +61,30 @@ export async function POST(req: Request) {
     const status = statusRaw as "DRAFT" | "SAVED" | "ARCHIVED";
     const totalPriceUsdNum = Number(body.totalPriceUsd || 0);
     const totalPriceUsd = Number.isFinite(totalPriceUsdNum) && totalPriceUsdNum > 0 ? totalPriceUsdNum : 0;
+    const priceTier = PRICE_TIERS.has(priceTierRaw) ? priceTierRaw : "MEDIUM";
 
-    const planJson = body.plan ?? body.planJson ?? null;
+    const planInput = body.plan ?? body.planJson ?? null;
     const modulesJson = body.modules ?? body.modulesJson ?? null;
-    const budgetJson = body.budget ?? body.budgetJson ?? null;
+    const budgetInput = body.budget ?? body.budgetJson ?? null;
+    const planJson =
+      planInput && typeof planInput === "object" && !Array.isArray(planInput)
+        ? { ...(planInput as any), priceTier }
+        : { priceTier };
+    const budgetJson =
+      budgetInput && typeof budgetInput === "object" && !Array.isArray(budgetInput)
+        ? { ...(budgetInput as any), priceTier }
+        : { priceTier };
 
     if (status !== "ARCHIVED") {
       const activeCount = await prisma.kitchenDesign.count({
         where: { userId, status: { in: ["DRAFT", "SAVED"] } },
       });
-      if (activeCount >= 2) {
+      if (activeCount >= 5) {
         return NextResponse.json(
           {
             error: "LIMIT_REACHED",
             message:
-              'Ya tienes 2 disenos activos. Archiva uno en "Mis Disenos de Cocina" antes de guardar uno nuevo.',
+              'Ya tienes 5 disenos activos. Archiva uno en "Mis Disenos de Cocina" antes de guardar uno nuevo.',
           },
           { status: 400 },
         );

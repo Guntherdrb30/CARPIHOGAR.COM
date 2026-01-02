@@ -19,7 +19,10 @@ async function ensureProductColumns() {
       'ADD COLUMN IF NOT EXISTS "showSocialButtons" BOOLEAN NOT NULL DEFAULT false, ' +
       'ADD COLUMN IF NOT EXISTS "isConfigurable" BOOLEAN NOT NULL DEFAULT false, ' +
       'ADD COLUMN IF NOT EXISTS "configSchema" JSONB, ' +
-      'ADD COLUMN IF NOT EXISTS "rootNoIvaOnly" BOOLEAN NOT NULL DEFAULT false'
+      'ADD COLUMN IF NOT EXISTS "rootNoIvaOnly" BOOLEAN NOT NULL DEFAULT false, ' +
+      'ADD COLUMN IF NOT EXISTS "kitchenPriceLowUsd" NUMERIC(10,2), ' +
+      'ADD COLUMN IF NOT EXISTS "kitchenPriceMidUsd" NUMERIC(10,2), ' +
+      'ADD COLUMN IF NOT EXISTS "kitchenPriceHighUsd" NUMERIC(10,2)'
     );
   } catch {}
 }
@@ -608,6 +611,21 @@ export async function updateProductFull(formData: FormData) {
     const priceUSD = parseFloat(String(formData.get('priceUSD') || '0'));
     const priceAllyUSD = formData.get('priceAllyUSD') ? parseFloat(String(formData.get('priceAllyUSD'))) : null;
     const priceWholesaleUSD = formData.get('priceWholesaleUSD') ? parseFloat(String(formData.get('priceWholesaleUSD'))) : null;
+    const kitchenPriceLowUsdRaw = formData.get('kitchenPriceLowUsd');
+    const kitchenPriceMidUsdRaw = formData.get('kitchenPriceMidUsd');
+    const kitchenPriceHighUsdRaw = formData.get('kitchenPriceHighUsd');
+    const kitchenPriceLowUsd =
+        kitchenPriceLowUsdRaw != null && String(kitchenPriceLowUsdRaw).length
+            ? parseFloat(String(kitchenPriceLowUsdRaw))
+            : null;
+    const kitchenPriceMidUsd =
+        kitchenPriceMidUsdRaw != null && String(kitchenPriceMidUsdRaw).length
+            ? parseFloat(String(kitchenPriceMidUsdRaw))
+            : null;
+    const kitchenPriceHighUsd =
+        kitchenPriceHighUsdRaw != null && String(kitchenPriceHighUsdRaw).length
+            ? parseFloat(String(kitchenPriceHighUsdRaw))
+            : null;
 
     const stockUnits = parseInt(String(formData.get('stockUnits') || '0'), 10);
     const stockMinUnits = parseInt(String(formData.get('stockMinUnits') || '0'), 10);
@@ -657,46 +675,57 @@ export async function updateProductFull(formData: FormData) {
     }
     images = images.filter(Boolean).slice(0, 4);
 
+    const updateData: any = {
+        name,
+        slug,
+        description,
+        brand,
+        model,
+        sku,
+        barcode,
+        supplierCode,
+        guarantee,
+        keywords,
+        type,
+        priceUSD: priceUSD as any,
+        priceClientUSD: priceUSD as any,
+        priceAllyUSD: priceAllyUSD as any,
+        priceWholesaleUSD: priceWholesaleUSD as any,
+        stock: stockUnits,
+        stockUnits,
+        stockMinUnits,
+        allowBackorder,
+        unitsPerPackage,
+        stockPackages,
+        soldBy,
+        weightKg: weightKg as any,
+        heightCm: heightCm as any,
+        widthCm: widthCm as any,
+        depthCm: depthCm as any,
+        volumeCm3: volumeCm3 as any,
+        freightType,
+        status,
+        categoryId,
+        supplierId,
+        isNew,
+        images,
+        videoUrl,
+        showSocialButtons,
+        deliveryAllowedVehicles,
+    };
+    if (formData.has('kitchenPriceLowUsd')) {
+        updateData.kitchenPriceLowUsd = kitchenPriceLowUsd as any;
+    }
+    if (formData.has('kitchenPriceMidUsd')) {
+        updateData.kitchenPriceMidUsd = kitchenPriceMidUsd as any;
+    }
+    if (formData.has('kitchenPriceHighUsd')) {
+        updateData.kitchenPriceHighUsd = kitchenPriceHighUsd as any;
+    }
+
     const product = await prisma.product.update({
         where: { id },
-        data: {
-            name,
-            slug,
-            description,
-            brand,
-            model,
-            sku,
-            barcode,
-            supplierCode,
-            guarantee,
-            keywords,
-            type,
-            priceUSD: priceUSD as any,
-            priceClientUSD: priceUSD as any,
-            priceAllyUSD: priceAllyUSD as any,
-            priceWholesaleUSD: priceWholesaleUSD as any,
-            stock: stockUnits,
-            stockUnits,
-            stockMinUnits,
-            allowBackorder,
-            unitsPerPackage,
-            stockPackages,
-            soldBy,
-            weightKg: weightKg as any,
-            heightCm: heightCm as any,
-            widthCm: widthCm as any,
-            depthCm: depthCm as any,
-            volumeCm3: volumeCm3 as any,
-            freightType,
-            status,
-            categoryId,
-            supplierId,
-            isNew,
-            images,
-            videoUrl,
-            showSocialButtons,
-            deliveryAllowedVehicles,
-        },
+        data: updateData,
     });
 
     // Update related products if provided (tolerant if join table doesn't exist yet)

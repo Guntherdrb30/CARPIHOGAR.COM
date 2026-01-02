@@ -4,6 +4,8 @@ import { getProductById, updateProductFull, getRelatedIds, getProducts } from "@
 import ProductMediaManager from "@/components/admin/product-media-manager";
 import RelatedProductsPicker from "@/components/admin/related-products-picker";
 import Model3DPanel from "@/components/admin/model3d-panel";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export default async function EditProductPage({ params }: { params: { id: string } }) {
   const { id } = params;
@@ -38,6 +40,12 @@ export default async function EditProductPage({ params }: { params: { id: string
     if (!hasRestrictions) return false;
     return deliveryAllowed.includes(type);
   };
+  const isKitchenModule = String((product as any).productFamily || "") === "KITCHEN_MODULE";
+  const session = await getServerSession(authOptions as any);
+  const email = String((session?.user as any)?.email || "").toLowerCase();
+  const role = String((session?.user as any)?.role || "");
+  const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
+  const isRoot = role === "ADMIN" && email === rootEmail;
 
   return (
     <div className="container mx-auto p-4 space-y-4">
@@ -207,6 +215,46 @@ export default async function EditProductPage({ params }: { params: { id: string
             className="border rounded px-2 py-1"
           />
         </div>
+        {isKitchenModule && (
+          <div className="md:col-span-3 border-t pt-3">
+            <h3 className="font-semibold text-sm mb-2">Precios por gama (cocina)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Precio baja gama (USD)</label>
+                <input
+                  name="kitchenPriceLowUsd"
+                  type="number"
+                  step="0.01"
+                  defaultValue={(product as any).kitchenPriceLowUsd ? Number((product as any).kitchenPriceLowUsd) : undefined}
+                  placeholder="Precio baja"
+                  className="border rounded px-2 py-1"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Precio media gama (USD)</label>
+                <input
+                  name="kitchenPriceMidUsd"
+                  type="number"
+                  step="0.01"
+                  defaultValue={(product as any).kitchenPriceMidUsd ? Number((product as any).kitchenPriceMidUsd) : undefined}
+                  placeholder="Precio media"
+                  className="border rounded px-2 py-1"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-700 mb-1">Precio alta gama (USD)</label>
+                <input
+                  name="kitchenPriceHighUsd"
+                  type="number"
+                  step="0.01"
+                  defaultValue={(product as any).kitchenPriceHighUsd ? Number((product as any).kitchenPriceHighUsd) : undefined}
+                  placeholder="Precio alta"
+                  className="border rounded px-2 py-1"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* SECCIÓN 4 – Inventario */}
         <div>
@@ -406,7 +454,7 @@ export default async function EditProductPage({ params }: { params: { id: string
           </a>
         </div>
       </form>
-      <Model3DPanel productId={product.id} />
+      <Model3DPanel productId={product.id} canUpload={isRoot} />
     </div>
   );
 }

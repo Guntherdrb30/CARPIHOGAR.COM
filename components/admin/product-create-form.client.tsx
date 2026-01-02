@@ -246,6 +246,8 @@ export default function ProductCreateFormClient({
                   <option value="HIGH">HIGH</option>
                   <option value="PANTRY">PANTRY</option>
                   <option value="TOWER">TOWER</option>
+                  <option value="FRIDGE">FRIDGE</option>
+                  <option value="CONDIMENT">CONDIMENT</option>
                   <option value="OTHER">OTHER</option>
                 </select>
               </div>
@@ -265,6 +267,41 @@ export default function ProductCreateFormClient({
                 <label className="inline-flex items-center gap-2 text-sm text-gray-700">
                   <input type="checkbox" name="isVisibleInKitchenDesigner" /> Visible en Kitchen Designer
                 </label>
+              </div>
+            </div>
+            <div className="mt-4 border-t pt-3">
+              <h4 className="font-semibold text-sm mb-2">Precios por gama (cocina)</h4>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">Precio baja gama (USD)</label>
+                  <input
+                    name="kitchenPriceLowUsd"
+                    type="number"
+                    step="0.01"
+                    placeholder="Precio baja"
+                    className="form-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">Precio media gama (USD)</label>
+                  <input
+                    name="kitchenPriceMidUsd"
+                    type="number"
+                    step="0.01"
+                    placeholder="Precio media"
+                    className="form-input"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-700 mb-1">Precio alta gama (USD)</label>
+                  <input
+                    name="kitchenPriceHighUsd"
+                    type="number"
+                    step="0.01"
+                    placeholder="Precio alta"
+                    className="form-input"
+                  />
+                </div>
               </div>
             </div>
           </div>

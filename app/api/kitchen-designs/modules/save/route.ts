@@ -50,7 +50,7 @@ export async function POST(req: Request) {
 
     const kitchen = await (prisma as any).kitchenDesign.findFirst({
       where: { id: kitchenId, userId },
-      select: { id: true },
+      select: { id: true, planJson: true, budgetJson: true },
     });
     if (!kitchen) {
       return NextResponse.json(
@@ -58,6 +58,17 @@ export async function POST(req: Request) {
         { status: 404 },
       );
     }
+    const tierFromBody = String(body.priceTier || "").trim().toUpperCase();
+    const tierFromPlan = String((kitchen as any)?.planJson?.priceTier || "").trim().toUpperCase();
+    const tierFromBudget = String((kitchen as any)?.budgetJson?.priceTier || "").trim().toUpperCase();
+    const priceTier =
+      tierFromBody === "LOW" || tierFromBody === "MEDIUM" || tierFromBody === "HIGH"
+        ? tierFromBody
+        : tierFromPlan === "LOW" || tierFromPlan === "MEDIUM" || tierFromPlan === "HIGH"
+          ? tierFromPlan
+          : tierFromBudget === "LOW" || tierFromBudget === "MEDIUM" || tierFromBudget === "HIGH"
+            ? tierFromBudget
+            : "MEDIUM";
 
     const positionX = toInt(body.positionX);
     const positionY = toInt(body.positionY);
@@ -102,6 +113,10 @@ export async function POST(req: Request) {
         id: true,
         productFamily: true,
         basePriceUsd: true,
+        priceUSD: true,
+        kitchenPriceLowUsd: true,
+        kitchenPriceMidUsd: true,
+        kitchenPriceHighUsd: true,
         parametricPricingFormula: true,
         widthMm: true,
         heightMm: true,
@@ -167,6 +182,10 @@ export async function POST(req: Request) {
         id: product.id,
         productFamily: String(product.productFamily || "KITCHEN_MODULE"),
         basePriceUsd: product.basePriceUsd,
+        priceUSD: (product as any).priceUSD,
+        kitchenPriceLowUsd: (product as any).kitchenPriceLowUsd,
+        kitchenPriceMidUsd: (product as any).kitchenPriceMidUsd,
+        kitchenPriceHighUsd: (product as any).kitchenPriceHighUsd,
         parametricPricingFormula: product.parametricPricingFormula,
         widthMm: product.widthMm ?? null,
         heightMm: product.heightMm ?? null,
@@ -179,6 +198,7 @@ export async function POST(req: Request) {
         supplierCurrency: product.supplier?.chargeCurrency || null,
       },
       widthMm: validation.normalized.widthMm,
+      priceTier,
     });
 
     const saved = await prisma.$transaction(async (tx) => {
@@ -224,6 +244,7 @@ export async function POST(req: Request) {
             subtotalModules: totalPriceUsd,
             subtotalHardware: 0,
             total: totalPriceUsd,
+            priceTier,
           },
         },
       });
