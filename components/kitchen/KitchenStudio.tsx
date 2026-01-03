@@ -802,7 +802,7 @@ export default function KitchenStudio({
                 </div>
                 <div className="text-xs text-gray-500">
                   {isPlanReady
-                    ? `Ancho ${spaceWidthMm} mm · Largo ${spaceLengthMm} mm · Alto ${spaceHeightMm} mm`
+                    ? `Ancho ${spaceWidthMm} mm | Largo ${spaceLengthMm} mm | Alto ${spaceHeightMm} mm`
                     : "Completa ancho, largo y alto para activar el plano."}
                 </div>
               </div>
@@ -848,7 +848,7 @@ export default function KitchenStudio({
                         style={{ height: wallZonePx }}
                       />
                       <div className="absolute left-2 top-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                        Paredes {spaceHeightMm} mm · Zona aerea {WALL_MOUNT_HEIGHT_MM} mm
+                        Paredes {spaceHeightMm} mm | Zona aerea {WALL_MOUNT_HEIGHT_MM} mm
                       </div>
 
                       {layoutGuides.map((shape, index) => (
@@ -1188,6 +1188,7 @@ export default function KitchenStudio({
                 })}
               </div>
             </div>
+          </div>
         </div>
       </section>
 
