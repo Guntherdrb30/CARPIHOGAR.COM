@@ -5,6 +5,8 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getBranches, createBranchAction } from "@/server/actions/branches";
 import BranchLocationFields from "@/components/admin/branch-location-fields";
+import Kitchen3DAdminPanel from "@/components/admin/Kitchen3DAdminPanel";
+import prisma from "@/lib/prisma";
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions);
@@ -14,7 +16,26 @@ export default async function AdminDashboard() {
     redirect("/auth/login?callbackUrl=/dashboard/admin");
   }
 
-  const [orders, branches] = await Promise.all([getAllOrders(), getBranches()]);
+  const [orders, branches, modules] = await Promise.all([
+    getAllOrders(),
+    getBranches(),
+    prisma.product.findMany({
+      where: {
+        productFamily: "KITCHEN_MODULE",
+        usableInKitchenDesigner: true,
+      },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        images: true,
+        kitchenCategory: true,
+        sku: true,
+        code: true,
+      },
+    }),
+  ]);
 
   const totalSales = orders.reduce(
     (acc, order) => acc + Number(order.totalUSD || 0),
@@ -48,6 +69,10 @@ export default async function AdminDashboard() {
           <h2 className="text-lg font-bold">Enviados</h2>
           <p className="text-3xl">{shipped}</p>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <Kitchen3DAdminPanel modules={modules} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
