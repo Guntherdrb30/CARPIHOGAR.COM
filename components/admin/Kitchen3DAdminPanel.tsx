@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type KitchenModuleItem = {
   id: string;
@@ -44,6 +44,8 @@ const resolveProductImage = (item: KitchenModuleItem) => {
 export default function Kitchen3DAdminPanel({ modules }: { modules: KitchenModuleItem[] }) {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Record<string, string | null>>({});
+  const [quickProductId, setQuickProductId] = useState<string>(modules[0]?.id || "");
+  const [quickMessage, setQuickMessage] = useState<string | null>(null);
 
   const grouped = useMemo(() => {
     const out: Record<string, KitchenModuleItem[]> = {};
@@ -55,8 +57,26 @@ export default function Kitchen3DAdminPanel({ modules }: { modules: KitchenModul
     return out;
   }, [modules]);
 
+  const categorySections = useMemo(() => {
+    const extras = Object.keys(grouped).filter(
+      (section) => !CATEGORY_ORDER.includes(section),
+    );
+    return [...CATEGORY_ORDER, ...extras];
+  }, [grouped]);
+
+  const quickProduct = useMemo(
+    () => modules.find((item) => item.id === quickProductId) || null,
+    [modules, quickProductId],
+  );
+
+  useEffect(() => {
+    if (!quickProductId && modules.length > 0) {
+      setQuickProductId(modules[0].id);
+    }
+  }, [modules, quickProductId]);
+
   const handleUpload = async (item: KitchenModuleItem, file: File | null) => {
-    if (!file) return;
+    if (!file) return null;
     setUploadingId(item.id);
     setMessages((prev) => ({ ...prev, [item.id]: null }));
     try {
@@ -68,18 +88,33 @@ export default function Kitchen3DAdminPanel({ modules }: { modules: KitchenModul
       if (!res.ok) {
         throw new Error(data?.error || "No se pudo subir.");
       }
+      const successMessage = "Archivo recibido. Conversion en cola.";
       setMessages((prev) => ({
         ...prev,
-        [item.id]: "Archivo recibido. Conversion en cola.",
+        [item.id]: successMessage,
       }));
+      return successMessage;
     } catch (error: any) {
+      const errorMessage = error?.message || "No se pudo subir.";
       setMessages((prev) => ({
         ...prev,
-        [item.id]: error?.message || "No se pudo subir.",
+        [item.id]: errorMessage,
       }));
+      return errorMessage;
     } finally {
       setUploadingId(null);
     }
+  };
+
+  const handleQuickUpload = async (file: File | null) => {
+    if (!file) return;
+    if (!quickProduct) {
+      setQuickMessage("Selecciona un mueble para subir el SKP.");
+      return;
+    }
+    setQuickMessage(null);
+    const resultMessage = await handleUpload(quickProduct, file);
+    if (resultMessage) setQuickMessage(resultMessage);
   };
 
   return (
@@ -102,6 +137,48 @@ export default function Kitchen3DAdminPanel({ modules }: { modules: KitchenModul
         </div>
       </div>
 
+      {modules.length > 0 && (
+        <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <div className="text-xs font-semibold text-gray-700">Carga rapida de SKP</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <select
+              value={quickProductId}
+              onChange={(event) => setQuickProductId(event.target.value)}
+              className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700"
+            >
+              {modules.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                  {item.sku || item.code ? ` (${item.sku || item.code})` : ""}
+                </option>
+              ))}
+            </select>
+            <label
+              className={`inline-flex items-center rounded border px-3 py-1 text-xs font-semibold ${
+                uploadingId === quickProductId
+                  ? "border-gray-200 text-gray-400"
+                  : "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+              }`}
+            >
+              {uploadingId === quickProductId ? "Subiendo..." : "Subir SKP"}
+              <input
+                type="file"
+                accept=".skp"
+                className="hidden"
+                disabled={uploadingId === quickProductId}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  handleQuickUpload(file);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </label>
+            <span className="text-xs text-gray-500">Se convierte a GLB en segundo plano.</span>
+          </div>
+          {quickMessage && <div className="mt-1 text-xs text-gray-500">{quickMessage}</div>}
+        </div>
+      )}
+
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] gap-4">
         <div className="space-y-4">
           {modules.length === 0 ? (
@@ -122,7 +199,7 @@ export default function Kitchen3DAdminPanel({ modules }: { modules: KitchenModul
               </div>
             </div>
           ) : (
-            CATEGORY_ORDER.map((section) => {
+            categorySections.map((section) => {
               const items = grouped[section] || [];
               if (!items.length) return null;
               return (
