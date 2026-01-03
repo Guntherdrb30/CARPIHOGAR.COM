@@ -81,28 +81,36 @@ export default function ProductCreateFormClient({
           ></textarea>
         </div>
 
-        <div>
-          <label className="block text-sm text-gray-700 mb-1">Precio base (USD)</label>
-          <input name="basePriceUsd" type="number" step="0.01" placeholder="Precio base" className="form-input" />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-700 mb-1">Precio Cliente (USD)</label>
-          <input name="priceUSD" type="number" step="0.01" placeholder="Precio Cliente" className="form-input" required />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-700 mb-1">Precio Aliado (USD)</label>
-          <input name="priceAllyUSD" type="number" step="0.01" placeholder="Precio Aliado" className="form-input" />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-700 mb-1">Precio Mayorista (USD)</label>
-          <input
-            name="priceWholesaleUSD"
-            type="number"
-            step="0.01"
-            placeholder="Precio Mayorista"
-            className="form-input"
-          />
-        </div>
+        {!isKitchenModule ? (
+          <>
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Precio base (USD)</label>
+              <input name="basePriceUsd" type="number" step="0.01" placeholder="Precio base" className="form-input" />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Precio Cliente (USD)</label>
+              <input name="priceUSD" type="number" step="0.01" placeholder="Precio Cliente" className="form-input" required />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Precio Aliado (USD)</label>
+              <input name="priceAllyUSD" type="number" step="0.01" placeholder="Precio Aliado" className="form-input" />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Precio Mayorista (USD)</label>
+              <input
+                name="priceWholesaleUSD"
+                type="number"
+                step="0.01"
+                placeholder="Precio Mayorista"
+                className="form-input"
+              />
+            </div>
+          </>
+        ) : (
+          <div className="md:col-span-3 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            Solo se usan precios por gama para muebles de cocina. La gama media se usara como precio base.
+          </div>
+        )}
 
         <div>
           <label className="block text-sm text-gray-700 mb-1">Stock en unidades</label>

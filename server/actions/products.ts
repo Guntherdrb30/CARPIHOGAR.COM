@@ -608,9 +608,22 @@ export async function updateProductFull(formData: FormData) {
         : [];
     const type = String(formData.get('type') || 'SIMPLE').toUpperCase() as any;
 
-    const priceUSD = parseFloat(String(formData.get('priceUSD') || '0'));
-    const priceAllyUSD = formData.get('priceAllyUSD') ? parseFloat(String(formData.get('priceAllyUSD'))) : null;
-    const priceWholesaleUSD = formData.get('priceWholesaleUSD') ? parseFloat(String(formData.get('priceWholesaleUSD'))) : null;
+    const priceUSDInput = formData.get('priceUSD');
+    const priceUSDParsed =
+        priceUSDInput != null && String(priceUSDInput).length
+            ? parseFloat(String(priceUSDInput))
+            : null;
+    const priceUSD = Number.isFinite(priceUSDParsed) ? priceUSDParsed : null;
+    const priceAllyUSDInput = formData.get('priceAllyUSD');
+    const priceAllyUSD =
+        priceAllyUSDInput != null && String(priceAllyUSDInput).length
+            ? parseFloat(String(priceAllyUSDInput))
+            : null;
+    const priceWholesaleUSDInput = formData.get('priceWholesaleUSD');
+    const priceWholesaleUSD =
+        priceWholesaleUSDInput != null && String(priceWholesaleUSDInput).length
+            ? parseFloat(String(priceWholesaleUSDInput))
+            : null;
     const kitchenPriceLowUsdRaw = formData.get('kitchenPriceLowUsd');
     const kitchenPriceMidUsdRaw = formData.get('kitchenPriceMidUsd');
     const kitchenPriceHighUsdRaw = formData.get('kitchenPriceHighUsd');
@@ -626,6 +639,28 @@ export async function updateProductFull(formData: FormData) {
         kitchenPriceHighUsdRaw != null && String(kitchenPriceHighUsdRaw).length
             ? parseFloat(String(kitchenPriceHighUsdRaw))
             : null;
+    const currentProduct = await prisma.product.findUnique({
+        where: { id },
+        select: { priceUSD: true, basePriceUsd: true, productFamily: true, images: true },
+    });
+    const isKitchenModule =
+        String((currentProduct as any)?.productFamily || '').toUpperCase() === 'KITCHEN_MODULE';
+    const resolvedKitchenMid =
+        kitchenPriceMidUsd != null && Number.isFinite(kitchenPriceMidUsd) && kitchenPriceMidUsd > 0
+            ? kitchenPriceMidUsd
+            : null;
+    const currentPriceUsd =
+        typeof (currentProduct as any)?.priceUSD?.toNumber === 'function'
+            ? (currentProduct as any).priceUSD.toNumber()
+            : currentProduct?.priceUSD != null
+                ? Number((currentProduct as any).priceUSD)
+                : 0;
+    const resolvedPriceUSD =
+        priceUSD != null
+            ? priceUSD
+            : isKitchenModule && resolvedKitchenMid != null
+                ? resolvedKitchenMid
+                : currentPriceUsd;
 
     const stockUnits = parseInt(String(formData.get('stockUnits') || '0'), 10);
     const stockMinUnits = parseInt(String(formData.get('stockMinUnits') || '0'), 10);
@@ -665,7 +700,7 @@ export async function updateProductFull(formData: FormData) {
     const mainImageUpload = String(formData.get('mainImage') || '').trim();
     const extraImages = (formData.getAll('images[]') as string[]).filter(Boolean);
 
-    const current = replaceAll ? [] : ((await prisma.product.findUnique({ where: { id }, select: { images: true } }))?.images || []);
+    const current = replaceAll ? [] : (currentProduct?.images || []);
     let images: string[] = [...current];
     if (mainImageUpload) {
         images = [mainImageUpload, ...images.filter((i) => i !== mainImageUpload)];
@@ -687,10 +722,8 @@ export async function updateProductFull(formData: FormData) {
         guarantee,
         keywords,
         type,
-        priceUSD: priceUSD as any,
-        priceClientUSD: priceUSD as any,
-        priceAllyUSD: priceAllyUSD as any,
-        priceWholesaleUSD: priceWholesaleUSD as any,
+        priceUSD: resolvedPriceUSD as any,
+        priceClientUSD: resolvedPriceUSD as any,
         stock: stockUnits,
         stockUnits,
         stockMinUnits,
@@ -721,6 +754,15 @@ export async function updateProductFull(formData: FormData) {
     }
     if (formData.has('kitchenPriceHighUsd')) {
         updateData.kitchenPriceHighUsd = kitchenPriceHighUsd as any;
+    }
+    if (formData.has('priceAllyUSD')) {
+        updateData.priceAllyUSD = priceAllyUSD as any;
+    }
+    if (formData.has('priceWholesaleUSD')) {
+        updateData.priceWholesaleUSD = priceWholesaleUSD as any;
+    }
+    if (isKitchenModule && resolvedKitchenMid != null) {
+        updateData.basePriceUsd = resolvedKitchenMid as any;
     }
 
     const product = await prisma.product.update({

@@ -181,40 +181,48 @@ export default async function EditProductPage({ params }: { params: { id: string
         </div>
 
         {/* SECCIÓN 3 – Precios */}
-        <div>
-          <label className="block text-sm text-gray-700 mb-1">Precio Cliente (USD)</label>
-          <input
-            name="priceUSD"
-            type="number"
-            step="0.01"
-            defaultValue={Number(product.priceUSD)}
-            placeholder="Precio Cliente"
-            className="border rounded px-2 py-1"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-700 mb-1">Precio Aliado (USD)</label>
-          <input
-            name="priceAllyUSD"
-            type="number"
-            step="0.01"
-            defaultValue={product.priceAllyUSD ? Number(product.priceAllyUSD) : undefined}
-            placeholder="Precio Aliado (opcional)"
-            className="border rounded px-2 py-1"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-700 mb-1">Precio Mayorista (USD)</label>
-          <input
-            name="priceWholesaleUSD"
-            type="number"
-            step="0.01"
-            defaultValue={(product as any).priceWholesaleUSD ? Number((product as any).priceWholesaleUSD) : undefined}
-            placeholder="Precio Mayorista (opcional)"
-            className="border rounded px-2 py-1"
-          />
-        </div>
+        {!isKitchenModule ? (
+          <>
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Precio Cliente (USD)</label>
+              <input
+                name="priceUSD"
+                type="number"
+                step="0.01"
+                defaultValue={Number(product.priceUSD)}
+                placeholder="Precio Cliente"
+                className="border rounded px-2 py-1"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Precio Aliado (USD)</label>
+              <input
+                name="priceAllyUSD"
+                type="number"
+                step="0.01"
+                defaultValue={product.priceAllyUSD ? Number(product.priceAllyUSD) : undefined}
+                placeholder="Precio Aliado (opcional)"
+                className="border rounded px-2 py-1"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Precio Mayorista (USD)</label>
+              <input
+                name="priceWholesaleUSD"
+                type="number"
+                step="0.01"
+                defaultValue={(product as any).priceWholesaleUSD ? Number((product as any).priceWholesaleUSD) : undefined}
+                placeholder="Precio Mayorista (opcional)"
+                className="border rounded px-2 py-1"
+              />
+            </div>
+          </>
+        ) : (
+          <div className="md:col-span-3 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            Para muebles de cocina solo se usan precios por gama. La gama media se usa como precio base.
+          </div>
+        )}
         {isKitchenModule && (
           <div className="md:col-span-3 border-t pt-3">
             <h3 className="font-semibold text-sm mb-2">Precios por gama (cocina)</h3>

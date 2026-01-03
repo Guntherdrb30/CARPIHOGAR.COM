@@ -33,14 +33,14 @@ export default function ProductCreateForm({
     const stockUnits = parseInt(String(formData.get("stockUnits") || formData.get("stock") || "0"), 10);
     const stockMinUnits = parseInt(String(formData.get("stockMinUnits") || "0"), 10);
     const allowBackorder = String(formData.get("allowBackorder") || "") === "on";
-    const priceUSD = parseFloat(String(formData.get("priceUSD") || "0"));
+    let priceUSD = parseFloat(String(formData.get("priceUSD") || "0"));
     const priceAllyUSD = formData.get("priceAllyUSD") ? parseFloat(String(formData.get("priceAllyUSD"))) : null;
     const priceWholesaleUSD = formData.get("priceWholesaleUSD")
       ? parseFloat(String(formData.get("priceWholesaleUSD")))
       : null;
     const basePriceUsdInput = String(formData.get("basePriceUsd") || "").trim();
     const basePriceUsdParsed = basePriceUsdInput ? parseFloat(basePriceUsdInput) : NaN;
-    const basePriceUsd = Number.isFinite(basePriceUsdParsed) ? basePriceUsdParsed : priceUSD;
+    let basePriceUsd = Number.isFinite(basePriceUsdParsed) ? basePriceUsdParsed : priceUSD;
     const unitsPerPackage =
       type === "GROUPED" ? parseInt(String(formData.get("unitsPerPackage") || "0"), 10) || null : null;
     const stockPackages =
@@ -107,6 +107,15 @@ export default function ProductCreateForm({
     const kitchenPriceHighUsd = isKitchenModule && String(formData.get("kitchenPriceHighUsd") || "").length
       ? parseFloat(String(formData.get("kitchenPriceHighUsd")))
       : null;
+    if (
+      isKitchenModule &&
+      kitchenPriceMidUsd != null &&
+      Number.isFinite(kitchenPriceMidUsd) &&
+      kitchenPriceMidUsd > 0
+    ) {
+      priceUSD = kitchenPriceMidUsd;
+      basePriceUsd = kitchenPriceMidUsd;
+    }
 
     await createProduct({
       name: String(formData.get("name") || ""),
