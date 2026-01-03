@@ -21,6 +21,7 @@ export default async function CreaTuCocinaPage() {
   const email = String((session?.user as any)?.email || "").toLowerCase();
   const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
   const isRoot = role === "ADMIN" && email === rootEmail;
+  const isAdmin = role === "ADMIN";
   const isAuthenticated = Boolean((session?.user as any)?.id);
 
   const modules = await prisma.product.findMany({
@@ -83,6 +84,7 @@ export default async function CreaTuCocinaPage() {
           modules={normalizedModules}
           isAuthenticated={isAuthenticated}
           isRoot={isRoot}
+          isAdmin={isAdmin}
         />
       </div>
     </div>

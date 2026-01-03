@@ -59,6 +59,7 @@ type KitchenStudioProps = {
   modules: KitchenModuleProduct[];
   isAuthenticated: boolean;
   isRoot: boolean;
+  isAdmin: boolean;
 };
 
 const PRICE_TIERS: Array<{
@@ -258,7 +259,12 @@ function LayoutPreview({ type, isActive }: { type: KitchenLayoutType; isActive: 
   );
 }
 
-export default function KitchenStudio({ modules, isAuthenticated, isRoot }: KitchenStudioProps) {
+export default function KitchenStudio({
+  modules,
+  isAuthenticated,
+  isRoot,
+  isAdmin,
+}: KitchenStudioProps) {
   const [priceTier, setPriceTier] = useState<KitchenPriceTier | null>(null);
   const [layoutType, setLayoutType] = useState<KitchenLayoutType | null>(null);
   const [activeProductId, setActiveProductId] = useState<string>(modules[0]?.id || "");
@@ -273,8 +279,8 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [uploadingProductId, setUploadingProductId] = useState<string | null>(null);
+  const [uploadMessages, setUploadMessages] = useState<Record<string, string | null>>({});
   const planRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<{
     id: string;
@@ -555,24 +561,30 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
     setSaveMessage("La impresion del presupuesto se habilitara en la siguiente fase.");
   };
 
-  const handleUploadModel = async (file: File | null) => {
-    if (!activeProduct || !file) return;
-    setUploading(true);
-    setUploadMessage(null);
+  const handleUploadModel = async (product: KitchenModuleProduct, file: File | null) => {
+    if (!file) return;
+    setUploadingProductId(product.id);
+    setUploadMessages((prev) => ({ ...prev, [product.id]: null }));
     try {
       const formData = new FormData();
-      formData.append("productId", activeProduct.id);
+      formData.append("productId", product.id);
       formData.append("file", file);
       const res = await fetch("/api/3d/upload-skp", { method: "POST", body: formData });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(data?.error || "No se pudo subir.");
       }
-      setUploadMessage("Archivo recibido. Conversion en cola.");
+      setUploadMessages((prev) => ({
+        ...prev,
+        [product.id]: "Archivo recibido. Conversion en cola.",
+      }));
     } catch (error: any) {
-      setUploadMessage(error?.message || "No se pudo subir.");
+      setUploadMessages((prev) => ({
+        ...prev,
+        [product.id]: error?.message || "No se pudo subir.",
+      }));
     } finally {
-      setUploading(false);
+      setUploadingProductId(null);
     }
   };
 
@@ -930,16 +942,16 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
               </div>
             )}
             {activeProduct ? (
-                <CarpihogarModelViewer
-                  productId={activeProduct.id}
-                  productName={activeProduct.name}
-                  sku={activeProduct.sku || activeProduct.code || null}
-                  category={resolveCategoryLabel(activeProduct)}
-                  furnitureType="Modulo de cocina"
-                  widthCm={activeProduct.widthMm ? activeProduct.widthMm / 10 : null}
-                  heightCm={activeProduct.heightMm ? activeProduct.heightMm / 10 : null}
-                  depthCm={activeProduct.depthMm ? activeProduct.depthMm / 10 : null}
-                  isAdmin={isRoot}
+              <CarpihogarModelViewer
+                productId={activeProduct.id}
+                productName={activeProduct.name}
+                sku={activeProduct.sku || activeProduct.code || null}
+                category={resolveCategoryLabel(activeProduct)}
+                furnitureType="Modulo de cocina"
+                widthCm={activeProduct.widthMm ? activeProduct.widthMm / 10 : null}
+                heightCm={activeProduct.heightMm ? activeProduct.heightMm / 10 : null}
+                depthCm={activeProduct.depthMm ? activeProduct.depthMm / 10 : null}
+                isAdmin={isAdmin || isRoot}
                 showPanel={false}
                 viewerClassName="w-full h-[520px] rounded-lg overflow-hidden"
               />
@@ -948,149 +960,234 @@ export default function KitchenStudio({ modules, isAuthenticated, isRoot }: Kitc
                 No hay modulos cargados.
               </div>
             )}
-            {isRoot && activeProduct && (
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
-                <div className="font-semibold text-gray-900">Subir modelo 3D (solo root)</div>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <label className="inline-flex items-center gap-2 text-xs text-gray-700">
-                    <input
-                      type="file"
-                      accept=".skp"
-                      onChange={(event) => handleUploadModel(event.target.files?.[0] || null)}
-                      disabled={uploading}
-                    />
-                  </label>
-                  {uploading && <span>Subiendo...</span>}
-                </div>
-                {uploadMessage && <div className="mt-1 text-xs text-gray-600">{uploadMessage}</div>}
-              </div>
-            )}
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-gray-400">
-                  Catalogo de muebles
-                </div>
-                <div className="text-sm font-semibold text-gray-900">
-                  Selecciona y agrega al plano
-                </div>
-              </div>
-              <div className="text-xs text-gray-500">{modules.length} items</div>
-            </div>
-            <div className="mt-4 space-y-4">
-              {CATEGORY_ORDER.map((section) => {
-                const items = groupedModules[section] || [];
-                if (!items.length) return null;
-                return (
-                  <div key={section} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-semibold text-gray-900">{section}</div>
-                      <div className="text-[11px] text-gray-400">{items.length}</div>
+          <div className="space-y-4">
+            {isAdmin && (
+              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.2em] text-gray-400">
+                      Muebles 3D
                     </div>
-                    <div className="space-y-3">
-                      {items.map((item) => {
-                        const price = priceTier ? resolveTierPrice(item, priceTier) : 0;
-                        const widthLabel = resolveWidthMm(item);
-                        const placement = resolvePlacementZone(item);
-                        return (
-                          <div
-                            key={item.id}
-                            className={`rounded-lg border p-3 transition ${
-                              activeProductId === item.id ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200"
-                            }`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <button
-                                type="button"
-                                onClick={() => setActiveProductId(item.id)}
-                                className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-100"
+                    <div className="text-sm font-semibold text-gray-900">
+                      Gestiona modelos y edita muebles
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500">{modules.length} items</div>
+                </div>
+                <div className="mt-3 max-h-[360px] space-y-3 overflow-y-auto pr-1">
+                  {CATEGORY_ORDER.map((section) => {
+                    const items = groupedModules[section] || [];
+                    if (!items.length) return null;
+                    return (
+                      <div key={`admin-${section}`} className="space-y-2">
+                        <div className="text-xs font-semibold text-gray-700">{section}</div>
+                        <div className="space-y-2">
+                          {items.map((item) => {
+                            const isUploading = uploadingProductId === item.id;
+                            const message = uploadMessages[item.id];
+                            return (
+                              <div
+                                key={`admin-${item.id}`}
+                                className="rounded-lg border border-gray-200 bg-gray-50 p-2"
                               >
-                                <img
-                                  src={resolveProductImage(item)}
-                                  alt={item.name}
-                                  className="h-full w-full object-cover"
-                                  loading="lazy"
-                                />
-                              </button>
-                              <div className="flex-1">
-                                <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2">
                                   <button
                                     type="button"
                                     onClick={() => setActiveProductId(item.id)}
-                                    className="text-left"
+                                    className="h-10 w-10 flex-shrink-0 overflow-hidden rounded border border-gray-200 bg-white"
                                   >
-                                    <div className="text-sm font-semibold">{item.name}</div>
+                                    <img
+                                      src={resolveProductImage(item)}
+                                      alt={item.name}
+                                      className="h-full w-full object-cover"
+                                      loading="lazy"
+                                    />
                                   </button>
-                                  <div className="text-sm font-semibold">
-                                    {priceTier ? formatMoney(price) : "--"}
+                                  <div className="flex-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveProductId(item.id)}
+                                      className="text-left"
+                                    >
+                                      <div className="text-xs font-semibold text-gray-900">
+                                        {item.name}
+                                      </div>
+                                    </button>
+                                    <div className="text-[11px] text-gray-500">
+                                      {resolveCategoryLabel(item)}
+                                    </div>
                                   </div>
                                 </div>
-                                <div
-                                  className={`mt-1 text-xs line-clamp-2 ${
-                                    activeProductId === item.id ? "text-gray-200" : "text-gray-500"
-                                  }`}
-                                >
-                                  {item.description || "Modulo de cocina disponible para tu diseno."}
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  <label
+                                    className={`inline-flex items-center rounded border px-2 py-1 text-[11px] font-semibold ${
+                                      isUploading
+                                        ? "border-gray-200 text-gray-400"
+                                        : "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                    }`}
+                                  >
+                                    {isUploading ? "Subiendo..." : "Subir SKP"}
+                                    <input
+                                      type="file"
+                                      accept=".skp"
+                                      className="hidden"
+                                      disabled={isUploading}
+                                      onChange={(event) => {
+                                        const file = event.target.files?.[0] || null;
+                                        handleUploadModel(item, file);
+                                        event.currentTarget.value = "";
+                                      }}
+                                    />
+                                  </label>
+                                  <a
+                                    href={`/dashboard/admin/productos/${item.id}`}
+                                    className="inline-flex items-center rounded border border-gray-300 px-2 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-100"
+                                  >
+                                    Editar
+                                  </a>
                                 </div>
-                                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
-                                  <span>Ancho base: {widthLabel} mm</span>
-                                  <span>Zona: {placement === "WALL" ? "Pared" : "Piso"}</span>
-                                </div>
+                                {message && (
+                                  <div className="mt-1 text-[11px] text-gray-500">{message}</div>
+                                )}
                               </div>
-                            </div>
-                            {!priceTier && (
-                              <div className="mt-2 text-xs text-gray-500">
-                                Selecciona una gama para ver precios y agregar este modulo.
-                              </div>
-                            )}
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                className={`rounded px-3 py-1 text-xs font-semibold border ${
-                                  isPlanReady
-                                    ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                                    : "border-gray-200 text-gray-400 cursor-not-allowed"
-                                }`}
-                                onClick={() => handleAddToPlan(item)}
-                                disabled={!isPlanReady}
-                              >
-                                Agregar al plano
-                              </button>
-                              <button
-                                type="button"
-                                className={`rounded px-3 py-1 text-xs font-semibold ${
-                                  priceTier
-                                    ? "bg-gray-900 text-white"
-                                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                                }`}
-                                onClick={() => handleAddModule(item)}
-                                disabled={!priceTier}
-                              >
-                                Agregar al presupuesto
-                              </button>
-                              <button
-                                type="button"
-                                className={`rounded px-3 py-1 text-xs font-semibold border ${
-                                  activeProductId === item.id
-                                    ? "border-white/60 text-white"
-                                    : "border-gray-300 text-gray-700"
-                                }`}
-                                onClick={() => setActiveProductId(item.id)}
-                              >
-                                Ver en visor 3D
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.2em] text-gray-400">
+                    Catalogo de muebles
                   </div>
-                );
-              })}
+                  <div className="text-sm font-semibold text-gray-900">
+                    Selecciona y agrega al plano
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500">{modules.length} items</div>
+              </div>
+              <div className="mt-4 space-y-4">
+                {CATEGORY_ORDER.map((section) => {
+                  const items = groupedModules[section] || [];
+                  if (!items.length) return null;
+                  return (
+                    <div key={section} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold text-gray-900">{section}</div>
+                        <div className="text-[11px] text-gray-400">{items.length}</div>
+                      </div>
+                      <div className="space-y-3">
+                        {items.map((item) => {
+                          const price = priceTier ? resolveTierPrice(item, priceTier) : 0;
+                          const widthLabel = resolveWidthMm(item);
+                          const placement = resolvePlacementZone(item);
+                          return (
+                            <div
+                              key={item.id}
+                              className={`rounded-lg border p-3 transition ${
+                                activeProductId === item.id
+                                  ? "border-gray-900 bg-gray-900 text-white"
+                                  : "border-gray-200"
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveProductId(item.id)}
+                                  className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-md border border-gray-200 bg-gray-100"
+                                >
+                                  <img
+                                    src={resolveProductImage(item)}
+                                    alt={item.name}
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                  />
+                                </button>
+                                <div className="flex-1">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveProductId(item.id)}
+                                      className="text-left"
+                                    >
+                                      <div className="text-sm font-semibold">{item.name}</div>
+                                    </button>
+                                    <div className="text-sm font-semibold">
+                                      {priceTier ? formatMoney(price) : "--"}
+                                    </div>
+                                  </div>
+                                  <div
+                                    className={`mt-1 text-xs line-clamp-2 ${
+                                      activeProductId === item.id ? "text-gray-200" : "text-gray-500"
+                                    }`}
+                                  >
+                                    {item.description || "Modulo de cocina disponible para tu diseno."}
+                                  </div>
+                                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+                                    <span>Ancho base: {widthLabel} mm</span>
+                                    <span>Zona: {placement === "WALL" ? "Pared" : "Piso"}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              {!priceTier && (
+                                <div className="mt-2 text-xs text-gray-500">
+                                  Selecciona una gama para ver precios y agregar este modulo.
+                                </div>
+                              )}
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  className={`rounded px-3 py-1 text-xs font-semibold border ${
+                                    isPlanReady
+                                      ? "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                      : "border-gray-200 text-gray-400 cursor-not-allowed"
+                                  }`}
+                                  onClick={() => handleAddToPlan(item)}
+                                  disabled={!isPlanReady}
+                                >
+                                  Agregar al plano
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`rounded px-3 py-1 text-xs font-semibold ${
+                                    priceTier
+                                      ? "bg-gray-900 text-white"
+                                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                  }`}
+                                  onClick={() => handleAddModule(item)}
+                                  disabled={!priceTier}
+                                >
+                                  Agregar al presupuesto
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`rounded px-3 py-1 text-xs font-semibold border ${
+                                    activeProductId === item.id
+                                      ? "border-white/60 text-white"
+                                      : "border-gray-300 text-gray-700"
+                                  }`}
+                                  onClick={() => setActiveProductId(item.id)}
+                                >
+                                  Ver en visor 3D
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
         </div>
       </section>
 
