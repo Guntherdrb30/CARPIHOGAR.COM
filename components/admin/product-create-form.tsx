@@ -97,6 +97,7 @@ export default function ProductCreateForm({
     const kitchenCategory = isKitchenModule && kitchenCategoryInput ? kitchenCategoryInput : null;
     const isVisibleInKitchenDesigner =
       isKitchenModule && String(formData.get("isVisibleInKitchenDesigner") || "") === "on";
+    const usableInKitchenDesigner = isVisibleInKitchenDesigner;
     const kitchenPriceLowUsd = isKitchenModule && String(formData.get("kitchenPriceLowUsd") || "").length
       ? parseFloat(String(formData.get("kitchenPriceLowUsd")))
       : null;
@@ -132,6 +133,7 @@ export default function ProductCreateForm({
       parametricPricingFormula,
       kitchenCategory,
       isVisibleInKitchenDesigner,
+      usableInKitchenDesigner,
       kitchenPriceLowUsd,
       kitchenPriceMidUsd,
       kitchenPriceHighUsd,

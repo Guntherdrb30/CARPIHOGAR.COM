@@ -22,7 +22,10 @@ export default async function AdminDashboard() {
     prisma.product.findMany({
       where: {
         productFamily: "KITCHEN_MODULE",
-        usableInKitchenDesigner: true,
+        OR: [
+          { usableInKitchenDesigner: true },
+          { isVisibleInKitchenDesigner: true },
+        ],
       },
       orderBy: { name: "asc" },
       select: {

@@ -107,7 +107,10 @@ export async function POST(req: Request) {
       where: {
         id: productId,
         productFamily: "KITCHEN_MODULE",
-        usableInKitchenDesigner: true,
+        OR: [
+          { usableInKitchenDesigner: true },
+          { isVisibleInKitchenDesigner: true },
+        ],
       },
       select: {
         id: true,

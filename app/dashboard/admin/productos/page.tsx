@@ -11,7 +11,7 @@ import ProductActionsMenu from "@/components/admin/product-actions-menu";
 import ShowToastFromSearch from '@/components/show-toast-from-search';
 import ProductCreateForm from '@/components/admin/product-create-form';
 
-export default async function AdminProductsPage({ searchParams }: { searchParams?: Promise<{ q?: string; categoria?: string; proveedor?: string; message?: string; error?: string }> }) {
+export default async function AdminProductsPage({ searchParams }: { searchParams?: Promise<{ q?: string; categoria?: string; proveedor?: string; message?: string; error?: string; createKitchen?: string }> }) {
   const session = await getServerSession(authOptions as any);
   const email = String((session?.user as any)?.email || '').toLowerCase();
   const role = String((session?.user as any)?.role || '');
@@ -23,6 +23,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
   const categoria = sp.categoria || '';
   const proveedor = (sp as any).proveedor || '';
   const message = (sp as any).message || '';
+  const createKitchen = String((sp as any).createKitchen || '') === '1';
 
   const [products, categories, settings, suppliers] = await Promise.all([
     getProducts({ categorySlug: categoria || undefined, q: q || undefined, supplierId: proveedor || undefined }),
@@ -89,6 +90,7 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
         categories={categories as any}
         suppliers={suppliers as any}
         summaryTitle="Crear Producto"
+        defaultOpen={createKitchen}
         successRedirect="/dashboard/admin/productos?message=Producto%20creado"
       />
 

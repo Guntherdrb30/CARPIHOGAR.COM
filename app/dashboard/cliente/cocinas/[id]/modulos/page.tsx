@@ -106,7 +106,10 @@ export default async function KitchenModulesPage({
   const allModules = await prisma.product.findMany({
     where: {
       productFamily: "KITCHEN_MODULE",
-      usableInKitchenDesigner: true,
+      OR: [
+        { usableInKitchenDesigner: true },
+        { isVisibleInKitchenDesigner: true },
+      ],
     },
     orderBy: { name: "asc" },
     select: {
@@ -182,7 +185,10 @@ export default async function KitchenModulesPage({
       where: {
         id: productId,
         productFamily: "KITCHEN_MODULE",
-        usableInKitchenDesigner: true,
+        OR: [
+          { usableInKitchenDesigner: true },
+          { isVisibleInKitchenDesigner: true },
+        ],
       },
       select: {
         id: true,

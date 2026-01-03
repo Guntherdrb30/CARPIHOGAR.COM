@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { PendingButton } from "@/components/pending-button";
 import ProductMediaManager from "@/components/admin/product-media-manager";
 import RelatedProductsPicker from "@/components/admin/related-products-picker";
@@ -26,7 +27,11 @@ export default function ProductCreateFormClient({
   enableRootNoIva = false,
   action,
 }: ProductCreateFormClientProps) {
-  const [productFamily, setProductFamily] = useState<ProductFamily>("STANDARD");
+  const searchParams = useSearchParams();
+  const createKitchen = searchParams.get("createKitchen") === "1";
+  const [productFamily, setProductFamily] = useState<ProductFamily>(
+    createKitchen ? "KITCHEN_MODULE" : "STANDARD",
+  );
   const isParametricFurniture = productFamily === "PARAMETRIC_FURNITURE";
   const isKitchenModule = productFamily === "KITCHEN_MODULE";
 
@@ -265,7 +270,12 @@ export default function ProductCreateFormClient({
               </div>
               <div className="md:col-span-3">
                 <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                  <input type="checkbox" name="isVisibleInKitchenDesigner" /> Visible en Kitchen Designer
+                  <input
+                    type="checkbox"
+                    name="isVisibleInKitchenDesigner"
+                    defaultChecked={createKitchen}
+                  />{" "}
+                  Visible en Kitchen Designer
                 </label>
               </div>
             </div>

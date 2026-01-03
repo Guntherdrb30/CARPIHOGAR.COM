@@ -27,7 +27,10 @@ export default async function CreaTuCocinaPage() {
   const modules = await prisma.product.findMany({
     where: {
       productFamily: "KITCHEN_MODULE",
-      usableInKitchenDesigner: true,
+      OR: [
+        { usableInKitchenDesigner: true },
+        { isVisibleInKitchenDesigner: true },
+      ],
     },
     orderBy: { name: "asc" },
     select: {
