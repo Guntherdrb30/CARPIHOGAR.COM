@@ -43,6 +43,7 @@ export default function OfflineSaleForm({
   maxPriceMode = "P2",
   allowCredit = true,
   unlockCreditWithDeleteSecret = false,
+  vesSalesDisabled = false,
 }: {
   sellers: Array<{ id: string; name?: string; email: string }>;
   commissionPercent: number;
@@ -57,6 +58,7 @@ export default function OfflineSaleForm({
   maxPriceMode?: PriceMode;
   allowCredit?: boolean;
   unlockCreditWithDeleteSecret?: boolean;
+  vesSalesDisabled?: boolean;
 }) {
   const [q, setQ] = useState("");
   const [found, setFound] = useState<Prod[]>([]);
@@ -83,6 +85,11 @@ export default function OfflineSaleForm({
   const [allowCreditUi, setAllowCreditUi] = useState<boolean>(!!allowCredit);
   const [deleteSecret, setDeleteSecret] = useState<string>("");
   useEffect(() => { if (!allowCreditUi && saleType !== 'CONTADO') setSaleType('CONTADO'); }, [allowCreditUi, saleType]);
+  useEffect(() => {
+    if (vesSalesDisabled && paymentCurrency === 'VES') {
+      setPaymentCurrency('USD');
+    }
+  }, [vesSalesDisabled, paymentCurrency]);
   const [creditDueDate, setCreditDueDate] = useState<string>("");
   // Direcciones
   type Address = { id: string; fullname: string; phone: string; state: string; city: string; zone?: string | null; address1: string; address2?: string | null; notes?: string | null };
@@ -685,8 +692,11 @@ export default function OfflineSaleForm({
           <label className="block text-sm text-gray-700">Moneda del pago</label>
           <select name="paymentCurrency" disabled={saleType === 'CREDITO'} value={paymentCurrency} onChange={(e) => setPaymentCurrency(e.target.value as any)} className="border rounded px-2 py-1 w-full disabled:opacity-50">
             <option value="USD">USD</option>
-            <option value="VES">Bs (VES)</option>
+            {!vesSalesDisabled && <option value="VES">Bs (VES)</option>}
           </select>
+          {vesSalesDisabled && (
+            <div className="text-xs text-gray-500 mt-1">Las ventas en bolívares están desactivadas.</div>
+          )}
         </div>
         {saleType === 'CONTADO' && paymentMethod === 'PAGO_MOVIL' && (
           <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3">

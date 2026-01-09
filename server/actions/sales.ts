@@ -7,7 +7,7 @@ import { authOptions } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { basicTemplate, sendMail } from '@/lib/mailer';
-import { applyPriceAdjustments, applyUsdPaymentDiscount, getPriceAdjustmentSettings } from '@/server/price-adjustments';
+import { applyPriceAdjustments, applyUsdPaymentDiscount, getPriceAdjustmentSettings, toCurrencyCode } from '@/server/price-adjustments';
 
 export async function searchProducts(q: string) {
   const where: any = q ? { OR: [ { name: { contains: q, mode: 'insensitive' } }, { sku: { contains: q, mode: 'insensitive' } } ] } : {};
@@ -393,6 +393,11 @@ export async function createOfflineSale(formData: FormData) {
   const settings = await prisma.siteSettings.findUnique({ where: { id: 1 } });
   const ivaPercent = ivaPercentForm !== null ? Number(ivaPercentForm) : Number(settings?.ivaPercent || 16);
   const tasaVES = Number(settings?.tasaVES || 40);
+  const vesSalesDisabled = Boolean((settings as any)?.vesSalesDisabled ?? false);
+  if (vesSalesDisabled && String(paymentCurrency) === 'VES') {
+    try { await prisma.auditLog.create({ data: { userId: (session?.user as any)?.id, action: 'OFFLINE_SALE_VALIDATION_FAILED', details: 'VES sales disabled' } }); } catch {}
+    redirect(`${backNewSale}?error=${encodeURIComponent('Las ventas en bolívares están desactivadas.')}`);
+  }
   // Enforce credit sales: only ADMIN by default; VENDEDOR requires deleteSecret approval
   const deleteSecretInput = String(formData.get('deleteSecret') || '');
   if (role === 'VENDEDOR' && saleType === 'CREDITO') {
@@ -483,7 +488,30 @@ export async function createOfflineSale(formData: FormData) {
   if (shippingLocalOption === 'DELIVERY') { _subtotalUSD += 6; }
   const subtotalUSD = _subtotalUSD;
   const pricing = await getPriceAdjustmentSettings();
-  const discount = applyUsdPaymentDiscount({ subtotalUSD, currency: paymentCurrency, settings: pricing });
+  let discountableSubtotalUSD = 0;
+  try {
+    const productIds = Array.from(new Set(items.map((it) => it.productId)));
+    if (productIds.length) {
+      const productSuppliers = await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, supplier: { select: { chargeCurrency: true } } },
+      });
+      const supplierMap = new Map(productSuppliers.map((p) => [p.id, p] as const));
+      discountableSubtotalUSD = items.reduce((sum, it) => {
+        const supplierCurrency = (supplierMap.get(it.productId) as any)?.supplier?.chargeCurrency || null;
+        if (!supplierCurrency) return sum;
+        return toCurrencyCode(supplierCurrency) === 'USD'
+          ? sum + (Number(it.priceUSD) * Number(it.quantity))
+          : sum;
+      }, 0);
+    }
+  } catch {}
+  const discount = applyUsdPaymentDiscount({
+    subtotalUSD,
+    currency: paymentCurrency,
+    settings: pricing,
+    eligibleSubtotalUSD: discountableSubtotalUSD,
+  });
   const taxableBaseUSD = discount.subtotalAfterDiscount;
   const totalUSD = taxableBaseUSD * (1 + ivaPercent/100);
   const totalVES = totalUSD * tasaVES;

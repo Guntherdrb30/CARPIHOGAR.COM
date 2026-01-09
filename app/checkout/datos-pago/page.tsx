@@ -9,6 +9,7 @@ export default function DatosPagoPage() {
 
   const [paymentMethod, setPaymentMethod] = useState<"PAGO_MOVIL" | "TRANSFERENCIA" | "ZELLE">("PAGO_MOVIL");
   const [paymentCurrency, setPaymentCurrency] = useState<"USD" | "VES">("USD");
+  const [vesSalesDisabled, setVesSalesDisabled] = useState(false);
   const [shippingOption, setShippingOption] = useState<ShippingOption>('');
   const [shippingCarrier, setShippingCarrier] = useState<ShippingCarrier>('');
   const [detectedCity, setDetectedCity] = useState('');
@@ -43,7 +44,7 @@ export default function DatosPagoPage() {
   useEffect(() => {
     if (!searchParams) return;
     const qMoneda = (searchParams.get('moneda') || '').toUpperCase();
-    if (qMoneda === 'USD' || qMoneda === 'VES') {
+    if (qMoneda === 'USD' || (qMoneda === 'VES' && !vesSalesDisabled)) {
       setPaymentCurrency(qMoneda as any);
       try { localStorage.setItem('checkout.paymentCurrency', qMoneda); } catch {}
     }
@@ -62,7 +63,7 @@ export default function DatosPagoPage() {
       setShippingCarrier(qCarrier as ShippingCarrier);
       try { localStorage.setItem('checkout.shippingCarrier', qCarrier); } catch {}
     }
-  }, [searchParams]);
+  }, [searchParams, vesSalesDisabled]);
 
   // detect location
   useEffect(() => {
@@ -81,6 +82,32 @@ export default function DatosPagoPage() {
     })();
     return () => { cancelled = true };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/settings/payment', { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (cancelled) return;
+        const disabled = Boolean(json?.vesSalesDisabled);
+        setVesSalesDisabled(disabled);
+        if (disabled) {
+          setPaymentCurrency('USD');
+          try { localStorage.setItem('checkout.paymentCurrency', 'USD'); } catch {}
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (vesSalesDisabled && paymentCurrency === 'VES') {
+      setPaymentCurrency('USD');
+      try { localStorage.setItem('checkout.paymentCurrency', 'USD'); } catch {}
+    }
+  }, [vesSalesDisabled, paymentCurrency]);
 
   // keep URL in sync when currency/entrega/carrier changes
   useEffect(() => {
@@ -169,8 +196,11 @@ export default function DatosPagoPage() {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
           >
             <option value="USD">USD</option>
-            <option value="VES">Bs (VES)</option>
+            {!vesSalesDisabled && <option value="VES">Bs (VES)</option>}
           </select>
+          {vesSalesDisabled && (
+            <div className="text-xs text-gray-500 mt-1">Las ventas en bolívares están desactivadas.</div>
+          )}
         </div>
 
         {paymentMethod === "PAGO_MOVIL" && (

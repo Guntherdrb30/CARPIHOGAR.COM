@@ -94,15 +94,25 @@ export default function RevisarPage() {
   const [tasaVES, setTasaVES] = useState<number>(40);
   const [usdDiscountEnabled, setUsdDiscountEnabled] = useState<boolean>(true);
   const [usdDiscountPercent, setUsdDiscountPercent] = useState<number>(20);
+  const [vesSalesDisabled, setVesSalesDisabled] = useState<boolean>(false);
 
   const subtotal = useMemo(() => getTotalUSD(), [getTotalUSD, items]);
+  const discountableSubtotalUSD = useMemo(() => {
+    if (paymentCurrency !== 'USD' || !usdDiscountEnabled) return 0;
+    return items.reduce((sum, item) => {
+      const supplierCurrency = String(item.supplierCurrency || '').toUpperCase();
+      if (!supplierCurrency) return sum;
+      if (supplierCurrency === 'VES') return sum;
+      return sum + item.priceUSD * item.quantity;
+    }, 0);
+  }, [items, paymentCurrency, usdDiscountEnabled]);
   const discountPct = useMemo(() => {
     if (paymentCurrency !== 'USD' || !usdDiscountEnabled) return 0;
     return Math.max(0, Number(usdDiscountPercent || 0)) / 100;
   }, [paymentCurrency, usdDiscountEnabled, usdDiscountPercent]);
   const discountUSD = useMemo(
-    () => subtotal * discountPct,
-    [subtotal, discountPct],
+    () => discountableSubtotalUSD * discountPct,
+    [discountableSubtotalUSD, discountPct],
   );
   const taxableBaseUSD = useMemo(
     () => subtotal - discountUSD,
@@ -186,12 +196,21 @@ export default function RevisarPage() {
         if (typeof data.usdPaymentDiscountPercent === 'number') {
           setUsdDiscountPercent(Number(data.usdPaymentDiscountPercent) || 0);
         }
+        if (typeof data.vesSalesDisabled === 'boolean') {
+          setVesSalesDisabled(Boolean(data.vesSalesDisabled));
+        }
       } catch {}
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (vesSalesDisabled && paymentCurrency === 'VES') {
+      setPaymentCurrency('USD');
+    }
+  }, [vesSalesDisabled, paymentCurrency]);
 
   useEffect(() => {
     if (!items.length) return;
@@ -318,7 +337,7 @@ export default function RevisarPage() {
             </div>
             {paymentCurrency === 'USD' && usdDiscountEnabled && discountUSD > 0 && (
               <div className="flex justify-between text-green-700">
-                <span>Descuento {Number(usdDiscountPercent || 0).toFixed(2)}% pago en USD:</span>
+                <span>Descuento {Number(usdDiscountPercent || 0).toFixed(2)}% pago en USD (proveedores USD):</span>
                 <span>-{formatUSD(discountUSD)}</span>
               </div>
             )}
@@ -349,7 +368,7 @@ export default function RevisarPage() {
           </div>
           {paymentCurrency === 'USD' && usdDiscountEnabled && discountUSD > 0 && (
             <div className="mt-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded p-3">
-              Pagando en d�lares obtienes un {Number(usdDiscountPercent || 0).toFixed(2)}% de descuento.
+              Pagando en dolares obtienes un {Number(usdDiscountPercent || 0).toFixed(2)}% de descuento en productos de proveedores en USD.
             </div>
           )}
         </div>
@@ -404,8 +423,11 @@ export default function RevisarPage() {
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               >
                 <option value="USD">USD</option>
-                <option value="VES">Bs (VES)</option>
+                {!vesSalesDisabled && <option value="VES">Bs (VES)</option>}
               </select>
+              {vesSalesDisabled && (
+                <div className="text-xs text-gray-500 mt-1">Las ventas en bolívares están desactivadas.</div>
+              )}
             </div>
 
             {paymentMethod === 'PAGO_MOVIL' && (

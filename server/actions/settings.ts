@@ -23,6 +23,7 @@ export async function ensureSiteSettingsColumns() {
         'ADD COLUMN IF NOT EXISTS "categoryPriceAdjustments" JSONB, ' +
         'ADD COLUMN IF NOT EXISTS "usdPaymentDiscountPercent" DECIMAL(6,2) DEFAULT 20, ' +
         'ADD COLUMN IF NOT EXISTS "usdPaymentDiscountEnabled" BOOLEAN NOT NULL DEFAULT true, ' +
+        'ADD COLUMN IF NOT EXISTS "vesSalesDisabled" BOOLEAN NOT NULL DEFAULT false, ' +
         'ADD COLUMN IF NOT EXISTS "heroAutoplayMs" INTEGER, ' +
         'ADD COLUMN IF NOT EXISTS "ecpdHeroUrls" TEXT[], ' +
         'ADD COLUMN IF NOT EXISTS "moodboardHeroUrls" TEXT[], ' +
@@ -215,6 +216,7 @@ export async function getSettings() {
       defaultMarginClientPct: (settings as any).defaultMarginClientPct?.toNumber?.() ?? 40,
       defaultMarginAllyPct: (settings as any).defaultMarginAllyPct?.toNumber?.() ?? 30,
       defaultMarginWholesalePct: (settings as any).defaultMarginWholesalePct?.toNumber?.() ?? 20,
+      vesSalesDisabled: Boolean((settings as any).vesSalesDisabled ?? false),
       heroAutoplayMs: Number((settings as any).heroAutoplayMs ?? 5000) || 5000,
       moodboardHeroUrls: Array.isArray((settings as any).moodboardHeroUrls)
         ? ((settings as any).moodboardHeroUrls as any[]).filter(Boolean)
@@ -308,6 +310,7 @@ export async function getSettings() {
       defaultMarginClientPct: 40,
       defaultMarginAllyPct: 30,
       defaultMarginWholesalePct: 20,
+      vesSalesDisabled: false,
       categoryBannerCarpinteriaUrl: "",
       categoryBannerHogarUrl: "",
       paymentZelleEmail: "",
@@ -777,6 +780,7 @@ export async function getPriceAdjustmentSettingsRoot() {
     categoryPriceAdjustments: categoryMap,
     usdPaymentDiscountPercent: toNumberSafe(raw.usdPaymentDiscountPercent, 20),
     usdPaymentDiscountEnabled: toBoolSafe(raw.usdPaymentDiscountEnabled, true),
+    vesSalesDisabled: toBoolSafe(raw.vesSalesDisabled, false),
   } as any;
 }
 
@@ -822,6 +826,8 @@ export async function setPriceAdjustments(formData: FormData) {
   const usdPaymentDiscountPercent = parsePercent("usdPaymentDiscountPercent", 20);
   const usdPaymentDiscountEnabled =
     String(formData.get("usdPaymentDiscountEnabled") || "") === "on";
+  const vesSalesDisabled =
+    String(formData.get("vesSalesDisabled") || "") === "on";
 
   const categoryPriceAdjustments: Record<string, number> = {};
   for (const [key, value] of Array.from(formData.entries())) {
@@ -846,6 +852,7 @@ export async function setPriceAdjustments(formData: FormData) {
       categoryPriceAdjustments: true,
       usdPaymentDiscountPercent: true,
       usdPaymentDiscountEnabled: true,
+      vesSalesDisabled: true,
     },
   });
 
@@ -858,6 +865,7 @@ export async function setPriceAdjustments(formData: FormData) {
     categoryPriceAdjustments,
     usdPaymentDiscountPercent: usdPaymentDiscountPercent as any,
     usdPaymentDiscountEnabled,
+    vesSalesDisabled,
   } as any;
 
   await prisma.siteSettings.update({ where: { id: 1 }, data });
@@ -895,6 +903,7 @@ export async function setPriceAdjustments(formData: FormData) {
   pushIfChanged("priceAdjustmentByCurrencyEnabled", old.priceAdjustmentByCurrencyEnabled, priceAdjustmentByCurrencyEnabled);
   pushIfChanged("usdPaymentDiscountPercent", old.usdPaymentDiscountPercent, usdPaymentDiscountPercent);
   pushIfChanged("usdPaymentDiscountEnabled", old.usdPaymentDiscountEnabled, usdPaymentDiscountEnabled);
+  pushIfChanged("vesSalesDisabled", old.vesSalesDisabled, vesSalesDisabled);
 
   const oldCategoryJson = stableJson(oldCategory || {});
   const newCategoryJson = stableJson(categoryPriceAdjustments || {});

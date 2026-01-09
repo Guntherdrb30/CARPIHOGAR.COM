@@ -12,6 +12,7 @@ export type CartItem = {
   type?: 'simple' | 'configurable';
   config?: any;
   previewImage?: string;
+  supplierCurrency?: 'USD' | 'VES' | 'USDT' | null;
 };
 
 export type CartState = {
@@ -88,6 +89,7 @@ export const useCartStore = create<CartState>()(
           const data = await res.json();
           const stocks = (data?.stocks || {}) as Record<string, number>;
           const prices = (data?.prices || {}) as Record<string, number>;
+          const supplierCurrencies = (data?.supplierCurrencies || {}) as Record<string, string | null>;
           let configPrices: Record<string, number> = {};
           if (includePrices) {
             const configItems = items.filter((it) => it.type === 'configurable' && it.config);
@@ -128,7 +130,14 @@ export const useCartStore = create<CartState>()(
                       : (typeof prices[it.id] === 'number' ? Number(prices[it.id]) : it.priceUSD)
                   )
                 : it.priceUSD;
-              next.push({ ...it, quantity: newQty, stock: Number(newStock), priceUSD: nextPrice });
+              const supplierCurrency = supplierCurrencies[it.id] ?? it.supplierCurrency ?? null;
+              next.push({
+                ...it,
+                quantity: newQty,
+                stock: Number(newStock),
+                priceUSD: nextPrice,
+                supplierCurrency,
+              });
             }
             return { items: next } as any;
           });

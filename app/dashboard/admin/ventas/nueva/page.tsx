@@ -15,6 +15,7 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams?: 
   const commission = Number((settings as any).sellerCommissionPercent || 5);
   const iva = Number((settings as any).ivaPercent || 16);
   const tasa = Number((settings as any).tasaVES || 40);
+  const vesSalesDisabled = Boolean((settings as any).vesSalesDisabled ?? false);
   const role = String((session?.user as any)?.role || '');
   const allowCredit = role === 'ADMIN';
   const unlockWithDeleteSecret = role === 'VENDEDOR';
@@ -33,6 +34,7 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams?: 
           ivaPercent={iva}
           tasaVES={tasa}
           action={createOfflineSale}
+          vesSalesDisabled={vesSalesDisabled}
           allowCredit={allowCredit}
           unlockCreditWithDeleteSecret={unlockWithDeleteSecret}
           initialPriceMode="P1"

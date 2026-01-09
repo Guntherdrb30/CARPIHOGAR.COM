@@ -153,6 +153,11 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
         const settings = await prisma.siteSettings.findUnique({ where: { id: 1 } });
         const tasaVES = Number((settings as any)?.tasaVES || 40);
         const ivaPercent = Number((settings as any)?.ivaPercent || 16);
+        const vesSalesDisabled = Boolean((settings as any)?.vesSalesDisabled ?? false);
+        if (vesSalesDisabled && String(paymentCurrency) === 'VES') {
+            try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'VES sales disabled' } }); } catch {}
+            return { ok: false, error: 'Las ventas en bolívares están desactivadas.' };
+        }
 
         // Resolve shipping address: selected by user or fallback to latest
         let selectedAddress: any = null;
@@ -248,14 +253,26 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
                     categoryId: (p as any).categoryId || null,
                     settings: pricing,
                 });
-            return { ...it, priceUSD };
+            return { ...it, priceUSD, supplierCurrency };
         });
         let subtotalUSD = pricedItems.reduce(
             (sum, it) => sum + Number(it.priceUSD) * Number(it.quantity),
             0,
         );
 
-        const discount = applyUsdPaymentDiscount({ subtotalUSD, currency: paymentCurrency, settings: pricing });
+        const discountableSubtotalUSD = pricedItems.reduce((sum, it) => {
+            if (!it.supplierCurrency) return sum;
+            return toCurrencyCode(it.supplierCurrency) === 'USD'
+                ? sum + (Number(it.priceUSD) * Number(it.quantity))
+                : sum;
+        }, 0);
+
+        const discount = applyUsdPaymentDiscount({
+            subtotalUSD,
+            currency: paymentCurrency,
+            settings: pricing,
+            eligibleSubtotalUSD: discountableSubtotalUSD,
+        });
         const taxableBaseUSD = discount.subtotalAfterDiscount;
 
         const ivaAmount = taxableBaseUSD * (ivaPercent / 100);

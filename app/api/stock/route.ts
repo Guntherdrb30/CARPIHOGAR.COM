@@ -31,12 +31,14 @@ export async function GET(req: Request) {
     });
     const map: Record<string, number> = {};
     const priceMap: Record<string, number> = {};
+    const currencyMap: Record<string, string | null> = {};
     const pricing = includePrices ? await getPriceAdjustmentSettings() : null;
     for (const r of rows) {
       const units = typeof (r as any).stockUnits === 'number' && (r as any).stockUnits != null
         ? Number((r as any).stockUnits)
         : Number(r.stock || 0);
       map[r.id] = units;
+      currencyMap[r.id] = (r as any).supplier?.chargeCurrency ?? null;
       if (includePrices && pricing) {
         const base =
           typeof (r as any).priceUSD === 'number'
@@ -54,14 +56,18 @@ export async function GET(req: Request) {
     }
     // Include ids not found as 0 to avoid undefined client-side
     for (const id of ids) if (!(id in map)) map[id] = 0;
+    for (const id of ids) if (!(id in currencyMap)) currencyMap[id] = null;
     if (includePrices) {
       for (const id of ids) if (!(id in priceMap)) priceMap[id] = 0;
       return NextResponse.json(
-        { stocks: map, prices: priceMap, currency },
+        { stocks: map, prices: priceMap, currency, supplierCurrencies: currencyMap },
         { headers: { 'Cache-Control': 'no-store' } },
       );
     }
-    return NextResponse.json({ stocks: map }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json(
+      { stocks: map, supplierCurrencies: currencyMap },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
   } catch (e: any) {
     const err = String(e?.message || e || 'unknown');
     console.error('[api/stock] error', err);

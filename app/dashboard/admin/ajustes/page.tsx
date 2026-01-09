@@ -335,6 +335,16 @@ export default async function AdminSettingsPage() {
               </div>
             </div>
 
+            <div className="mt-4 space-y-2">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" name="vesSalesDisabled" defaultChecked={Boolean(priceData.vesSalesDisabled)} />
+                Apagar ventas en Bs (solo USD)
+              </label>
+              <div className="text-xs text-gray-500">
+                Si est&aacute; activo, se oculta la moneda Bs en el checkout y se bloquean ventas en VES.
+              </div>
+            </div>
+
             <button type="submit" className="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg">
               Guardar ajustes de precio
             </button>

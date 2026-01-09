@@ -14,6 +14,7 @@ export default async function NuevaVentaAliadoPage({ searchParams }: { searchPar
   const commission = Number((settings as any).sellerCommissionPercent || 5);
   const iva = Number((settings as any).ivaPercent || 16);
   const tasa = Number((settings as any).tasaVES || 40);
+  const vesSalesDisabled = Boolean((settings as any).vesSalesDisabled ?? false);
   const me = { id: String((session?.user as any)?.id || ''), name: session?.user?.name || undefined, email: session?.user?.email || '' };
 
   let initialItems: Array<{ productId: string; name: string; p1: number; p2?: number | null; priceUSD: number; quantity: number }> | undefined = undefined;
@@ -45,6 +46,7 @@ export default async function NuevaVentaAliadoPage({ searchParams }: { searchPar
           ivaPercent={iva}
           tasaVES={tasa}
           action={createOfflineSale}
+          vesSalesDisabled={vesSalesDisabled}
           initialItems={initialItems}
           fixedSellerId={me.id}
           initialShippingLocalOption={initialShipping}

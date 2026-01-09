@@ -21,6 +21,7 @@ export async function GET() {
     deliveryMinFeeUSD: Number((s as any).deliveryMotoMinFeeUSD ?? 4) || 4,
     usdPaymentDiscountPercent: Number(pricing.usdPaymentDiscountPercent ?? 20),
     usdPaymentDiscountEnabled: Boolean(pricing.usdPaymentDiscountEnabled ?? true),
+    vesSalesDisabled: Boolean((s as any).vesSalesDisabled ?? false),
   };
   return NextResponse.json(payload, { headers: { 'Cache-Control': 'no-store' } });
 }

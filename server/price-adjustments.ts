@@ -160,16 +160,23 @@ export function applyUsdPaymentDiscount({
   subtotalUSD,
   currency,
   settings,
+  eligibleSubtotalUSD,
 }: {
   subtotalUSD: number;
   currency: CurrencyCode | string;
   settings: PriceAdjustmentSettings;
+  eligibleSubtotalUSD?: number;
 }) {
   const normCurrency = String(currency || 'USD').toUpperCase();
   const isUsd = normCurrency === 'USD' || normCurrency === 'USDT';
   const enabled = settings.usdPaymentDiscountEnabled && isUsd;
   const pct = enabled ? settings.usdPaymentDiscountPercent : 0;
-  const discountUSD = pct ? subtotalUSD * (pct / 100) : 0;
+  const eligibleBaseRaw =
+    typeof eligibleSubtotalUSD === 'number' && isFinite(eligibleSubtotalUSD)
+      ? eligibleSubtotalUSD
+      : subtotalUSD;
+  const eligibleBase = Math.max(0, Math.min(Number(subtotalUSD || 0), Number(eligibleBaseRaw || 0)));
+  const discountUSD = pct ? eligibleBase * (pct / 100) : 0;
   const subtotalAfterDiscount = subtotalUSD - discountUSD;
   return {
     discountPercent: pct,

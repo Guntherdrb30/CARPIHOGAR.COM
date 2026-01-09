@@ -37,10 +37,21 @@ export async function verifyToken(customerId: string, token: string) {
           settings: pricing,
         })
       : Number(it.priceUSD || 0);
-    return { ...it, priceUSD };
+    return { ...it, priceUSD, supplierCurrency };
   });
   const subtotalUSD = pricedItems.reduce((s, it) => s + (Number(it.priceUSD) * Number(it.quantity)), 0);
-  const discount = applyUsdPaymentDiscount({ subtotalUSD, currency: 'USD', settings: pricing });
+  const discountableSubtotalUSD = pricedItems.reduce((sum, it) => {
+    if (!it.supplierCurrency) return sum;
+    return String(it.supplierCurrency).toUpperCase() === 'VES'
+      ? sum
+      : sum + (Number(it.priceUSD) * Number(it.quantity));
+  }, 0);
+  const discount = applyUsdPaymentDiscount({
+    subtotalUSD,
+    currency: 'USD',
+    settings: pricing,
+    eligibleSubtotalUSD: discountableSubtotalUSD,
+  });
   const totalUSD = discount.subtotalAfterDiscount * (1 + ivaPercent/100);
   const totalVES = totalUSD * tasaVES;
   const order = await prisma.order.create({ data: {

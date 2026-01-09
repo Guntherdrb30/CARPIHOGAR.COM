@@ -256,6 +256,8 @@ model SiteSettings {
   categoryPriceAdjustments        Json?
   usdPaymentDiscountPercent       Decimal? @default(20) @db.Decimal(6, 2)
   usdPaymentDiscountEnabled       Boolean  @default(true)
+  // Bloqueo global de ventas en bolivares (root-only)
+  vesSalesDisabled                Boolean  @default(false)
 
   // Payment instructions (root-configurable)
   paymentZelleEmail       String?
