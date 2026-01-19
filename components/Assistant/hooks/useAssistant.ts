@@ -175,6 +175,19 @@ function mapStreamChunkToContent(raw: any): AssistantContent | null {
 
   if (t === "cart") {
     const cart = raw.data || raw.cart || {};
+    try {
+      const items = Array.isArray(cart?.items) ? cart.items : [];
+      const next = items.map((it: any) => ({
+        id: String(it.productId || it.id || it.name || ""),
+        name: String(it.name || "Producto"),
+        priceUSD: Number(it.priceUSD || 0),
+        quantity: Number(it.quantity || 0),
+        image: it.image || undefined,
+      }));
+      useCartStore.setState({ items: next });
+    } catch {
+      // ignore cart sync errors
+    }
     return { type: "rich", cart };
   }
 
@@ -206,6 +219,7 @@ function mapStreamChunkToContent(raw: any): AssistantContent | null {
 export function useAssistant() {
   const lastUserTextRef = useRef<string>("");
   const lastProductsRef = useRef<any[]>([]);
+  const messagesRef = useRef<AssistantMessage[]>([]);
   const [state, setState] = useState<State>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -236,6 +250,56 @@ export function useAssistant() {
         ],
       }));
     }
+  }, []);
+
+  useEffect(() => {
+    const unsub = useCartStore.subscribe((state, prevState) => {
+      const prevCount = prevState?.items?.length || 0;
+      const nextCount = state.items.length;
+      if (prevCount > 0 && nextCount === 0) {
+        setState((s) => ({
+          ...s,
+          messages: s.messages.map((m) => {
+            const content = m?.content as any;
+            if (content?.type === "rich" && content?.cart) {
+              return {
+                ...m,
+                content: {
+                  ...content,
+                  cart: { items: [], totals: { subtotalUSD: 0, totalUSD: 0 } },
+                },
+              };
+            }
+            return m;
+          }),
+        }));
+      }
+    });
+    return () => {
+      try {
+        unsub();
+      } catch {}
+    };
+  }, []);
+
+  useEffect(() => {
+    messagesRef.current = Array.isArray(state.messages) ? state.messages : [];
+  }, [state.messages]);
+
+  const getHistorySnapshot = useCallback(() => {
+    const msgs = messagesRef.current || [];
+    return msgs
+      .filter(
+        (m) =>
+          m &&
+          m.content?.type === "text" &&
+          typeof m.content?.message === "string"
+      )
+      .slice(-8)
+      .map((m) => ({
+        role: m.from === "user" ? "user" : "assistant",
+        content: String(m.content.message || ""),
+      }));
   }, []);
 
   // Persist
@@ -380,10 +444,11 @@ export function useAssistant() {
 
       try {
         const context = readAssistantContext();
+        const history = getHistorySnapshot();
         const res = await fetch("/api/assistant/text", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, context }),
+          body: JSON.stringify({ text, context, history }),
         });
         if (!res.ok) {
           let msg = "";
@@ -500,7 +565,7 @@ export function useAssistant() {
         setState((s) => ({ ...s, loading: false }));
       }
     },
-    [append]
+    [append, getHistorySnapshot]
   );
 
   const sendAudio = useCallback(

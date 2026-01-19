@@ -4,7 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { runPurchaseConversation } from '@/server/assistant/purchase/flowController';
 import * as ProductsSearch from '@/agents/carpihogar-ai-actions/tools/products/searchProducts';
-import { getOpenAIChatCompletion } from '@/lib/openai';
+import * as CartView from '@/agents/carpihogar-ai-actions/tools/cart/viewCart';
+import { runChatkitAgent } from '@/server/assistant/chatkitAgent';
 import crypto from 'crypto';
 
 const ASSISTANT_SESSION_COOKIE = 'assistant_session';
@@ -26,6 +27,7 @@ function getOrCreateAssistantSession(req: Request) {
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const text = String(body?.text || '').trim();
+  const history = Array.isArray(body?.history) ? body.history : [];
 
   const { sessionId, setCookieHeader } = getOrCreateAssistantSession(req);
 
@@ -70,6 +72,7 @@ export async function POST(req: Request) {
 
           if (products.length) {
             let reply: string | null = null;
+            let effects: any = null;
             try {
               const summary = products.slice(0, 5).map((p: any) => ({
                 id: p.id,
@@ -77,29 +80,17 @@ export async function POST(req: Request) {
                 slug: p.slug,
                 priceUSD: p.priceUSD,
               }));
-              reply = await getOpenAIChatCompletion([
-                {
-                  role: 'system',
-                  content:
-                    'Eres Carpihogar AI, un asistente de compras en espaÃ±ol. ' +
-                    'Tu tono es cÃ¡lido, experto y muy claro. ' +
-                    'Ya se ejecutÃ³ una bÃºsqueda de productos en el catÃ¡logo de Carpihogar.com. ' +
-                    'Comenta brevemente los resultados (sin listar todos uno por uno), ' +
-                    'sugiere cÃ³mo elegir la mejor opciÃ³n y recuerda que el usuario puede decir cosas como "agrÃ©gala al carrito" para aÃ±adir el producto que le guste. ' +
-                    'Mantente enfocado en asesorar la compra y el carrito. ' +
-                    'Responde en 1â€‘3 frases, Ãºnicamente texto plano.',
-                },
-                {
-                  role: 'system',
-                  content: `Resultados de bÃºsqueda (resumen JSON): ${JSON.stringify(summary)}`,
-                },
-                {
-                  role: 'user',
-                  content: text,
-                },
-              ]);
+              const chatkit = await runChatkitAgent({
+                text,
+                history,
+                productsSummary: summary,
+                customerId,
+                sessionId,
+              });
+              reply = chatkit?.reply || null;
+              effects = chatkit?.effects || null;
             } catch {
-              // si falla OpenAI, usamos mensaje simple por defecto
+              // si falla Chatkit, usamos mensaje simple por defecto
             }
 
             emit({
@@ -109,23 +100,26 @@ export async function POST(req: Request) {
                 'Perfecto, encontre varias opciones que pueden servirte. Te muestro algunas para que elijas la que mejor se adapta a tu espacio.',
             });
             emit({ type: 'products', products } as any);
+            if (effects?.cart || effects?.cartChanged) {
+              let cartPayload = effects?.cart || null;
+              if (!cartPayload && effects?.cartChanged) {
+                const cart = await CartView.run({ customerId, sessionId });
+                cartPayload = cart?.data || null;
+              }
+              if (cartPayload) emit({ type: 'cart', data: cartPayload });
+            }
           } else {
             let reply: string | null = null;
+            let effects: any = null;
             try {
-              reply = await getOpenAIChatCompletion([
-                {
-                  role: 'system',
-                  content:
-                    'Eres Carpihogar AI, un asistente de compras en espaÃ±ol. ' +
-                    'No se encontraron productos exactos para la bÃºsqueda del usuario. ' +
-                    'Haz 1â€‘3 frases muy claras pidiendo mÃ¡s detalles Ãºtiles (medidas, color, estilo, ambiente), ' +
-                    'No menciones otras herramientas a menos que el usuario las solicite.',
-                },
-                {
-                  role: 'user',
-                  content: text,
-                },
-              ]);
+              const chatkit = await runChatkitAgent({
+                text,
+                history,
+                customerId,
+                sessionId,
+              });
+              reply = chatkit?.reply || null;
+              effects = chatkit?.effects || null;
             } catch {
               // ignore
             }
@@ -135,6 +129,17 @@ export async function POST(req: Request) {
                 reply ||
                 'No encontre coincidencias exactas. Puedes darme un poco mas de detalles? (marca, tipo, color, medida o donde lo quieres usar)',
             });
+            if (effects?.products?.length) {
+              emit({ type: 'products', products: effects.products } as any);
+            }
+            if (effects?.cart || effects?.cartChanged) {
+              let cartPayload = effects?.cart || null;
+              if (!cartPayload && effects?.cartChanged) {
+                const cart = await CartView.run({ customerId, sessionId });
+                cartPayload = cart?.data || null;
+              }
+              if (cartPayload) emit({ type: 'cart', data: cartPayload });
+            }
           }
         } catch (e) {
           emit({

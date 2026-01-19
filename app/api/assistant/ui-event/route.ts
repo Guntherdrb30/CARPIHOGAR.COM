@@ -6,6 +6,7 @@ import * as CartAdd from '@/agents/carpihogar-ai-actions/tools/cart/addToCart';
 import * as CartRemove from '@/agents/carpihogar-ai-actions/tools/cart/removeFromCart';
 import * as CartUpdateQty from '@/agents/carpihogar-ai-actions/tools/cart/updateQty';
 import * as CartView from '@/agents/carpihogar-ai-actions/tools/cart/viewCart';
+import * as CartClear from '@/agents/carpihogar-ai-actions/tools/cart/clearCart';
 import * as SaveAddress from '@/agents/carpihogar-ai-actions/tools/customer/saveAddress';
 import crypto from 'crypto';
 
@@ -63,6 +64,13 @@ export async function POST(req: Request) {
       if (setCookieHeader) res.headers.append('Set-Cookie', setCookieHeader);
       return res;
     }
+    if (key === 'clear_cart') {
+      const r = await CartClear.run({ customerId, sessionId });
+      const cart = await CartView.run({ customerId, sessionId });
+      const res = NextResponse.json({ success: r.success, message: r.message, data: cart?.data || {} });
+      if (setCookieHeader) res.headers.append('Set-Cookie', setCookieHeader);
+      return res;
+    }
     if (key === 'save_address') {
       const r = await SaveAddress.run(payload);
       const res = NextResponse.json(r);
@@ -78,4 +86,3 @@ export async function POST(req: Request) {
     return res;
   }
 }
-

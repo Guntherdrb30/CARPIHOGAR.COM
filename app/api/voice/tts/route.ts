@@ -3,7 +3,7 @@
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const text = String(searchParams.get('text') || '').trim();
-  const voice = String(searchParams.get('voice') || 'sofia');
+  const voice = String(searchParams.get('voice') || 'nova');
   if (!text) return new Response('text requerido', { status: 400 });
   const apiKey = process.env.OPENAI_API_KEY || '';
   if (!apiKey) return new Response('OPENAI_API_KEY no configurada', { status: 500 });
@@ -19,7 +19,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const text = String(body?.text || '').trim();
-  const voice = String(body?.voice || 'sofia');
+  const voice = String(body?.voice || 'nova');
   if (!text) return new Response('text requerido', { status: 400 });
   const apiKey = process.env.OPENAI_API_KEY || '';
   if (!apiKey) return new Response('OPENAI_API_KEY no configurada', { status: 500 });

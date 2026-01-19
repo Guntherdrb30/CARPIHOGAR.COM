@@ -67,6 +67,16 @@ export default function Header({ logoUrl, brandName }: HeaderProps) {
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
 
+  const clearAssistantCart = async () => {
+    try {
+      await fetch('/api/assistant/ui-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'clear_cart' }),
+      });
+    } catch {}
+  };
+
   const solutionsLinks = [
     { href: '/moodboard', label: 'Moodboard' },
     { href: '/personalizar-muebles', label: 'Configurador de mobiliario' },
@@ -552,6 +562,7 @@ export default function Header({ logoUrl, brandName }: HeaderProps) {
         cancelText="Cancelar"
         onConfirm={() => {
           clearCart();
+          clearAssistantCart();
           setConfirmClear(false);
           toast.success('Carrito vaciado');
         }}

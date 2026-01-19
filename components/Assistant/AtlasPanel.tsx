@@ -6,6 +6,7 @@ import { useAssistantCtx } from "./AssistantProvider";
 import { ShoppingCart } from "lucide-react";
 import { useCartStore } from "@/store/cart";
 import VoiceMic from "./VoiceMic";
+import VoiceSelector from "./VoiceSelector";
 
 const CONTEXT_KEYS = {
   addressId: "assistant:addressId",
@@ -330,6 +331,7 @@ export default function AtlasPanel() {
               >
                 {uploading ? "Subiendo..." : "Adjuntar"}
               </button>
+              <VoiceSelector />
               <VoiceMic />
               <button
                 className="px-3 py-2 rounded-full atlas-button"

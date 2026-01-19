@@ -1,78 +1,93 @@
 "use client";
 
-let cachedVoice: SpeechSynthesisVoice | null = null;
+type TtsVoice = {
+  id: string;
+  label: string;
+};
 
-function normalize(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
+const VOICE_STORAGE_KEY = "assistant.openai.voice";
+const DEFAULT_VOICE = "nova";
+const AVAILABLE_VOICES: TtsVoice[] = [
+  { id: "alloy", label: "Alloy" },
+  { id: "echo", label: "Echo" },
+  { id: "fable", label: "Fable" },
+  { id: "onyx", label: "Onyx" },
+  { id: "nova", label: "Nova" },
+  { id: "shimmer", label: "Shimmer" },
+];
 
-function selectSpanishFemaleVoice(): SpeechSynthesisVoice | null {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-  const synth = window.speechSynthesis;
-  const voices = synth.getVoices() || [];
-  if (!voices.length) return null;
+let cachedVoiceName: string | null = null;
+let currentAudio: HTMLAudioElement | null = null;
+let currentController: AbortController | null = null;
 
-  const esVoices = voices.filter((v) => (v.lang || "").toLowerCase().startsWith("es"));
-
-  const preferredNames = [
-    "microsoft sabina",
-    "microsoft laura",
-    "microsoft helena",
-    "microsoft hilda",
-    "microsoft paulina",
-    "google espanol",
-    "google espanol de estados unidos",
-  ];
-
-  for (const pref of preferredNames) {
-    const match = esVoices.find((v) => normalize(v.name).includes(normalize(pref)));
-    if (match) return match;
-  }
-
-  if (esVoices.length) return esVoices[0];
-  return voices[0] || null;
-}
-
-export function speak(text: string) {
+function getStoredVoiceName(): string | null {
+  if (cachedVoiceName !== null) return cachedVoiceName;
   try {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const synth = window.speechSynthesis;
-
-    // Evita que se superpongan varias voces
-    synth.cancel();
-
-    if (!cachedVoice) {
-      cachedVoice = selectSpanishFemaleVoice();
-      if (!cachedVoice) {
-        const handler = () => {
-          cachedVoice = selectSpanishFemaleVoice();
-          synth.removeEventListener("voiceschanged", handler);
-        };
-        synth.addEventListener("voiceschanged", handler);
-      }
-    }
-
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 0.98;
-    utter.pitch = 1.08;
-    utter.volume = 1.0;
-    utter.lang = (cachedVoice && cachedVoice.lang) || "es-ES";
-    if (cachedVoice) utter.voice = cachedVoice;
-
-    synth.speak(utter);
+    cachedVoiceName = localStorage.getItem(VOICE_STORAGE_KEY) || null;
   } catch {
-    // no-op
+    cachedVoiceName = null;
+  }
+  return cachedVoiceName;
+}
+
+export function getAvailableVoices(): TtsVoice[] {
+  return AVAILABLE_VOICES;
+}
+
+export function setPreferredVoiceName(name: string | null) {
+  cachedVoiceName = name && String(name).trim() ? String(name).trim() : null;
+  try {
+    if (!cachedVoiceName) localStorage.removeItem(VOICE_STORAGE_KEY);
+    else localStorage.setItem(VOICE_STORAGE_KEY, cachedVoiceName);
+  } catch {}
+}
+
+export function getPreferredVoiceName(): string | null {
+  return getStoredVoiceName();
+}
+
+export async function speak(text: string) {
+  const t = String(text || "").trim();
+  if (!t) return;
+  stopSpeaking();
+
+  const voice = getStoredVoiceName() || DEFAULT_VOICE;
+  const controller = new AbortController();
+  currentController = controller;
+  try {
+    const res = await fetch("/api/voice/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: t, voice }),
+      signal: controller.signal,
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    currentAudio = audio;
+    const cleanup = () => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {}
+      if (currentAudio === audio) currentAudio = null;
+    };
+    audio.onended = cleanup;
+    audio.onerror = cleanup;
+    await audio.play();
+  } catch {
+    // ignore
   }
 }
 
 export function stopSpeaking() {
   try {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-  } catch {
-    // no-op
-  }
+    if (currentController) currentController.abort();
+  } catch {}
+  try {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
+    }
+  } catch {}
 }

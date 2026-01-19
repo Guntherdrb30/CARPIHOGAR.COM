@@ -23,6 +23,7 @@
     "dependencies": {
         "@heroui/react": "2.8.5",
         "@next-auth/prisma-adapter": "^1.0.7",
+        "@openai/agents": "^0.4.0",
         "@prisma/client": "^6.16.2",
         "@react-three/drei": "^10.6.2",
         "@react-three/fiber": "^9.3.0",

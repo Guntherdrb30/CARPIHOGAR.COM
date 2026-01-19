@@ -21,6 +21,16 @@ export default function Cart({ tasa }: { tasa: number }) {
   const [proceedHref, setProceedHref] =
     useState<string>('/checkout/datos-envio');
 
+  const clearAssistantCart = async () => {
+    try {
+      await fetch('/api/assistant/ui-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'clear_cart' }),
+      });
+    } catch {}
+  };
+
   useEffect(() => {
     let cancelled = false;
     const doSync = async () => {
@@ -285,6 +295,7 @@ export default function Cart({ tasa }: { tasa: number }) {
         cancelText="Cancelar"
         onConfirm={() => {
           clearCart();
+          clearAssistantCart();
           setConfirmOpen(false);
           toast.success('Carrito vaciado');
         }}

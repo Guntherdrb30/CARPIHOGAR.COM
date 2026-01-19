@@ -23,6 +23,24 @@ export function useVoiceSession(onFinal: (text: string) => void) {
   const [interimText, setInterim] = useState("");
   const recogRef = useRef<Recog | null>(null);
   const lastFinalRef = useRef<string>("");
+  const silenceTimerRef = useRef<any>(null);
+  const SILENCE_MS = 4000;
+
+  const clearSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  }, []);
+
+  const armSilenceTimer = useCallback(() => {
+    clearSilenceTimer();
+    silenceTimerRef.current = setTimeout(() => {
+      const r: any = recogRef.current;
+      if (!r) return;
+      try { r.stop(); } catch {}
+    }, SILENCE_MS);
+  }, [clearSilenceTimer]);
 
   useEffect(() => {
     const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -48,24 +66,35 @@ export function useVoiceSession(onFinal: (text: string) => void) {
           interim += res[0].transcript;
         }
       }
+      armSilenceTimer();
       if (interim) setInterim(interim);
     };
-    r.onend = () => { setListening(false); };
+    r.onend = () => {
+      clearSilenceTimer();
+      setListening(false);
+    };
     recogRef.current = r;
-  }, [onFinal]);
+    return () => {
+      clearSilenceTimer();
+      try { r.stop(); } catch {}
+    };
+  }, [onFinal, armSilenceTimer, clearSilenceTimer]);
 
   const start = useCallback(() => {
     const r: any = recogRef.current;
     if (!r) return;
     setInterim("");
+    lastFinalRef.current = "";
     try { r.start(); setListening(true); } catch {}
-  }, []);
+    armSilenceTimer();
+  }, [armSilenceTimer]);
 
   const stop = useCallback(() => {
     const r: any = recogRef.current;
     if (!r) return;
+    clearSilenceTimer();
     try { r.stop(); } catch {}
-  }, []);
+  }, [clearSilenceTimer]);
 
   return { listening, interimText, start, stop };
 }
