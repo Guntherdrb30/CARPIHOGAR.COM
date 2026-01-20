@@ -9,6 +9,9 @@ export default function VoiceMic() {
   const bufferRef = useRef<string>("");
   const timerRef = useRef<any>(null);
   const voiceActiveRef = useRef(false);
+  const ttsPlayingRef = useRef(false);
+  const restartTimerRef = useRef<any>(null);
+  const lastRestartRef = useRef(0);
   const [pending, setPending] = useState(false);
   const [active, setActive] = useState(false);
 
@@ -70,13 +73,17 @@ export default function VoiceMic() {
 
   useEffect(() => {
     const onTtsStart = () => {
+      ttsPlayingRef.current = true;
       if (voiceActiveRef.current && v.listening) {
         v.stop();
       }
     };
     const onTtsEnd = () => {
+      ttsPlayingRef.current = false;
       if (voiceActiveRef.current) {
-        v.start();
+        setTimeout(() => {
+          if (voiceActiveRef.current) v.start();
+        }, 150);
       }
     };
     window.addEventListener("assistant:tts_start", onTtsStart as any);
@@ -87,11 +94,37 @@ export default function VoiceMic() {
     };
   }, [v]);
 
+  useEffect(() => {
+    if (!voiceActiveRef.current) return;
+    if (v.listening) return;
+    if (ttsPlayingRef.current) return;
+    const now = Date.now();
+    if (now - lastRestartRef.current < 800) return;
+    if (restartTimerRef.current) return;
+    restartTimerRef.current = setTimeout(() => {
+      restartTimerRef.current = null;
+      if (voiceActiveRef.current && !v.listening && !ttsPlayingRef.current) {
+        lastRestartRef.current = Date.now();
+        v.start();
+      }
+    }, 250);
+    return () => {
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
+    };
+  }, [v.listening]);
+
   const toggle = () => {
     if (voiceActiveRef.current) {
       // Usuario interrumpe: dejamos de escuchar y apagamos TTS
       voiceActiveRef.current = false;
       setActive(false);
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
       v.stop();
       a.setTtsEnabled(false);
       stopSpeaking();
