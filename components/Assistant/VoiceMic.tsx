@@ -8,6 +8,7 @@ export default function VoiceMic() {
   const a = useAssistantCtx();
   const bufferRef = useRef<string>("");
   const timerRef = useRef<any>(null);
+  const resumeRef = useRef(false);
   const [pending, setPending] = useState(false);
 
   const dedupeWords = (text: string) => {
@@ -66,9 +67,31 @@ export default function VoiceMic() {
     return () => { a.setTtsEnabled(false); stopSpeaking(); };
   }, []);
 
+  useEffect(() => {
+    const onTtsStart = () => {
+      if (v.listening) {
+        resumeRef.current = true;
+        v.stop();
+      }
+    };
+    const onTtsEnd = () => {
+      if (resumeRef.current) {
+        resumeRef.current = false;
+        v.start();
+      }
+    };
+    window.addEventListener("assistant:tts_start", onTtsStart as any);
+    window.addEventListener("assistant:tts_end", onTtsEnd as any);
+    return () => {
+      window.removeEventListener("assistant:tts_start", onTtsStart as any);
+      window.removeEventListener("assistant:tts_end", onTtsEnd as any);
+    };
+  }, [v]);
+
   const toggle = () => {
     if (v.listening) {
       // Usuario interrumpe: dejamos de escuchar y apagamos TTS
+      resumeRef.current = false;
       v.stop();
       a.setTtsEnabled(false);
       stopSpeaking();

@@ -20,6 +20,13 @@ let cachedVoiceName: string | null = null;
 let currentAudio: HTMLAudioElement | null = null;
 let currentController: AbortController | null = null;
 
+function dispatchTtsEvent(name: "assistant:tts_start" | "assistant:tts_end") {
+  try {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new CustomEvent(name));
+  } catch {}
+}
+
 function getStoredVoiceName(): string | null {
   if (cachedVoiceName !== null) return cachedVoiceName;
   try {
@@ -70,13 +77,16 @@ export async function speak(text: string) {
       try {
         URL.revokeObjectURL(url);
       } catch {}
+      dispatchTtsEvent("assistant:tts_end");
       if (currentAudio === audio) currentAudio = null;
     };
     audio.onended = cleanup;
     audio.onerror = cleanup;
+    dispatchTtsEvent("assistant:tts_start");
     await audio.play();
   } catch {
     // ignore
+    dispatchTtsEvent("assistant:tts_end");
   }
 }
 
@@ -90,4 +100,5 @@ export function stopSpeaking() {
       currentAudio = null;
     }
   } catch {}
+  dispatchTtsEvent("assistant:tts_end");
 }
