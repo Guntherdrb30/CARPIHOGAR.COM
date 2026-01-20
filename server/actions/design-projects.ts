@@ -5,9 +5,10 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { DesignProjectStatus } from "@prisma/client";
+import { DesignProjectStage, DesignProjectStatus } from "@prisma/client";
 
 const STATUS_VALUES = Object.values(DesignProjectStatus);
+const STAGE_VALUES = Object.values(DesignProjectStage);
 
 function parsePriority(value: FormDataEntryValue | null) {
   const num = Number(String(value || "").trim());
@@ -27,6 +28,13 @@ function normalizeStatus(value: FormDataEntryValue | null) {
   const raw = String(value || "").trim().toUpperCase();
   return STATUS_VALUES.includes(raw as DesignProjectStatus)
     ? (raw as DesignProjectStatus)
+    : null;
+}
+
+function normalizeStage(value: FormDataEntryValue | null) {
+  const raw = String(value || "").trim().toUpperCase();
+  return STAGE_VALUES.includes(raw as DesignProjectStage)
+    ? (raw as DesignProjectStage)
     : null;
 }
 
@@ -69,6 +77,14 @@ export async function getDesignProjectByIdForSession(id: string) {
     where: { id },
     include: {
       architect: { select: { id: true, name: true, email: true } },
+      tasks: {
+        include: { assignedTo: { select: { id: true, name: true, email: true } } },
+        orderBy: [{ status: "asc" }, { dueDate: "asc" }],
+      },
+      updates: {
+        include: { createdBy: { select: { id: true, name: true, email: true } } },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
   if (!project) return null;
@@ -86,6 +102,7 @@ export async function createDesignProjectAction(formData: FormData) {
   const location = String(formData.get("location") || "").trim();
   const priority = parsePriority(formData.get("priority"));
   const status = normalizeStatus(formData.get("status"));
+  const stage = normalizeStage(formData.get("stage"));
   if (!name || !clientName || !location || priority == null || !status) {
     redirect("/dashboard/admin/estudio?error=Completa%20los%20campos%20requeridos");
   }
@@ -102,6 +119,7 @@ export async function createDesignProjectAction(formData: FormData) {
         location,
         priority,
         status: status as DesignProjectStatus,
+        stage: (stage || DesignProjectStage.BRIEFING) as DesignProjectStage,
         startDate,
         dueDate,
         architectId,
@@ -126,6 +144,7 @@ export async function updateDesignProjectAction(formData: FormData) {
   const location = String(formData.get("location") || "").trim();
   const priority = parsePriority(formData.get("priority"));
   const status = normalizeStatus(formData.get("status"));
+  const stage = normalizeStage(formData.get("stage"));
   if (!name || !clientName || !location || priority == null || !status) {
     redirect(`/dashboard/admin/estudio/${id}?error=Completa%20los%20campos%20requeridos`);
   }
@@ -143,6 +162,7 @@ export async function updateDesignProjectAction(formData: FormData) {
         location,
         priority,
         status: status as DesignProjectStatus,
+        stage: (stage || DesignProjectStage.BRIEFING) as DesignProjectStage,
         startDate,
         dueDate,
         architectId,
@@ -154,4 +174,58 @@ export async function updateDesignProjectAction(formData: FormData) {
   } catch {
     redirect(`/dashboard/admin/estudio/${id}?error=No%20se%20pudo%20actualizar`);
   }
+}
+
+export async function updateDesignProjectStatusAction(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  const role = String((session?.user as any)?.role || "");
+  const userId = String((session?.user as any)?.id || "");
+  if (!userId || (role !== "ADMIN" && role !== "ARCHITECTO")) {
+    throw new Error("Not authorized");
+  }
+  const id = String(formData.get("id") || "").trim();
+  const status = normalizeStatus(formData.get("status"));
+  if (!id || !status) throw new Error("Invalid input");
+  const project = await prisma.designProject.findUnique({
+    where: { id },
+    select: { architectId: true },
+  });
+  if (!project) throw new Error("Not found");
+  if (role === "ARCHITECTO" && project.architectId !== userId) {
+    throw new Error("Not authorized");
+  }
+  await prisma.designProject.update({
+    where: { id },
+    data: { status: status as DesignProjectStatus },
+  });
+  revalidatePath("/dashboard/admin/estudio");
+  revalidatePath("/dashboard/arquitecto/estudio");
+  redirect(`/dashboard/${role === "ADMIN" ? "admin" : "arquitecto"}/estudio/${id}`);
+}
+
+export async function updateDesignProjectStageAction(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  const role = String((session?.user as any)?.role || "");
+  const userId = String((session?.user as any)?.id || "");
+  if (!userId || (role !== "ADMIN" && role !== "ARCHITECTO")) {
+    throw new Error("Not authorized");
+  }
+  const id = String(formData.get("id") || "").trim();
+  const stage = normalizeStage(formData.get("stage"));
+  if (!id || !stage) throw new Error("Invalid input");
+  const project = await prisma.designProject.findUnique({
+    where: { id },
+    select: { architectId: true },
+  });
+  if (!project) throw new Error("Not found");
+  if (role === "ARCHITECTO" && project.architectId !== userId) {
+    throw new Error("Not authorized");
+  }
+  await prisma.designProject.update({
+    where: { id },
+    data: { stage: stage as DesignProjectStage },
+  });
+  revalidatePath("/dashboard/admin/estudio");
+  revalidatePath("/dashboard/arquitecto/estudio");
+  redirect(`/dashboard/${role === "ADMIN" ? "admin" : "arquitecto"}/estudio/${id}`);
 }

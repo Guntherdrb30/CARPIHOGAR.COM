@@ -26,6 +26,22 @@ enum DesignProjectStatus {
   CANCELADO
 }
 
+enum DesignProjectStage {
+  BRIEFING
+  PROPUESTA
+  RENDERS
+  REVISION
+  AJUSTES
+  ENTREGA
+}
+
+enum DesignTaskStatus {
+  PENDIENTE
+  EN_PROGRESO
+  BLOQUEADA
+  COMPLETADA
+}
+
 enum AlliedStatus {
   NONE
   PENDING
@@ -181,6 +197,8 @@ model User {
   adminSettingsAuditLogs AdminSettingsAuditLog[]
   designProjectsAssigned DesignProject[] @relation("DesignProjectArchitect")
   designProjectsCreated  DesignProject[] @relation("DesignProjectCreatedBy")
+  designTasksAssigned    DesignProjectTask[] @relation("DesignTaskAssignee")
+  designUpdatesCreated   DesignProjectUpdate[] @relation("DesignProjectUpdateAuthor")
 
   passwordResetToken          String?   @unique
   passwordResetTokenExpiresAt DateTime?
@@ -233,14 +251,50 @@ model DesignProject {
   startDate    DateTime?
   dueDate      DateTime?
   status       DesignProjectStatus @default(NUEVO)
+  stage        DesignProjectStage  @default(BRIEFING)
   description  String?
   createdById  String?
   createdBy    User?               @relation("DesignProjectCreatedBy", fields: [createdById], references: [id])
+  tasks        DesignProjectTask[]
+  updates      DesignProjectUpdate[]
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
   @@index([architectId, status])
   @@index([status, dueDate])
+}
+
+model DesignProjectTask {
+  id            String            @id @default(cuid())
+  projectId     String
+  project       DesignProject     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title         String
+  assignedToId  String?
+  assignedTo    User?             @relation("DesignTaskAssignee", fields: [assignedToId], references: [id])
+  dueDate       DateTime?
+  priority      Int               @default(5)
+  status        DesignTaskStatus  @default(PENDIENTE)
+  comments      String?
+  createdById   String?
+  createdBy     User?             @relation("DesignTaskCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([projectId, status])
+  @@index([assignedToId, dueDate])
+}
+
+model DesignProjectUpdate {
+  id          String        @id @default(cuid())
+  projectId   String
+  project     DesignProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  note        String?
+  fileUrl     String?
+  createdById String?
+  createdBy   User?         @relation("DesignProjectUpdateAuthor", fields: [createdById], references: [id])
+  createdAt   DateTime      @default(now())
+
+  @@index([projectId, createdAt])
 }
 
 model SiteSettings {

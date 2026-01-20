@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { createDesignProjectAction, getArchitectUsers } from "@/server/actions/design-projects";
-import { DesignProjectStatus } from "@prisma/client";
+import { DesignProjectStage, DesignProjectStatus } from "@prisma/client";
 
 export default async function NewDesignProjectPage() {
   const session = await getServerSession(authOptions);
@@ -13,6 +13,7 @@ export default async function NewDesignProjectPage() {
   }
   const architects = await getArchitectUsers();
   const statuses = Object.values(DesignProjectStatus);
+  const stages = Object.values(DesignProjectStage);
 
   return (
     <div className="max-w-3xl">
@@ -77,6 +78,16 @@ export default async function NewDesignProjectPage() {
           <label className="text-sm font-semibold text-gray-700">Estatus</label>
           <select name="status" className="mt-1 w-full border rounded px-3 py-2 text-sm">
             {statuses.map((s) => (
+              <option key={s} value={s}>
+                {s.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-sm font-semibold text-gray-700">Etapa</label>
+          <select name="stage" className="mt-1 w-full border rounded px-3 py-2 text-sm">
+            {stages.map((s) => (
               <option key={s} value={s}>
                 {s.replace(/_/g, " ")}
               </option>

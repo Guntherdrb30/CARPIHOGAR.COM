@@ -54,11 +54,14 @@ export function ProjectList({
   projects,
   showEdit,
   editBaseHref,
+  actionLabel,
 }: {
   projects: ProjectRow[];
   showEdit?: boolean;
   editBaseHref?: string;
+  actionLabel?: string;
 }) {
+  const label = actionLabel || "Editar";
   return (
     <div className="bg-white rounded-lg shadow overflow-auto">
       <table className="min-w-full text-sm">
@@ -93,7 +96,7 @@ export function ProjectList({
                 <td className="px-4 py-3">
                   {editBaseHref ? (
                     <Link className="text-blue-600 hover:underline" href={`${editBaseHref}/${p.id}`}>
-                      Editar
+                      {label}
                     </Link>
                   ) : null}
                 </td>

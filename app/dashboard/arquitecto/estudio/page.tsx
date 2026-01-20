@@ -40,7 +40,12 @@ export default async function ArchitectStudioPage({
       {view === "crm" ? (
         <ProjectBoard projects={projects} />
       ) : (
-        <ProjectList projects={projects} />
+        <ProjectList
+          projects={projects}
+          showEdit
+          editBaseHref="/dashboard/arquitecto/estudio"
+          actionLabel="Ver"
+        />
       )}
     </div>
   );

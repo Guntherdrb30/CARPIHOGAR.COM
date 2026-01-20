@@ -4,14 +4,22 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { DesignProjectStatus } from "@prisma/client";
+import { DesignProjectStage, DesignProjectStatus } from "@prisma/client";
 
 const STATUS_VALUES = Object.values(DesignProjectStatus);
+const STAGE_VALUES = Object.values(DesignProjectStage);
 
 function parseStatus(value: any) {
   const raw = String(value || "").trim().toUpperCase();
   return STATUS_VALUES.includes(raw as DesignProjectStatus)
     ? (raw as DesignProjectStatus)
+    : null;
+}
+
+function parseStage(value: any) {
+  const raw = String(value || "").trim().toUpperCase();
+  return STAGE_VALUES.includes(raw as DesignProjectStage)
+    ? (raw as DesignProjectStage)
     : null;
 }
 
@@ -56,6 +64,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const status = parseStatus(body.status);
     if (!status) return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     payload.status = status;
+  }
+  if (body?.stage) {
+    const stage = parseStage(body.stage);
+    if (!stage) return NextResponse.json({ error: "Invalid stage" }, { status: 400 });
+    payload.stage = stage;
   }
   if (body?.startDate !== undefined) {
     const dt = body.startDate ? new Date(body.startDate) : null;
