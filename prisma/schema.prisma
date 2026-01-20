@@ -201,6 +201,7 @@ model User {
   designTasksCreated     DesignProjectTask[] @relation("DesignTaskCreatedBy")
   designUpdatesCreated   DesignProjectUpdate[] @relation("DesignProjectUpdateAuthor")
   designPaymentsCreated  DesignProjectPayment[] @relation("DesignProjectPaymentCreatedBy")
+  designRendersCreated   DesignProjectRender[] @relation("DesignProjectRenderCreatedBy")
 
   passwordResetToken          String?   @unique
   passwordResetTokenExpiresAt DateTime?
@@ -261,6 +262,7 @@ model DesignProject {
   tasks        DesignProjectTask[]
   updates      DesignProjectUpdate[]
   payments     DesignProjectPayment[]
+  renders      DesignProjectRender[]
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
@@ -315,6 +317,20 @@ model DesignProjectPayment {
   createdAt   DateTime      @default(now())
 
   @@index([projectId, paidAt])
+}
+
+model DesignProjectRender {
+  id             String        @id @default(cuid())
+  projectId      String
+  project        DesignProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  prompt         String
+  sourceImageUrl String
+  outputImageUrl String
+  createdById    String?
+  createdBy      User?         @relation("DesignProjectRenderCreatedBy", fields: [createdById], references: [id])
+  createdAt      DateTime      @default(now())
+
+  @@index([projectId, createdAt])
 }
 
 model SiteSettings {

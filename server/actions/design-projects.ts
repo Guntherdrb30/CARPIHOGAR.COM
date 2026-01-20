@@ -91,6 +91,10 @@ export async function getDesignProjectByIdForSession(id: string) {
       include: { createdBy: { select: { id: true, name: true, email: true } } },
       orderBy: { createdAt: "desc" },
     },
+    renders: {
+      include: { createdBy: { select: { id: true, name: true, email: true } } },
+      orderBy: { createdAt: "desc" },
+    },
   };
   if (role === "ADMIN") {
     include.payments = {

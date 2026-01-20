@@ -143,10 +143,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     {
       title: "Reporte por arquitecto",
       subtitle: `Rango: ${formatDate(from)} - ${formatDate(to)}`,
-      brandName,
+      brandName: "Trends172",
+      brandColor: "#b91c1c",
       contactEmail: (settings as any)?.contactEmail || "",
       contactPhone: (settings as any)?.contactPhone || "",
-      accentColor: (settings as any)?.primaryColor || "#111827",
+      accentColor: "#b91c1c",
       baseUrl,
     },
     logoBuf

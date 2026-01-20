@@ -2,6 +2,7 @@ export type PdfHeaderOptions = {
   title: string;
   subtitle?: string;
   brandName?: string;
+  brandColor?: string;
   contactEmail?: string;
   contactPhone?: string;
   logoUrl?: string;
@@ -50,6 +51,7 @@ export function drawHeader(doc: any, opts: PdfHeaderOptions, logoBuf?: Buffer | 
   const left = doc.page.margins.left;
   const right = doc.page.width - doc.page.margins.right;
   const accent = opts.accentColor || "#111827";
+  const brandColor = opts.brandColor || "#111827";
   const top = 24;
 
   doc.save();
@@ -65,8 +67,9 @@ export function drawHeader(doc: any, opts: PdfHeaderOptions, logoBuf?: Buffer | 
   const titleX = logoBuf ? left + 70 : left;
   doc.font("Helvetica-Bold").fontSize(14).fillColor("#111");
   doc.text(opts.title, titleX, top + 6, { width: right - titleX });
-  doc.font("Helvetica").fontSize(9).fillColor("#555");
+  doc.font("Helvetica-Bold").fontSize(10).fillColor(brandColor);
   doc.text(brandName, titleX, doc.y + 2);
+  doc.font("Helvetica").fontSize(9).fillColor("#555");
   if (opts.subtitle) {
     doc.text(opts.subtitle, titleX, doc.y + 2);
   }

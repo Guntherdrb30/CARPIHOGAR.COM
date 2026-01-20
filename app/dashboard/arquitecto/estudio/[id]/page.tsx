@@ -7,6 +7,7 @@ import { DesignProjectStatus } from "@prisma/client";
 import ProjectPipeline from "@/components/estudio/project-pipeline";
 import ProjectTasksSection from "@/components/estudio/project-tasks";
 import ProjectUpdateForm from "@/components/estudio/project-update-form";
+import ProjectAiRender from "@/components/estudio/project-ai-render";
 import { getSettings } from "@/server/actions/settings";
 import { getSlaConfigFromSettings } from "@/lib/sla";
 import SlaBadge from "@/components/estudio/sla-badge";
@@ -159,6 +160,8 @@ export default async function ArchitectProjectDetailPage({
         )}
         <ProjectUpdateForm projectId={project.id} canPost />
       </div>
+
+      <ProjectAiRender projectId={project.id} renders={(project as any).renders || []} />
     </div>
   );
 }

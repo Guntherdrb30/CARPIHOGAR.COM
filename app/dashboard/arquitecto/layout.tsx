@@ -1,8 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import DashboardShell from "@/components/dashboard-shell";
-import { ArchitectDashboardSidebar } from "@/components/arquitecto/dashboard-sidebar";
+import ArchitectShell from "@/components/arquitecto/architect-shell";
 
 export default async function ArchitectDashboardLayout({
   children,
@@ -14,9 +13,10 @@ export default async function ArchitectDashboardLayout({
   if ((session.user as any)?.role !== "ARCHITECTO") {
     redirect("/auth/login?message=You Are Not Authorized!");
   }
+  const userId = String((session.user as any)?.id || "");
   return (
-    <DashboardShell sidebar={<ArchitectDashboardSidebar />} title="Panel de Arquitecto">
+    <ArchitectShell userId={userId}>
       {children}
-    </DashboardShell>
+    </ArchitectShell>
   );
 }
