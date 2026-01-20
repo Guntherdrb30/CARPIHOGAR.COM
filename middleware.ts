@@ -36,6 +36,13 @@ export default withAuth(
     ) {
       return NextResponse.redirect(new URL("/dashboard/delivery", req.url));
     }
+    // Prevent ARCHITECTO from accessing client dashboard; send to architect home
+    if (
+      req.nextUrl.pathname.startsWith("/dashboard/cliente") &&
+      req.nextauth.token?.role === "ARCHITECTO"
+    ) {
+      return NextResponse.redirect(new URL("/dashboard/arquitecto", req.url));
+    }
     if (req.nextUrl.pathname.startsWith("/dashboard/admin/root")) {
       const isRoot = role === "ADMIN" && email === rootEmail;
       if (!isRoot) {
@@ -69,6 +76,13 @@ export default withAuth(
     ) {
       return NextResponse.rewrite(new URL("/auth/login?message=You Are Not Authorized!", req.url));
     }
+    // Protect architect dashboard for ARCHITECTO role
+    if (
+      req.nextUrl.pathname.startsWith("/dashboard/arquitecto") &&
+      role !== "ARCHITECTO"
+    ) {
+      return NextResponse.rewrite(new URL("/auth/login?message=You Are Not Authorized!", req.url));
+    }
   },
   {
     callbacks: {
@@ -77,5 +91,4 @@ export default withAuth(
   }
 );
 
-export const config = { matcher: ["/dashboard/admin/:path*", "/checkout/:path*", "/dashboard/cliente/:path*", "/dashboard/aliado/:path*", "/dashboard/delivery/:path*"] };
-
+export const config = { matcher: ["/dashboard/admin/:path*", "/checkout/:path*", "/dashboard/cliente/:path*", "/dashboard/aliado/:path*", "/dashboard/delivery/:path*", "/dashboard/arquitecto/:path*"] };

@@ -12,6 +12,7 @@ export default async function AfterLogin() {
   if (role === 'ADMIN') redirect('/dashboard/admin');
   if (role === 'DELIVERY') redirect('/dashboard/delivery');
   if (role === 'ALIADO') redirect('/dashboard/aliado');
+  if (role === 'ARCHITECTO') redirect('/dashboard/arquitecto');
   redirect('/dashboard/cliente');
 }
 
