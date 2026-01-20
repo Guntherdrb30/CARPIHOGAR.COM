@@ -1,4 +1,4 @@
-import { getUsers, approveAlly, createAdminUser, updateUser, deleteUserByForm, updateUserPasswordByForm, anonymizeUserByForm } from "@/server/actions/users";
+import { getUsers, approveAlly, createAdminUser, createArchitectUser, updateUser, deleteUserByForm, updateUserPasswordByForm, anonymizeUserByForm } from "@/server/actions/users";
 import ShowToastFromSearch from '@/components/show-toast-from-search';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -86,6 +86,21 @@ export default async function AdminUsersPage({ searchParams }: { searchParams?: 
           <PendingButton className="bg-purple-600 text-white px-3 py-1 rounded" pendingText="Creando...">Crear Despacho</PendingButton>
         </form>
       </div>
+      <div className="bg-white p-4 rounded-lg shadow mb-4">
+        <h2 className="text-lg font-bold mb-2">Crear usuario Arquitecto</h2>
+        <form action={async (formData) => {
+          'use server';
+          const name = String(formData.get('architect_name') || '');
+          const email = String(formData.get('architect_email') || '');
+          const password = String(formData.get('architect_password') || '');
+          await createArchitectUser(name, email, password);
+        }} className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          <input name="architect_name" placeholder="Nombre" className="border rounded px-2 py-1" required />
+          <input type="email" name="architect_email" placeholder="Email" className="border rounded px-2 py-1" required />
+          <input type="password" name="architect_password" placeholder="Contrasena" className="border rounded px-2 py-1" required />
+          <PendingButton className="bg-indigo-600 text-white px-3 py-1 rounded" pendingText="Creando...">Crear Arquitecto</PendingButton>
+        </form>
+      </div>
       {/* Buscador de usuarios */}
       <div className="bg-white p-4 rounded-lg shadow mb-4">
         <h2 className="text-lg font-bold mb-2">Buscar Usuarios</h2>
@@ -131,6 +146,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams?: 
                               <option value="ALIADO">ALIADO</option>
                               <option value="VENDEDOR">VENDEDOR</option>
                               <option value="DESPACHO">DESPACHO</option>
+                              <option value="ARCHITECTO">ARCHITECTO</option>
                               <option value="ADMIN">ADMIN</option>
                             </select>
                             {user.role === 'VENDEDOR' && (
