@@ -257,6 +257,8 @@ model DesignProject {
   status       DesignProjectStatus @default(NUEVO)
   stage        DesignProjectStage  @default(BRIEFING)
   description  String?
+  initialMeasurements String?
+  referenceImages String[]         @default([])
   createdById  String?
   createdBy    User?               @relation("DesignProjectCreatedBy", fields: [createdById], references: [id])
   tasks        DesignProjectTask[]

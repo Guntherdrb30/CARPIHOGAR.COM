@@ -12,6 +12,7 @@ import ProjectAiRender from "@/components/estudio/project-ai-render";
 import { getSettings } from "@/server/actions/settings";
 import { getSlaConfigFromSettings } from "@/lib/sla";
 import SlaBadge from "@/components/estudio/sla-badge";
+import ImagesUploader from "@/components/admin/images-uploader2";
 
 export default async function EditDesignProjectPage({
   params,
@@ -68,6 +69,10 @@ export default async function EditDesignProjectPage({
     const dd = String(d.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
   };
+
+  const referenceImages = Array.isArray((project as any).referenceImages)
+    ? (project as any).referenceImages.filter(Boolean)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -255,6 +260,42 @@ export default async function EditDesignProjectPage({
             defaultValue={project.description || ""}
             className="mt-1 w-full border rounded px-3 py-2 text-sm"
           />
+        </div>
+        <div>
+          <label className="text-sm font-semibold text-gray-700">Medidas iniciales (levantamiento)</label>
+          <textarea
+            name="initialMeasurements"
+            rows={4}
+            defaultValue={(project as any).initialMeasurements || ""}
+            className="mt-1 w-full border rounded px-3 py-2 text-sm"
+            placeholder="Incluye medidas, alturas, puntos clave y observaciones."
+          />
+        </div>
+        <div>
+          <label className="text-sm font-semibold text-gray-700">Imagenes de referencia del cliente</label>
+          {referenceImages.length > 0 ? (
+            <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {referenceImages.map((url: string) => (
+                <div key={url} className="relative border rounded overflow-hidden bg-gray-50">
+                  <input type="hidden" name="referenceImages[]" value={url} />
+                  <label className="absolute top-2 right-2 bg-white/90 text-xs px-2 py-1 rounded border">
+                    <input type="checkbox" name="referenceImagesRemove[]" value={url} className="mr-1" />
+                    Quitar
+                  </label>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="Referencia" className="w-full h-32 object-cover" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-gray-500">Sin imagenes registradas.</p>
+          )}
+          <div className="mt-3">
+            <ImagesUploader targetName="referenceImages[]" max={12} initialCount={referenceImages.length} />
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Sube fotos del espacio, inspiraciones o referencias compartidas por el cliente.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button className="px-4 py-2 rounded bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700">

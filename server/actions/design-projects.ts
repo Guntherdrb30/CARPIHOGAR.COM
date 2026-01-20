@@ -46,6 +46,13 @@ function normalizeStage(value: FormDataEntryValue | null) {
     : null;
 }
 
+function parseStringList(formData: FormData, key: string) {
+  return formData
+    .getAll(key)
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+}
+
 export async function getArchitectUsers() {
   const session = await getServerSession(authOptions);
   if ((session?.user as any)?.role !== "ADMIN") throw new Error("Not authorized");
@@ -131,6 +138,8 @@ export async function createDesignProjectAction(formData: FormData) {
   const architectIdRaw = String(formData.get("architectId") || "").trim();
   const architectId = architectIdRaw ? architectIdRaw : null;
   const description = String(formData.get("description") || "").trim() || null;
+  const initialMeasurements = String(formData.get("initialMeasurements") || "").trim() || null;
+  const referenceImages = Array.from(new Set(parseStringList(formData, "referenceImages[]")));
   try {
     await prisma.designProject.create({
       data: {
@@ -145,6 +154,8 @@ export async function createDesignProjectAction(formData: FormData) {
         designTotalUSD: designTotalUSD != null ? (designTotalUSD as any) : null,
         architectId,
         description,
+        initialMeasurements,
+        referenceImages,
         createdById: String((session?.user as any)?.id || "") || null,
       },
     });
@@ -175,6 +186,11 @@ export async function updateDesignProjectAction(formData: FormData) {
   const architectIdRaw = String(formData.get("architectId") || "").trim();
   const architectId = architectIdRaw ? architectIdRaw : null;
   const description = String(formData.get("description") || "").trim() || null;
+  const initialMeasurements = String(formData.get("initialMeasurements") || "").trim() || null;
+  const referenceImages = parseStringList(formData, "referenceImages[]");
+  const removeImages = new Set(parseStringList(formData, "referenceImagesRemove[]"));
+  const filteredImages = referenceImages.filter((url) => !removeImages.has(url));
+  const uniqueImages = Array.from(new Set(filteredImages));
   try {
     await prisma.designProject.update({
       where: { id },
@@ -190,6 +206,8 @@ export async function updateDesignProjectAction(formData: FormData) {
         designTotalUSD: designTotalUSD != null ? (designTotalUSD as any) : null,
         architectId,
         description,
+        initialMeasurements,
+        referenceImages: uniqueImages,
       },
     });
     revalidatePath("/dashboard/admin/estudio");

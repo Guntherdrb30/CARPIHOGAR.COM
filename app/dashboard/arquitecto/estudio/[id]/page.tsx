@@ -34,6 +34,9 @@ export default async function ArchitectProjectDetailPage({
   const slaConfig = getSlaConfigFromSettings(settings);
   const statuses = Object.values(DesignProjectStatus);
   const userId = String((session?.user as any)?.id || "");
+  const referenceImages = Array.isArray((project as any).referenceImages)
+    ? (project as any).referenceImages.filter(Boolean)
+    : [];
 
   const formatDate = (value: Date | null) => {
     if (!value) return "-";
@@ -101,6 +104,25 @@ export default async function ArchitectProjectDetailPage({
           dueDate={project.dueDate}
           slaConfig={slaConfig}
         />
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-4 space-y-3">
+        <h2 className="text-lg font-semibold text-gray-900">Levantamiento inicial</h2>
+        <div className="text-sm text-gray-700 whitespace-pre-line">
+          {(project as any).initialMeasurements || "Sin medidas iniciales registradas."}
+        </div>
+        {referenceImages.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {referenceImages.map((url: string) => (
+              <a key={url} href={url} target="_blank" rel="noreferrer" className="block border rounded overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="Referencia" className="w-full h-32 object-cover" />
+              </a>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-gray-500">Sin imagenes de referencia.</div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow p-4 space-y-3">

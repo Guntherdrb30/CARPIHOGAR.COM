@@ -62,6 +62,12 @@ export async function POST(req: Request) {
   const dueDate = body?.dueDate ? new Date(body.dueDate) : null;
   const architectId = body?.architectId ? String(body.architectId) : null;
   const description = body?.description ? String(body.description) : null;
+  const initialMeasurements = body?.initialMeasurements
+    ? String(body.initialMeasurements).trim()
+    : null;
+  const referenceImages = Array.isArray(body?.referenceImages)
+    ? body.referenceImages.map((url: any) => String(url || "").trim()).filter(Boolean)
+    : [];
 
   const project = await prisma.designProject.create({
     data: {
@@ -75,6 +81,8 @@ export async function POST(req: Request) {
       dueDate: dueDate && !Number.isNaN(dueDate.getTime()) ? dueDate : null,
       architectId,
       description,
+      initialMeasurements: initialMeasurements || null,
+      referenceImages: Array.from(new Set(referenceImages)),
       createdById: String((session?.user as any)?.id || "") || null,
     },
   });

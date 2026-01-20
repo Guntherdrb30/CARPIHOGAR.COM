@@ -86,6 +86,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const description = String(body.description || "").trim();
     payload.description = description || null;
   }
+  if (body?.initialMeasurements !== undefined) {
+    const initialMeasurements = String(body.initialMeasurements || "").trim();
+    payload.initialMeasurements = initialMeasurements || null;
+  }
+  if (body?.referenceImages !== undefined) {
+    const referenceImages = Array.isArray(body.referenceImages)
+      ? body.referenceImages.map((url: any) => String(url || "").trim()).filter(Boolean)
+      : [];
+    payload.referenceImages = Array.from(new Set(referenceImages));
+  }
 
   const project = await prisma.designProject.update({
     where: { id: params.id },

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { createDesignProjectAction, getArchitectUsers } from "@/server/actions/design-projects";
 import { DesignProjectStage, DesignProjectStatus } from "@prisma/client";
+import ImagesUploader from "@/components/admin/images-uploader2";
 
 export default async function NewDesignProjectPage() {
   const session = await getServerSession(authOptions);
@@ -107,6 +108,24 @@ export default async function NewDesignProjectPage() {
         <div>
           <label className="text-sm font-semibold text-gray-700">Descripcion</label>
           <textarea name="description" rows={4} className="mt-1 w-full border rounded px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label className="text-sm font-semibold text-gray-700">Medidas iniciales (levantamiento)</label>
+          <textarea
+            name="initialMeasurements"
+            rows={4}
+            className="mt-1 w-full border rounded px-3 py-2 text-sm"
+            placeholder="Incluye medidas, alturas, puntos clave y observaciones."
+          />
+        </div>
+        <div>
+          <label className="text-sm font-semibold text-gray-700">Imagenes de referencia del cliente</label>
+          <div className="mt-2">
+            <ImagesUploader targetName="referenceImages[]" max={12} />
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Sube fotos del espacio, inspiraciones o referencias compartidas por el cliente.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button className="px-4 py-2 rounded bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700">
