@@ -51,6 +51,7 @@ export default function VoiceMic() {
   const onFinal = async (text: string) => {
     const t = String(text || "").trim();
     if (!t) return;
+    if (ttsPlayingRef.current) return;
     bufferRef.current = mergeTranscript(bufferRef.current, t);
     if (timerRef.current) clearTimeout(timerRef.current);
     setPending(true);
@@ -64,7 +65,14 @@ export default function VoiceMic() {
       }
     }, 700);
   };
-  const v = useVoiceSession(onFinal);
+  const v = useVoiceSession(onFinal, {
+    onSpeechStart: () => {
+      if (ttsPlayingRef.current) {
+        ttsPlayingRef.current = false;
+        stopSpeaking();
+      }
+    },
+  });
 
   useEffect(() => {
     // Al desmontar, apagamos TTS y cualquier voz en curso
@@ -74,15 +82,12 @@ export default function VoiceMic() {
   useEffect(() => {
     const onTtsStart = () => {
       ttsPlayingRef.current = true;
-      if (voiceActiveRef.current && v.listening) {
-        v.stop();
-      }
     };
     const onTtsEnd = () => {
       ttsPlayingRef.current = false;
-      if (voiceActiveRef.current) {
+      if (voiceActiveRef.current && !v.listening) {
         setTimeout(() => {
-          if (voiceActiveRef.current) v.start();
+          if (voiceActiveRef.current && !v.listening) v.start();
         }, 150);
       }
     };

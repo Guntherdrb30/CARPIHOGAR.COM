@@ -18,11 +18,15 @@ function dedupeWords(text: string): string {
   } catch { return text; }
 }
 
-export function useVoiceSession(onFinal: (text: string) => void) {
+export function useVoiceSession(
+  onFinal: (text: string) => void,
+  opts?: { onSpeechStart?: () => void },
+) {
   const [listening, setListening] = useState(false);
   const [interimText, setInterim] = useState("");
   const recogRef = useRef<Recog | null>(null);
   const lastFinalRef = useRef<string>("");
+  const lastSpeechRef = useRef<number>(0);
   const silenceTimerRef = useRef<any>(null);
   const SILENCE_MS = 4000;
 
@@ -50,6 +54,16 @@ export function useVoiceSession(onFinal: (text: string) => void) {
     r.continuous = true;
     r.interimResults = true;
     r.maxAlternatives = 1;
+    const notifySpeechStart = () => {
+      const now = Date.now();
+      if (now - lastSpeechRef.current < 250) return;
+      lastSpeechRef.current = now;
+      try {
+        opts?.onSpeechStart?.();
+      } catch {}
+    };
+    r.onspeechstart = () => notifySpeechStart();
+    r.onsoundstart = () => notifySpeechStart();
     r.onresult = (e: any) => {
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
