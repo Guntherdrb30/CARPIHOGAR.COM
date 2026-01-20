@@ -198,6 +198,7 @@ model User {
   designProjectsAssigned DesignProject[] @relation("DesignProjectArchitect")
   designProjectsCreated  DesignProject[] @relation("DesignProjectCreatedBy")
   designTasksAssigned    DesignProjectTask[] @relation("DesignTaskAssignee")
+  designTasksCreated     DesignProjectTask[] @relation("DesignTaskCreatedBy")
   designUpdatesCreated   DesignProjectUpdate[] @relation("DesignProjectUpdateAuthor")
 
   passwordResetToken          String?   @unique
