@@ -1,13 +1,15 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getDesignProjectsForSession } from "@/server/actions/design-projects";
 
 type DueItem = {
   id: string;
   title: string;
-  dueAt: Date;
+  dueAt: Date | null;
 };
 
-function daysUntil(date: Date) {
+function daysUntil(date: Date | null) {
+  if (!date) return Number.POSITIVE_INFINITY;
   const today = new Date();
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const end = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -18,9 +20,30 @@ export default async function ArchitectDashboardPage() {
   const session = await getServerSession(authOptions);
   const name = String(session?.user?.name || "Arquitecto").split(" ")[0];
 
-  const projects: { id: string; name: string; status: string }[] = [];
-  const tasks: DueItem[] = [];
-  const deliveries: DueItem[] = [];
+  const projects = await getDesignProjectsForSession();
+  const activeProjects = projects.filter(
+    (p) => p.status !== "ENTREGADO" && p.status !== "CANCELADO"
+  );
+  const tasks: DueItem[] = activeProjects
+    .map((p) => ({
+      id: p.id,
+      title: p.name,
+      dueAt: p.dueDate || p.startDate || null,
+    }))
+    .slice(0, 6);
+  const deliveries: DueItem[] = projects
+    .filter((p) => p.dueDate)
+    .map((p) => ({
+      id: p.id,
+      title: p.name,
+      dueAt: p.dueDate as Date,
+    }))
+    .sort((a, b) => {
+      const aTime = a.dueAt ? a.dueAt.getTime() : Number.POSITIVE_INFINITY;
+      const bTime = b.dueAt ? b.dueAt.getTime() : Number.POSITIVE_INFINITY;
+      return aTime - bTime;
+    })
+    .slice(0, 6);
 
   const alertYellow = [...tasks, ...deliveries].filter((item) => {
     const d = daysUntil(item.dueAt);
@@ -98,7 +121,9 @@ export default async function ArchitectDashboardPage() {
               {tasks.map((t) => (
                 <li key={t.id} className="border rounded px-3 py-2 flex items-center justify-between">
                   <span className="font-medium text-gray-900">{t.title}</span>
-                  <span className="text-xs text-gray-500">{t.dueAt.toLocaleDateString()}</span>
+                  <span className="text-xs text-gray-500">
+                    {t.dueAt ? t.dueAt.toLocaleDateString() : "-"}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -117,7 +142,9 @@ export default async function ArchitectDashboardPage() {
               {deliveries.map((d) => (
                 <li key={d.id} className="border rounded px-3 py-2 flex items-center justify-between">
                   <span className="font-medium text-gray-900">{d.title}</span>
-                  <span className="text-xs text-gray-500">{d.dueAt.toLocaleDateString()}</span>
+                  <span className="text-xs text-gray-500">
+                    {d.dueAt ? d.dueAt.toLocaleDateString() : "-"}
+                  </span>
                 </li>
               ))}
             </ul>

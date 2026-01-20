@@ -17,6 +17,15 @@ enum Role {
   DELIVERY
 }
 
+enum DesignProjectStatus {
+  NUEVO
+  EN_PROGRESO
+  EN_REVISION
+  EN_PAUSA
+  ENTREGADO
+  CANCELADO
+}
+
 enum AlliedStatus {
   NONE
   PENDING
@@ -170,6 +179,8 @@ model User {
   ecpdDesigns EcpdDesign[]
   kitchenDesigns KitchenDesign[]
   adminSettingsAuditLogs AdminSettingsAuditLog[]
+  designProjectsAssigned DesignProject[] @relation("DesignProjectArchitect")
+  designProjectsCreated  DesignProject[] @relation("DesignProjectCreatedBy")
 
   passwordResetToken          String?   @unique
   passwordResetTokenExpiresAt DateTime?
@@ -209,6 +220,27 @@ model User {
   branchId        String?
   branch          Branch?          @relation(fields: [branchId], references: [id])
   rootSecretSales RootSecretSale[] @relation("RootSecretSalesCreated")
+}
+
+model DesignProject {
+  id           String              @id @default(cuid())
+  name         String
+  clientName   String
+  location     String
+  architectId  String?
+  architect    User?               @relation("DesignProjectArchitect", fields: [architectId], references: [id])
+  priority     Int                 @default(5)
+  startDate    DateTime?
+  dueDate      DateTime?
+  status       DesignProjectStatus @default(NUEVO)
+  description  String?
+  createdById  String?
+  createdBy    User?               @relation("DesignProjectCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([architectId, status])
+  @@index([status, dueDate])
 }
 
 model SiteSettings {
