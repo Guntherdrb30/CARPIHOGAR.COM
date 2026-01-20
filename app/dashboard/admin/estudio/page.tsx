@@ -60,6 +60,16 @@ export default async function AdminDesignStudioPage({
           </Link>
         </div>
       </div>
+      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+        <a
+          className="text-blue-600 hover:underline"
+          href="/api/reports/design/weekly/pdf?includeAmounts=1"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Reporte semanal (PDF)
+        </a>
+      </div>
 
       {view === "crm" ? (
         <ProjectBoard projects={projects} slaConfig={slaConfig} />

@@ -41,14 +41,24 @@ export default async function ArchitectProjectDetailPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
           <p className="text-sm text-gray-600">Ficha del proyecto</p>
         </div>
-        <Link className="text-sm text-gray-600 hover:underline" href="/dashboard/arquitecto/estudio">
-          Volver
-        </Link>
+        <div className="flex items-center gap-3 text-sm">
+          <a
+            className="text-blue-600 hover:underline"
+            href={`/api/reports/design/projects/${project.id}/pdf?includeAmounts=0`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Reporte PDF
+          </a>
+          <Link className="text-sm text-gray-600 hover:underline" href="/dashboard/arquitecto/estudio">
+            Volver
+          </Link>
+        </div>
       </div>
 
       {searchParams?.error && (

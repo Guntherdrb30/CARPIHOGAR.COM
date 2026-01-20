@@ -3,6 +3,8 @@ import { getDesignProjectsForSession } from "@/server/actions/design-projects";
 import { ProjectBoard, ProjectList } from "@/components/estudio/project-views";
 import { getSettings } from "@/server/actions/settings";
 import { getSlaConfigFromSettings } from "@/lib/sla";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export default async function ArchitectStudioPage({
   searchParams,
@@ -10,11 +12,13 @@ export default async function ArchitectStudioPage({
   searchParams?: { view?: string };
 }) {
   const view = searchParams?.view === "crm" ? "crm" : "list";
-  const [projects, settings] = await Promise.all([
+  const [projects, settings, session] = await Promise.all([
     getDesignProjectsForSession(),
     getSettings(),
+    getServerSession(authOptions),
   ]);
   const slaConfig = getSlaConfigFromSettings(settings);
+  const userId = String((session?.user as any)?.id || "");
 
   return (
     <div className="space-y-4">
@@ -42,6 +46,18 @@ export default async function ArchitectStudioPage({
           </Link>
         </div>
       </div>
+      {userId ? (
+        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+          <a
+            className="text-blue-600 hover:underline"
+            href={`/api/reports/design/architect/${userId}/pdf?includeAmounts=0`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Mi reporte (PDF)
+          </a>
+        </div>
+      ) : null}
 
       {view === "crm" ? (
         <ProjectBoard projects={projects} slaConfig={slaConfig} />

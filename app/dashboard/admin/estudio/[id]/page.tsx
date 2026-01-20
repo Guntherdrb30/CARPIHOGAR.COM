@@ -70,14 +70,34 @@ export default async function EditDesignProjectPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Editar proyecto</h1>
           <p className="text-sm text-gray-600">Actualiza datos y asignaciones.</p>
         </div>
-        <Link className="text-sm text-gray-600 hover:underline" href="/dashboard/admin/estudio">
-          Volver
-        </Link>
+        <div className="flex items-center gap-3 text-sm">
+          <a
+            className="text-blue-600 hover:underline"
+            href={`/api/reports/design/projects/${project.id}/pdf?includeAmounts=1`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Reporte PDF
+          </a>
+          {project.architectId ? (
+            <a
+              className="text-blue-600 hover:underline"
+              href={`/api/reports/design/architect/${project.architectId}/pdf?includeAmounts=1`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Reporte arquitecto
+            </a>
+          ) : null}
+          <Link className="text-sm text-gray-600 hover:underline" href="/dashboard/admin/estudio">
+            Volver
+          </Link>
+        </div>
       </div>
 
       {searchParams?.error && (
