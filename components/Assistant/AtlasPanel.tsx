@@ -237,7 +237,7 @@ export default function AtlasPanel() {
 
             <ChatWindow messages={a.messages} onAction={handleAction} />
 
-            <div className="p-3 border-t bg-white flex items-center gap-2">
+            <div className="p-3 border-t bg-white">
               <input
                 id={fileInputId}
                 type="file"
@@ -305,41 +305,45 @@ export default function AtlasPanel() {
                   }
                 }}
               />
-              <input
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Escribe un mensaje..."
-                className="flex-1 border rounded-full px-4 py-2 text-sm"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    send();
-                  }
-                }}
-              />
-              <button
-                className={`px-3 py-2 rounded-full ${
-                  uploading ? "opacity-60" : "atlas-button-alt"
-                }`}
-                onClick={() => {
-                  try {
-                    (document.getElementById(fileInputId) as HTMLInputElement)?.click();
-                  } catch {}
-                }}
-                disabled={uploading}
-                title="Adjuntar soporte"
-              >
-                {uploading ? "Subiendo..." : "Adjuntar"}
-              </button>
-              <VoiceSelector />
-              <VoiceMic />
-              <button
-                className="px-3 py-2 rounded-full atlas-button"
-                onClick={send}
-                disabled={a.loading}
-              >
-                Enviar
-              </button>
+              <div className="flex items-center gap-2">
+                <input
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Escribe un mensaje..."
+                  className="flex-1 min-w-0 border rounded-full px-4 py-2 text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      send();
+                    }
+                  }}
+                />
+                <button
+                  className="px-3 py-2 rounded-full atlas-button text-sm sm:text-base"
+                  onClick={send}
+                  disabled={a.loading}
+                >
+                  Enviar
+                </button>
+              </div>
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <button
+                  className={`px-3 py-2 rounded-full text-xs sm:text-sm ${
+                    uploading ? "opacity-60" : "atlas-button-alt"
+                  }`}
+                  onClick={() => {
+                    try {
+                      (document.getElementById(fileInputId) as HTMLInputElement)?.click();
+                    } catch {}
+                  }}
+                  disabled={uploading}
+                  title="Adjuntar soporte"
+                >
+                  {uploading ? "Subiendo..." : "Adjuntar"}
+                </button>
+                <VoiceSelector />
+                <VoiceMic />
+              </div>
             </div>
           </motion.div>
         </motion.div>
