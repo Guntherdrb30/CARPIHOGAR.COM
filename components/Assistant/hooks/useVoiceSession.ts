@@ -50,7 +50,7 @@ export function useVoiceSession(
     const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
     const r: any = new SR();
-    r.lang = 'es-ES';
+    r.lang = 'es-VE';
     r.continuous = true;
     r.interimResults = true;
     r.maxAlternatives = 1;
@@ -63,8 +63,8 @@ export function useVoiceSession(
       } catch {}
     };
     r.onspeechstart = () => notifySpeechStart();
-    r.onsoundstart = () => notifySpeechStart();
     r.onresult = (e: any) => {
+      notifySpeechStart();
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i];
@@ -86,6 +86,7 @@ export function useVoiceSession(
     r.onend = () => {
       clearSilenceTimer();
       setListening(false);
+      setInterim("");
     };
     recogRef.current = r;
     return () => {

@@ -6,7 +6,7 @@ type TtsVoice = {
 };
 
 const VOICE_STORAGE_KEY = "assistant.openai.voice";
-const DEFAULT_VOICE = "nova";
+const DEFAULT_VOICE = "alloy";
 const AVAILABLE_VOICES: TtsVoice[] = [
   { id: "alloy", label: "Alloy" },
   { id: "echo", label: "Echo" },

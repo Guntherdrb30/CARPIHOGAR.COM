@@ -10,6 +10,8 @@ export default function VoiceMic() {
   const timerRef = useRef<any>(null);
   const voiceActiveRef = useRef(false);
   const ttsPlayingRef = useRef(false);
+  const ttsStartedAtRef = useRef(0);
+  const ignoreResultsRef = useRef(false);
   const restartTimerRef = useRef<any>(null);
   const lastRestartRef = useRef(0);
   const [pending, setPending] = useState(false);
@@ -51,7 +53,7 @@ export default function VoiceMic() {
   const onFinal = async (text: string) => {
     const t = String(text || "").trim();
     if (!t) return;
-    if (ttsPlayingRef.current) return;
+    if (ignoreResultsRef.current) return;
     bufferRef.current = mergeTranscript(bufferRef.current, t);
     if (timerRef.current) clearTimeout(timerRef.current);
     setPending(true);
@@ -67,10 +69,11 @@ export default function VoiceMic() {
   };
   const v = useVoiceSession(onFinal, {
     onSpeechStart: () => {
-      if (ttsPlayingRef.current) {
-        ttsPlayingRef.current = false;
-        stopSpeaking();
-      }
+      if (!ttsPlayingRef.current) return;
+      if (Date.now() - ttsStartedAtRef.current < 250) return;
+      ignoreResultsRef.current = false;
+      ttsPlayingRef.current = false;
+      stopSpeaking();
     },
   });
 
@@ -82,9 +85,12 @@ export default function VoiceMic() {
   useEffect(() => {
     const onTtsStart = () => {
       ttsPlayingRef.current = true;
+      ttsStartedAtRef.current = Date.now();
+      ignoreResultsRef.current = true;
     };
     const onTtsEnd = () => {
       ttsPlayingRef.current = false;
+      ignoreResultsRef.current = false;
       if (voiceActiveRef.current && !v.listening) {
         setTimeout(() => {
           if (voiceActiveRef.current && !v.listening) v.start();
@@ -102,13 +108,12 @@ export default function VoiceMic() {
   useEffect(() => {
     if (!voiceActiveRef.current) return;
     if (v.listening) return;
-    if (ttsPlayingRef.current) return;
     const now = Date.now();
     if (now - lastRestartRef.current < 800) return;
     if (restartTimerRef.current) return;
     restartTimerRef.current = setTimeout(() => {
       restartTimerRef.current = null;
-      if (voiceActiveRef.current && !v.listening && !ttsPlayingRef.current) {
+      if (voiceActiveRef.current && !v.listening) {
         lastRestartRef.current = Date.now();
         v.start();
       }
@@ -137,9 +142,8 @@ export default function VoiceMic() {
       // Activar modo voz continuo
       voiceActiveRef.current = true;
       setActive(true);
-      stopSpeaking();
       a.setTtsEnabled(true);
-      v.start();
+      if (!v.listening) v.start();
     }
   };
 

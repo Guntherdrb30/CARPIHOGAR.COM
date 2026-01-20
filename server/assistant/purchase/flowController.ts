@@ -151,9 +151,8 @@ export async function runPurchaseConversation({
     const saludo = name ? `Hola ${name}.` : "Hola.";
     const texto = [
       saludo,
-      "Soy tu asistente de Carpihogar.",
-      "Puedo recomendar productos, armar tu carrito y guiarte al pago.",
-      "Que te gustaria hacer hoy?",
+      "Soy tu asesor de ventas de Carpihogar.",
+      "Dime que ambiente quieres decorar, estilo y presupuesto, y te muestro opciones con precio.",
     ].join(" ");
     return { messages: [{ role: "assistant", type: "text", content: texto }] } as any;
   }
@@ -180,7 +179,8 @@ export async function runPurchaseConversation({
     } else if (section === "contacto") {
       content = "Contacto: " + urlFor(base, "/contacto");
     } else {
-      content = "Puedo ayudarte con secciones del sitio como carrito, novedades o contacto. Dime que necesitas.";
+      content =
+        "Estoy aqui para ayudarte a comprar. Dime que ambiente quieres decorar, estilo y presupuesto, y te muestro opciones.";
     }
     return { messages: [{ role: "assistant", type: "text", content }], uiActions } as any;
   }
@@ -499,7 +499,8 @@ export async function runPurchaseConversation({
       {
         role: "assistant",
         type: "text",
-        content: "Te ayudo con tu compra. Que producto deseas?",
+        content:
+          "Te ayudo a elegir y cerrar tu compra. Dime que ambiente quieres decorar, estilo y presupuesto.",
       },
     ],
   } as any;

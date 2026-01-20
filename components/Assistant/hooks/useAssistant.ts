@@ -244,7 +244,7 @@ export function useAssistant() {
             content: {
               type: "text",
               message:
-                "Hola, soy tu asistente de Carpihogar. Puedo ayudarte a buscar productos, armar tu carrito y guiarte al pago. Que deseas hacer hoy?",
+                "Hola, soy tu asesor de ventas de Carpihogar. Dime que ambiente quieres decorar, estilo y presupuesto, y te muestro opciones con precio para cerrar tu compra.",
             },
           },
         ],
@@ -714,7 +714,7 @@ export function useAssistant() {
           content: {
             type: "text",
             message:
-                "Hola, soy tu asistente de Carpihogar. Puedo ayudarte a buscar productos, armar tu carrito y guiarte al pago. Que deseas hacer hoy?",
+                "Hola, soy tu asesor de ventas de Carpihogar. Dime que ambiente quieres decorar, estilo y presupuesto, y te muestro opciones con precio para cerrar tu compra.",
           },
         },
       ],
