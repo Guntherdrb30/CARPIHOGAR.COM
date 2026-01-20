@@ -2,14 +2,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useAssistantCtx } from "./AssistantProvider";
 import { useVoiceSession } from "./hooks/useVoiceSession";
-import { speak, stopSpeaking } from "./hooks/speech";
+import { stopSpeaking } from "./hooks/speech";
 
 export default function VoiceMic() {
   const a = useAssistantCtx();
   const bufferRef = useRef<string>("");
   const timerRef = useRef<any>(null);
-  const resumeRef = useRef(false);
+  const voiceActiveRef = useRef(false);
   const [pending, setPending] = useState(false);
+  const [active, setActive] = useState(false);
 
   const dedupeWords = (text: string) => {
     try {
@@ -55,8 +56,8 @@ export default function VoiceMic() {
       bufferRef.current = "";
       setPending(false);
       if (finalText) {
+        if (voiceActiveRef.current) a.setTtsEnabled(true);
         await a.sendMessage(finalText);
-        a.setTtsEnabled(true);
       }
     }, 700);
   };
@@ -69,14 +70,12 @@ export default function VoiceMic() {
 
   useEffect(() => {
     const onTtsStart = () => {
-      if (v.listening) {
-        resumeRef.current = true;
+      if (voiceActiveRef.current && v.listening) {
         v.stop();
       }
     };
     const onTtsEnd = () => {
-      if (resumeRef.current) {
-        resumeRef.current = false;
+      if (voiceActiveRef.current) {
         v.start();
       }
     };
@@ -89,16 +88,19 @@ export default function VoiceMic() {
   }, [v]);
 
   const toggle = () => {
-    if (v.listening) {
+    if (voiceActiveRef.current) {
       // Usuario interrumpe: dejamos de escuchar y apagamos TTS
-      resumeRef.current = false;
+      voiceActiveRef.current = false;
+      setActive(false);
       v.stop();
       a.setTtsEnabled(false);
       stopSpeaking();
     } else {
-      // Antes de escuchar, asegúrate de que el asistente no esté hablando
+      // Activar modo voz continuo
+      voiceActiveRef.current = true;
+      setActive(true);
       stopSpeaking();
-      a.setTtsEnabled(false);
+      a.setTtsEnabled(true);
       v.start();
     }
   };
@@ -106,9 +108,9 @@ export default function VoiceMic() {
   return (
     <button
       onClick={toggle}
-      className={`px-3 py-2 rounded-full ${v.listening ? 'bg-red-600 text-white animate-pulse' : 'bg-gray-200'}`}
-      title={v.listening ? 'Detener' : 'Hablar'}
-      aria-pressed={v.listening}
+      className={`px-3 py-2 rounded-full ${active ? 'bg-red-600 text-white' : 'bg-gray-200'} ${v.listening ? 'animate-pulse' : ''}`}
+      title={active ? 'Detener' : 'Hablar'}
+      aria-pressed={active}
       aria-label="Hablar con el asistente"
     >
       {pending ? '…' : (v.listening ? '●' : '🎤')}
