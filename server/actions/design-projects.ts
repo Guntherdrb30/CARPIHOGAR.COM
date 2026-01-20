@@ -24,6 +24,14 @@ function parseDate(value: FormDataEntryValue | null) {
   return Number.isNaN(dt.getTime()) ? null : dt;
 }
 
+function parseMoney(value: FormDataEntryValue | null) {
+  const raw = String(value || "").replace(",", ".").trim();
+  if (!raw) return null;
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return null;
+  return num;
+}
+
 function normalizeStatus(value: FormDataEntryValue | null) {
   const raw = String(value || "").trim().toUpperCase();
   return STATUS_VALUES.includes(raw as DesignProjectStatus)
@@ -73,19 +81,26 @@ export async function getDesignProjectByIdForSession(id: string) {
   const userId = String((session?.user as any)?.id || "");
   if (!userId || !role) throw new Error("Not authorized");
   if (role !== "ADMIN" && role !== "ARCHITECTO") throw new Error("Not authorized");
+  const include: any = {
+    architect: { select: { id: true, name: true, email: true } },
+    tasks: {
+      include: { assignedTo: { select: { id: true, name: true, email: true } } },
+      orderBy: [{ status: "asc" }, { dueDate: "asc" }],
+    },
+    updates: {
+      include: { createdBy: { select: { id: true, name: true, email: true } } },
+      orderBy: { createdAt: "desc" },
+    },
+  };
+  if (role === "ADMIN") {
+    include.payments = {
+      include: { createdBy: { select: { id: true, name: true, email: true } } },
+      orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
+    };
+  }
   const project = await prisma.designProject.findUnique({
     where: { id },
-    include: {
-      architect: { select: { id: true, name: true, email: true } },
-      tasks: {
-        include: { assignedTo: { select: { id: true, name: true, email: true } } },
-        orderBy: [{ status: "asc" }, { dueDate: "asc" }],
-      },
-      updates: {
-        include: { createdBy: { select: { id: true, name: true, email: true } } },
-        orderBy: { createdAt: "desc" },
-      },
-    },
+    include,
   });
   if (!project) return null;
   if (role === "ARCHITECTO" && project.architectId !== userId) {
@@ -108,6 +123,7 @@ export async function createDesignProjectAction(formData: FormData) {
   }
   const startDate = parseDate(formData.get("startDate"));
   const dueDate = parseDate(formData.get("dueDate"));
+  const designTotalUSD = parseMoney(formData.get("designTotalUSD"));
   const architectIdRaw = String(formData.get("architectId") || "").trim();
   const architectId = architectIdRaw ? architectIdRaw : null;
   const description = String(formData.get("description") || "").trim() || null;
@@ -122,6 +138,7 @@ export async function createDesignProjectAction(formData: FormData) {
         stage: (stage || DesignProjectStage.BRIEFING) as DesignProjectStage,
         startDate,
         dueDate,
+        designTotalUSD: designTotalUSD != null ? (designTotalUSD as any) : null,
         architectId,
         description,
         createdById: String((session?.user as any)?.id || "") || null,
@@ -150,6 +167,7 @@ export async function updateDesignProjectAction(formData: FormData) {
   }
   const startDate = parseDate(formData.get("startDate"));
   const dueDate = parseDate(formData.get("dueDate"));
+  const designTotalUSD = parseMoney(formData.get("designTotalUSD"));
   const architectIdRaw = String(formData.get("architectId") || "").trim();
   const architectId = architectIdRaw ? architectIdRaw : null;
   const description = String(formData.get("description") || "").trim() || null;
@@ -165,6 +183,7 @@ export async function updateDesignProjectAction(formData: FormData) {
         stage: (stage || DesignProjectStage.BRIEFING) as DesignProjectStage,
         startDate,
         dueDate,
+        designTotalUSD: designTotalUSD != null ? (designTotalUSD as any) : null,
         architectId,
         description,
       },

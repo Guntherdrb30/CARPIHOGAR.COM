@@ -3,10 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getArchitectUsers, getDesignProjectByIdForSession, updateDesignProjectAction } from "@/server/actions/design-projects";
-import { DesignProjectStage, DesignProjectStatus } from "@prisma/client";
+import { DesignProjectStage, DesignProjectStatus, PaymentMethod } from "@prisma/client";
 import ProjectPipeline from "@/components/estudio/project-pipeline";
 import ProjectTasksSection from "@/components/estudio/project-tasks";
 import ProjectUpdateForm from "@/components/estudio/project-update-form";
+import ProjectPaymentsForm from "@/components/estudio/project-payments-form";
 import { getSettings } from "@/server/actions/settings";
 import { getSlaConfigFromSettings } from "@/lib/sla";
 import SlaBadge from "@/components/estudio/sla-badge";
@@ -34,6 +35,29 @@ export default async function EditDesignProjectPage({
   const architects = await getArchitectUsers();
   const statuses = Object.values(DesignProjectStatus);
   const stages = Object.values(DesignProjectStage);
+  const paymentMethods = Object.values(PaymentMethod);
+
+  const toNumberSafe = (value: any, fallback = 0) => {
+    if (value == null) return fallback;
+    if (typeof value === "number") return isFinite(value) ? value : fallback;
+    if (typeof value?.toNumber === "function") {
+      const n = value.toNumber();
+      return isFinite(n) ? n : fallback;
+    }
+    const n = Number(value);
+    return isFinite(n) ? n : fallback;
+  };
+
+  const formatMoney = (value: number) =>
+    new Intl.NumberFormat("es-VE", { style: "currency", currency: "USD" }).format(value);
+
+  const payments = Array.isArray((project as any).payments) ? (project as any).payments : [];
+  const totalUSD = project.designTotalUSD != null ? toNumberSafe(project.designTotalUSD, 0) : null;
+  const paidUSD = payments.reduce(
+    (sum: number, p: any) => sum + toNumberSafe(p.amountUSD, 0),
+    0
+  );
+  const balanceUSD = totalUSD != null ? totalUSD - paidUSD : null;
 
   const formatDate = (value: Date | null) => {
     if (!value) return "";
@@ -81,6 +105,7 @@ export default async function EditDesignProjectPage({
               <span>{formatDate(project.dueDate) || "-"}</span>
               <SlaBadge dueDate={project.dueDate} config={slaConfig} />
             </div>
+            <div><span className="font-semibold">Monto total:</span> {totalUSD != null ? formatMoney(totalUSD) : "-"}</div>
             <div><span className="font-semibold">Estatus:</span> {String(project.status).replace(/_/g, " ")}</div>
             <div><span className="font-semibold">Etapa:</span> {String(project.stage).replace(/_/g, " ")}</div>
           </div>
@@ -150,6 +175,17 @@ export default async function EditDesignProjectPage({
             />
           </div>
         </div>
+        <div>
+          <label className="text-sm font-semibold text-gray-700">Monto total del diseno (USD)</label>
+          <input
+            name="designTotalUSD"
+            type="number"
+            step="0.01"
+            min={0}
+            defaultValue={project.designTotalUSD?.toString?.() || ""}
+            className="mt-1 w-full border rounded px-3 py-2 text-sm"
+          />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-semibold text-gray-700">Fecha inicio</label>
@@ -217,6 +253,83 @@ export default async function EditDesignProjectPage({
         userId={String((session?.user as any)?.id || "")}
         slaConfig={slaConfig}
       />
+
+      <div className="bg-white rounded-lg shadow p-4 space-y-4">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Finanzas del proyecto</h2>
+          <div className="text-sm text-gray-600">
+            Saldo:{" "}
+            <span className="font-semibold">
+              {balanceUSD != null ? formatMoney(balanceUSD) : "-"}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+          <div className="rounded border border-gray-200 bg-gray-50 px-3 py-2">
+            <div className="text-xs text-gray-500">Monto total</div>
+            <div className="text-lg font-semibold text-gray-900">
+              {totalUSD != null ? formatMoney(totalUSD) : "-"}
+            </div>
+          </div>
+          <div className="rounded border border-gray-200 bg-gray-50 px-3 py-2">
+            <div className="text-xs text-gray-500">Abonos</div>
+            <div className="text-lg font-semibold text-gray-900">{formatMoney(paidUSD)}</div>
+          </div>
+          <div className="rounded border border-gray-200 bg-gray-50 px-3 py-2">
+            <div className="text-xs text-gray-500">Saldo</div>
+            <div className="text-lg font-semibold text-gray-900">
+              {balanceUSD != null ? formatMoney(balanceUSD) : "-"}
+            </div>
+          </div>
+        </div>
+
+        <ProjectPaymentsForm projectId={project.id} methods={paymentMethods} />
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm border">
+            <thead className="bg-gray-50 text-gray-600">
+              <tr>
+                <th className="text-left px-3 py-2">Fecha</th>
+                <th className="text-left px-3 py-2">Metodo</th>
+                <th className="text-left px-3 py-2">Monto</th>
+                <th className="text-left px-3 py-2">Referencia</th>
+                <th className="text-left px-3 py-2">Soporte</th>
+                <th className="text-left px-3 py-2">Registrado por</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {payments.map((p: any) => (
+                <tr key={p.id}>
+                  <td className="px-3 py-2">
+                    {p.paidAt ? new Date(p.paidAt).toLocaleDateString() : "-"}
+                  </td>
+                  <td className="px-3 py-2">{String(p.method || "-").replace(/_/g, " ")}</td>
+                  <td className="px-3 py-2">{formatMoney(toNumberSafe(p.amountUSD, 0))}</td>
+                  <td className="px-3 py-2">{p.reference || "-"}</td>
+                  <td className="px-3 py-2">
+                    {p.fileUrl ? (
+                      <a className="text-blue-600 underline" href={p.fileUrl} target="_blank" rel="noreferrer">
+                        Ver archivo
+                      </a>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td className="px-3 py-2">{p.createdBy?.name || p.createdBy?.email || "-"}</td>
+                </tr>
+              ))}
+              {payments.length === 0 && (
+                <tr>
+                  <td className="px-3 py-3 text-gray-500" colSpan={6}>
+                    No hay abonos registrados.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       <div className="bg-white rounded-lg shadow p-4 space-y-3">
         <h2 className="text-lg font-semibold text-gray-900">Avances</h2>

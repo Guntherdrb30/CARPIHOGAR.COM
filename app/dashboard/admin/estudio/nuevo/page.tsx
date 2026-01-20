@@ -64,6 +64,16 @@ export default async function NewDesignProjectPage() {
             />
           </div>
         </div>
+        <div>
+          <label className="text-sm font-semibold text-gray-700">Monto total del diseno (USD)</label>
+          <input
+            name="designTotalUSD"
+            type="number"
+            step="0.01"
+            min={0}
+            className="mt-1 w-full border rounded px-3 py-2 text-sm"
+          />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-semibold text-gray-700">Fecha inicio</label>
