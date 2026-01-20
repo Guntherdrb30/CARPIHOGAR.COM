@@ -45,6 +45,8 @@ export default async function AdminSettingsPage() {
         <ShowToastFromSearch successParam="message" errorParam="error" />
         <form noValidate action={async (formData) => {
             'use server';
+            const slaWarningRaw = parseFloat(String(formData.get('slaWarningDays') || '7').replace(',', '.'));
+            const slaCriticalRaw = parseFloat(String(formData.get('slaCriticalOverdueDays') || '3').replace(',', '.'));
             const data = {
                 brandName: formData.get('brandName') as string,
                 whatsappPhone: formData.get('whatsappPhone') as string,
@@ -64,6 +66,8 @@ export default async function AdminSettingsPage() {
                 tiktokHandle: String((formData.get('tiktokHandle') as string) || '').replace(/^@+/, '').trim() || undefined,
                 categoryBannerCarpinteriaUrl: (formData.get('categoryBannerCarpinteriaUrl') as string) || undefined,
                 categoryBannerHogarUrl: (formData.get('categoryBannerHogarUrl') as string) || undefined,
+                slaWarningDays: isFinite(slaWarningRaw) ? Math.max(0, slaWarningRaw) : 7,
+                slaCriticalOverdueDays: isFinite(slaCriticalRaw) ? Math.max(0, slaCriticalRaw) : 3,
                 ecpdColors: Array.from({ length: 5 }).map((_, i) => {
                   const name = String(formData.get(`ecpdColorName${i}`) || '').trim();
                   const description = String(formData.get(`ecpdColorDescription${i}`) || '').trim();
@@ -229,6 +233,36 @@ export default async function AdminSettingsPage() {
               defaultValue={(settings as any).lowStockThreshold ?? 5}
               className="w-full px-3 py-2 border rounded-lg"
             />
+          </div>
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-2">SLA de proyectos</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Define el aviso previo y el umbral de atraso critico. Puedes usar decimales para horas (ej: 0.25 = 6h).
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-gray-700">Aviso previo (dias)</label>
+                <input
+                  type="number"
+                  name="slaWarningDays"
+                  min={0}
+                  step="0.25"
+                  defaultValue={(settings as any).slaWarningDays ?? 7}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-700">Atraso critico (dias)</label>
+                <input
+                  type="number"
+                  name="slaCriticalOverdueDays"
+                  min={0}
+                  step="0.25"
+                  defaultValue={(settings as any).slaCriticalOverdueDays ?? 3}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+            </div>
           </div>
           <button type="submit" className="w-full bg-blue-500 text-white py-2 rounded-lg">
             Guardar Cambios

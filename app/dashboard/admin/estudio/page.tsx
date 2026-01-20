@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { ProjectBoard, ProjectList } from "@/components/estudio/project-views";
+import { getSettings } from "@/server/actions/settings";
+import { getSlaConfigFromSettings } from "@/lib/sla";
 
 export default async function AdminDesignStudioPage({
   searchParams,
@@ -17,10 +19,14 @@ export default async function AdminDesignStudioPage({
   }
 
   const view = searchParams?.view === "crm" ? "crm" : "list";
-  const projects = await prisma.designProject.findMany({
-    include: { architect: { select: { id: true, name: true, email: true } } },
-    orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
-  });
+  const [projects, settings] = await Promise.all([
+    prisma.designProject.findMany({
+      include: { architect: { select: { id: true, name: true, email: true } } },
+      orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
+    }),
+    getSettings(),
+  ]);
+  const slaConfig = getSlaConfigFromSettings(settings);
 
   return (
     <div className="space-y-4">
@@ -56,9 +62,14 @@ export default async function AdminDesignStudioPage({
       </div>
 
       {view === "crm" ? (
-        <ProjectBoard projects={projects} />
+        <ProjectBoard projects={projects} slaConfig={slaConfig} />
       ) : (
-        <ProjectList projects={projects} showEdit editBaseHref="/dashboard/admin/estudio" />
+        <ProjectList
+          projects={projects}
+          showEdit
+          editBaseHref="/dashboard/admin/estudio"
+          slaConfig={slaConfig}
+        />
       )}
     </div>
   );

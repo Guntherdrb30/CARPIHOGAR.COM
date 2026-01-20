@@ -7,6 +7,9 @@ import { DesignProjectStage, DesignProjectStatus } from "@prisma/client";
 import ProjectPipeline from "@/components/estudio/project-pipeline";
 import ProjectTasksSection from "@/components/estudio/project-tasks";
 import ProjectUpdateForm from "@/components/estudio/project-update-form";
+import { getSettings } from "@/server/actions/settings";
+import { getSlaConfigFromSettings } from "@/lib/sla";
+import SlaBadge from "@/components/estudio/sla-badge";
 
 export default async function EditDesignProjectPage({
   params,
@@ -20,10 +23,14 @@ export default async function EditDesignProjectPage({
   if (!session?.user || role !== "ADMIN") {
     redirect(`/auth/login?callbackUrl=/dashboard/admin/estudio/${params.id}`);
   }
-  const project = await getDesignProjectByIdForSession(params.id);
+  const [project, settings] = await Promise.all([
+    getDesignProjectByIdForSession(params.id),
+    getSettings(),
+  ]);
   if (!project) {
     redirect("/dashboard/admin/estudio?error=Proyecto%20no%20encontrado");
   }
+  const slaConfig = getSlaConfigFromSettings(settings);
   const architects = await getArchitectUsers();
   const statuses = Object.values(DesignProjectStatus);
   const stages = Object.values(DesignProjectStage);
@@ -69,7 +76,11 @@ export default async function EditDesignProjectPage({
             <div><span className="font-semibold">Arquitecto:</span> {project.architect?.name || project.architect?.email || "Sin asignar"}</div>
             <div><span className="font-semibold">Prioridad:</span> {project.priority}</div>
             <div><span className="font-semibold">Inicio:</span> {formatDate(project.startDate) || "-"}</div>
-            <div><span className="font-semibold">Entrega:</span> {formatDate(project.dueDate) || "-"}</div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">Entrega:</span>
+              <span>{formatDate(project.dueDate) || "-"}</span>
+              <SlaBadge dueDate={project.dueDate} config={slaConfig} />
+            </div>
             <div><span className="font-semibold">Estatus:</span> {String(project.status).replace(/_/g, " ")}</div>
             <div><span className="font-semibold">Etapa:</span> {String(project.stage).replace(/_/g, " ")}</div>
           </div>
@@ -77,7 +88,13 @@ export default async function EditDesignProjectPage({
             <div className="mt-3 text-sm text-gray-600">{project.description}</div>
           )}
         </div>
-        <ProjectPipeline projectId={project.id} stage={project.stage} canUpdate />
+        <ProjectPipeline
+          projectId={project.id}
+          stage={project.stage}
+          canUpdate
+          dueDate={project.dueDate}
+          slaConfig={slaConfig}
+        />
       </div>
 
       <form action={updateDesignProjectAction} className="bg-white rounded-lg shadow p-6 space-y-4">
@@ -198,6 +215,7 @@ export default async function EditDesignProjectPage({
         architects={architects as any}
         role="ADMIN"
         userId={String((session?.user as any)?.id || "")}
+        slaConfig={slaConfig}
       />
 
       <div className="bg-white rounded-lg shadow p-4 space-y-3">

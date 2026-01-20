@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getDesignProjectsForSession } from "@/server/actions/design-projects";
 import { ProjectBoard, ProjectList } from "@/components/estudio/project-views";
+import { getSettings } from "@/server/actions/settings";
+import { getSlaConfigFromSettings } from "@/lib/sla";
 
 export default async function ArchitectStudioPage({
   searchParams,
@@ -8,7 +10,11 @@ export default async function ArchitectStudioPage({
   searchParams?: { view?: string };
 }) {
   const view = searchParams?.view === "crm" ? "crm" : "list";
-  const projects = await getDesignProjectsForSession();
+  const [projects, settings] = await Promise.all([
+    getDesignProjectsForSession(),
+    getSettings(),
+  ]);
+  const slaConfig = getSlaConfigFromSettings(settings);
 
   return (
     <div className="space-y-4">
@@ -38,13 +44,14 @@ export default async function ArchitectStudioPage({
       </div>
 
       {view === "crm" ? (
-        <ProjectBoard projects={projects} />
+        <ProjectBoard projects={projects} slaConfig={slaConfig} />
       ) : (
         <ProjectList
           projects={projects}
           showEdit
           editBaseHref="/dashboard/arquitecto/estudio"
           actionLabel="Ver"
+          slaConfig={slaConfig}
         />
       )}
     </div>

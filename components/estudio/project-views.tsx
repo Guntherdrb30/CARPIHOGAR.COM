@@ -1,4 +1,6 @@
 import Link from "next/link";
+import SlaBadge from "@/components/estudio/sla-badge";
+import { SlaConfig } from "@/lib/sla";
 
 type Architect = { id: string; name: string | null; email: string | null };
 type ProjectRow = {
@@ -55,11 +57,13 @@ export function ProjectList({
   showEdit,
   editBaseHref,
   actionLabel,
+  slaConfig,
 }: {
   projects: ProjectRow[];
   showEdit?: boolean;
   editBaseHref?: string;
   actionLabel?: string;
+  slaConfig?: SlaConfig;
 }) {
   const label = actionLabel || "Editar";
   return (
@@ -90,6 +94,9 @@ export function ProjectList({
               <td className="px-4 py-3 text-gray-600">
                 <div>Inicio: {formatDate(p.startDate)}</div>
                 <div>Entrega: {formatDate(p.dueDate)}</div>
+                <div className="mt-1">
+                  <SlaBadge dueDate={p.dueDate} config={slaConfig} />
+                </div>
               </td>
               <td className="px-4 py-3">{statusBadge(p.status)}</td>
               {showEdit ? (
@@ -116,7 +123,13 @@ export function ProjectList({
   );
 }
 
-export function ProjectBoard({ projects }: { projects: ProjectRow[] }) {
+export function ProjectBoard({
+  projects,
+  slaConfig,
+}: {
+  projects: ProjectRow[];
+  slaConfig?: SlaConfig;
+}) {
   const grouped = STATUS_COLUMNS.map((col) => ({
     ...col,
     items: projects.filter((p) => p.status === col.key),
@@ -140,6 +153,9 @@ export function ProjectBoard({ projects }: { projects: ProjectRow[] }) {
                 <div className="mt-2 flex items-center justify-between text-xs text-gray-600">
                   <span>Prioridad {p.priority}</span>
                   <span>Entrega: {formatDate(p.dueDate)}</span>
+                </div>
+                <div className="mt-2">
+                  <SlaBadge dueDate={p.dueDate} config={slaConfig} />
                 </div>
               </div>
             ))}

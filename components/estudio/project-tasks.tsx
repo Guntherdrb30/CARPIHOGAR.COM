@@ -1,5 +1,7 @@
 import { DesignTaskStatus } from "@prisma/client";
 import { createDesignProjectTaskAction, updateDesignProjectTaskAction } from "@/server/actions/design-project-tasks";
+import SlaBadge from "@/components/estudio/sla-badge";
+import { SlaConfig } from "@/lib/sla";
 
 type Architect = { id: string; name: string | null; email: string | null };
 type TaskRow = {
@@ -30,12 +32,14 @@ export default function ProjectTasksSection({
   architects,
   role,
   userId,
+  slaConfig,
 }: {
   projectId: string;
   tasks: TaskRow[];
   architects: Architect[];
   role: "ADMIN" | "ARCHITECTO";
   userId: string;
+  slaConfig?: SlaConfig;
 }) {
   const canAdmin = role === "ADMIN";
   return (
@@ -155,15 +159,19 @@ export default function ProjectTasksSection({
                 <div>
                   <label className="text-sm font-semibold text-gray-700">Fecha limite</label>
                   {canAdmin ? (
-                    <input
-                      name="dueDate"
-                      type="date"
-                      defaultValue={formatDate(task.dueDate)}
-                      className="mt-1 w-full border rounded px-3 py-2 text-sm"
-                    />
+                    <div className="mt-1 space-y-2">
+                      <input
+                        name="dueDate"
+                        type="date"
+                        defaultValue={formatDate(task.dueDate)}
+                        className="w-full border rounded px-3 py-2 text-sm"
+                      />
+                      <SlaBadge dueDate={task.dueDate} config={slaConfig} />
+                    </div>
                   ) : (
-                    <div className="mt-2 text-sm text-gray-700">
-                      {task.dueDate ? formatDate(task.dueDate) : "-"}
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-700">
+                      <span>{task.dueDate ? formatDate(task.dueDate) : "-"}</span>
+                      <SlaBadge dueDate={task.dueDate} config={slaConfig} />
                     </div>
                   )}
                 </div>

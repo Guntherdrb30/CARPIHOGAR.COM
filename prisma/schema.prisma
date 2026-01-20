@@ -318,6 +318,8 @@ model SiteSettings {
   ecpdColors                   Json?
   heroAutoplayMs               Int?
   lowStockThreshold            Int       @default(5)
+  slaWarningDays               Decimal?  @default(7) @db.Decimal(6, 2)
+  slaCriticalOverdueDays       Decimal?  @default(3) @db.Decimal(6, 2)
   sellerCommissionPercent      Decimal   @default(5) @db.Decimal(5, 2)
   deleteSecret                 String?
   // Social handles for product buttons

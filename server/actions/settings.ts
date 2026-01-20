@@ -25,6 +25,8 @@ export async function ensureSiteSettingsColumns() {
         'ADD COLUMN IF NOT EXISTS "usdPaymentDiscountEnabled" BOOLEAN NOT NULL DEFAULT true, ' +
         'ADD COLUMN IF NOT EXISTS "vesSalesDisabled" BOOLEAN NOT NULL DEFAULT false, ' +
         'ADD COLUMN IF NOT EXISTS "heroAutoplayMs" INTEGER, ' +
+        'ADD COLUMN IF NOT EXISTS "slaWarningDays" DECIMAL(6,2) DEFAULT 7, ' +
+        'ADD COLUMN IF NOT EXISTS "slaCriticalOverdueDays" DECIMAL(6,2) DEFAULT 3, ' +
         'ADD COLUMN IF NOT EXISTS "ecpdHeroUrls" TEXT[], ' +
         'ADD COLUMN IF NOT EXISTS "moodboardHeroUrls" TEXT[], ' +
         'ADD COLUMN IF NOT EXISTS "ecpdColors" JSONB, ' +
@@ -189,6 +191,8 @@ export async function getSettings() {
           homeHeroUrls: [],
           heroAutoplayMs: 5000 as any,
           lowStockThreshold: 5,
+          slaWarningDays: 7,
+          slaCriticalOverdueDays: 3,
           sellerCommissionPercent: 5,
         } as any,
       });
@@ -218,6 +222,8 @@ export async function getSettings() {
       defaultMarginWholesalePct: (settings as any).defaultMarginWholesalePct?.toNumber?.() ?? 20,
       vesSalesDisabled: Boolean((settings as any).vesSalesDisabled ?? false),
       heroAutoplayMs: Number((settings as any).heroAutoplayMs ?? 5000) || 5000,
+      slaWarningDays: (settings as any).slaWarningDays?.toNumber?.() ?? 7,
+      slaCriticalOverdueDays: (settings as any).slaCriticalOverdueDays?.toNumber?.() ?? 3,
       moodboardHeroUrls: Array.isArray((settings as any).moodboardHeroUrls)
         ? ((settings as any).moodboardHeroUrls as any[]).filter(Boolean)
         : [],
@@ -298,6 +304,8 @@ export async function getSettings() {
       logoUrl: "/logo-default.svg",
       homeHeroUrls: [],
       heroAutoplayMs: 5000,
+      slaWarningDays: 7,
+      slaCriticalOverdueDays: 3,
       ecpdHeroUrls: [],
       moodboardHeroUrls: [],
       ecpdColors: [
