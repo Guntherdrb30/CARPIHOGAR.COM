@@ -11,6 +11,16 @@ type RenderRow = {
   createdBy?: { name: string | null; email: string | null } | null;
 };
 
+const formatRenderDate = (value: Date | string) => {
+  try {
+    const dt = new Date(value);
+    if (Number.isNaN(dt.getTime())) return "-";
+    return dt.toISOString().slice(0, 10);
+  } catch {
+    return "-";
+  }
+};
+
 export default function ProjectAiRender({
   projectId,
   renders,
@@ -129,8 +139,7 @@ export default function ProjectAiRender({
             <div className="p-2 space-y-1 text-xs text-gray-600">
               <div className="font-semibold text-gray-800 line-clamp-2">{r.prompt}</div>
               <div>
-                {r.createdBy?.name || r.createdBy?.email || "Usuario"} •{" "}
-                {new Date(r.createdAt).toLocaleDateString("es-VE")}
+                {r.createdBy?.name || r.createdBy?.email || "Usuario"} - {formatRenderDate(r.createdAt)}
               </div>
               <a className="text-blue-600 underline" href={r.outputImageUrl} target="_blank" rel="noreferrer">
                 Descargar

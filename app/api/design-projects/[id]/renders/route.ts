@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { put } from "@vercel/blob";
 import sharp from "sharp";
+import { logDesignProjectAudit } from "@/lib/design-project-audit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -142,6 +143,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   if (records.length) {
     await prisma.designProjectRender.createMany({ data: records });
+    await logDesignProjectAudit({
+      projectId: params.id,
+      userId,
+      action: "DESIGN_PROJECT_FILE_UPLOADED",
+      details: `type:render;count:${records.length};source:${sourceUpload.url}`,
+    });
   }
 
   return NextResponse.json({ images: saved }, { status: 201 });

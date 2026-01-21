@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { logDesignProjectAudit } from "@/lib/design-project-audit";
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
@@ -57,5 +58,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       createdById: userId,
     },
   });
+  if (fileUrl) {
+    await logDesignProjectAudit({
+      projectId: params.id,
+      userId,
+      action: "DESIGN_PROJECT_FILE_UPLOADED",
+      details: `type:update;updateId:${update.id};file:${fileUrl}`,
+    });
+  }
   return NextResponse.json({ update }, { status: 201 });
 }

@@ -6,6 +6,7 @@ import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { DesignProjectStage, DesignProjectStatus } from "@prisma/client";
+import { logDesignProjectAudit } from "@/lib/design-project-audit";
 
 const STATUS_VALUES = Object.values(DesignProjectStatus);
 const STAGE_VALUES = Object.values(DesignProjectStage);
@@ -51,6 +52,39 @@ function parseStringList(formData: FormData, key: string) {
     .getAll(key)
     .map((value) => String(value || "").trim())
     .filter(Boolean);
+}
+
+function dateMs(value: Date | null | undefined) {
+  if (!value) return null;
+  const ms = value.getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
+function formatAuditDate(value: Date | null | undefined) {
+  if (!value) return "null";
+  try {
+    return new Date(value).toISOString().slice(0, 10);
+  } catch {
+    return "invalid";
+  }
+}
+
+function toMoneyString(value: any) {
+  if (value == null) return null;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value.toFixed(2) : null;
+  }
+  if (typeof value?.toNumber === "function") {
+    const num = value.toNumber();
+    return Number.isFinite(num) ? num.toFixed(2) : null;
+  }
+  const num = Number(value);
+  return Number.isFinite(num) ? num.toFixed(2) : null;
+}
+
+function listAdded(prev: string[] | null | undefined, next: string[]) {
+  const prevSet = new Set((prev || []).filter(Boolean));
+  return next.filter((url) => url && !prevSet.has(url));
 }
 
 export async function getArchitectUsers() {
@@ -169,8 +203,20 @@ export async function createDesignProjectAction(formData: FormData) {
 export async function updateDesignProjectAction(formData: FormData) {
   const session = await getServerSession(authOptions);
   if ((session?.user as any)?.role !== "ADMIN") throw new Error("Not authorized");
+  const auditUserId = String((session?.user as any)?.id || "") || null;
   const id = String(formData.get("id") || "").trim();
   if (!id) redirect("/dashboard/admin/estudio?error=Proyecto%20no%20encontrado");
+  const previous = await prisma.designProject.findUnique({
+    where: { id },
+    select: {
+      startDate: true,
+      dueDate: true,
+      status: true,
+      stage: true,
+      designTotalUSD: true,
+      referenceImages: true,
+    },
+  });
   const name = String(formData.get("name") || "").trim();
   const clientName = String(formData.get("clientName") || "").trim();
   const location = String(formData.get("location") || "").trim();
@@ -191,6 +237,9 @@ export async function updateDesignProjectAction(formData: FormData) {
   const removeImages = new Set(parseStringList(formData, "referenceImagesRemove[]"));
   const filteredImages = referenceImages.filter((url) => !removeImages.has(url));
   const uniqueImages = Array.from(new Set(filteredImages));
+  const nextStatus = status as DesignProjectStatus;
+  const nextStage = (stage || DesignProjectStage.BRIEFING) as DesignProjectStage;
+  const nextMoney = toMoneyString(designTotalUSD);
   try {
     await prisma.designProject.update({
       where: { id },
@@ -199,8 +248,8 @@ export async function updateDesignProjectAction(formData: FormData) {
         clientName,
         location,
         priority,
-        status: status as DesignProjectStatus,
-        stage: (stage || DesignProjectStage.BRIEFING) as DesignProjectStage,
+        status: nextStatus,
+        stage: nextStage,
         startDate,
         dueDate,
         designTotalUSD: designTotalUSD != null ? (designTotalUSD as any) : null,
@@ -210,6 +259,54 @@ export async function updateDesignProjectAction(formData: FormData) {
         referenceImages: uniqueImages,
       },
     });
+    if (previous) {
+      const dateChanged =
+        dateMs(previous.startDate) !== dateMs(startDate) ||
+        dateMs(previous.dueDate) !== dateMs(dueDate);
+      if (dateChanged) {
+        await logDesignProjectAudit({
+          projectId: id,
+          userId: auditUserId,
+          action: "DESIGN_PROJECT_DATES_CHANGE",
+          details: `start:${formatAuditDate(previous.startDate)}->${formatAuditDate(startDate)};due:${formatAuditDate(previous.dueDate)}->${formatAuditDate(dueDate)}`,
+        });
+      }
+      if (previous.status !== nextStatus) {
+        await logDesignProjectAudit({
+          projectId: id,
+          userId: auditUserId,
+          action: "DESIGN_PROJECT_STATUS_CHANGE",
+          details: `from:${previous.status};to:${nextStatus}`,
+        });
+      }
+      if (previous.stage !== nextStage) {
+        await logDesignProjectAudit({
+          projectId: id,
+          userId: auditUserId,
+          action: "DESIGN_PROJECT_STAGE_CHANGE",
+          details: `from:${previous.stage};to:${nextStage}`,
+        });
+      }
+      const prevMoney = toMoneyString(previous.designTotalUSD);
+      if (prevMoney !== nextMoney) {
+        await logDesignProjectAudit({
+          projectId: id,
+          userId: auditUserId,
+          action: "DESIGN_PROJECT_FINANCIAL_CHANGE",
+          details: `totalUSD:${prevMoney || "null"}->${nextMoney || "null"}`,
+        });
+      }
+      const addedImages = listAdded(previous.referenceImages, uniqueImages);
+      if (addedImages.length) {
+        const sample = addedImages.slice(0, 3).join("|");
+        await logDesignProjectAudit({
+          projectId: id,
+          userId: auditUserId,
+          action: "DESIGN_PROJECT_FILE_UPLOADED",
+          details: `type:reference_images;added:${addedImages.length};sample:${sample || "none"}`,
+        });
+      }
+    }
     revalidatePath("/dashboard/admin/estudio");
     redirect(`/dashboard/admin/estudio/${id}?message=Proyecto%20actualizado`);
   } catch {
@@ -229,7 +326,7 @@ export async function updateDesignProjectStatusAction(formData: FormData) {
   if (!id || !status) throw new Error("Invalid input");
   const project = await prisma.designProject.findUnique({
     where: { id },
-    select: { architectId: true },
+    select: { architectId: true, status: true },
   });
   if (!project) throw new Error("Not found");
   if (role === "ARCHITECTO" && project.architectId !== userId) {
@@ -239,6 +336,14 @@ export async function updateDesignProjectStatusAction(formData: FormData) {
     where: { id },
     data: { status: status as DesignProjectStatus },
   });
+  if (project.status !== status) {
+    await logDesignProjectAudit({
+      projectId: id,
+      userId,
+      action: "DESIGN_PROJECT_STATUS_CHANGE",
+      details: `from:${project.status};to:${status}`,
+    });
+  }
   revalidatePath("/dashboard/admin/estudio");
   revalidatePath("/dashboard/arquitecto/estudio");
   redirect(`/dashboard/${role === "ADMIN" ? "admin" : "arquitecto"}/estudio/${id}`);
@@ -256,7 +361,7 @@ export async function updateDesignProjectStageAction(formData: FormData) {
   if (!id || !stage) throw new Error("Invalid input");
   const project = await prisma.designProject.findUnique({
     where: { id },
-    select: { architectId: true },
+    select: { architectId: true, stage: true },
   });
   if (!project) throw new Error("Not found");
   if (role === "ARCHITECTO" && project.architectId !== userId) {
@@ -266,6 +371,14 @@ export async function updateDesignProjectStageAction(formData: FormData) {
     where: { id },
     data: { stage: stage as DesignProjectStage },
   });
+  if (project.stage !== stage) {
+    await logDesignProjectAudit({
+      projectId: id,
+      userId,
+      action: "DESIGN_PROJECT_STAGE_CHANGE",
+      details: `from:${project.stage};to:${stage}`,
+    });
+  }
   revalidatePath("/dashboard/admin/estudio");
   revalidatePath("/dashboard/arquitecto/estudio");
   redirect(`/dashboard/${role === "ADMIN" ? "admin" : "arquitecto"}/estudio/${id}`);

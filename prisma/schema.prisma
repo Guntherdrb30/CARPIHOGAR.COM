@@ -793,7 +793,10 @@ model AuditLog {
   userId    String?
   action    String
   details   String?
+  projectId String?
   createdAt DateTime @default(now())
+
+  @@index([projectId, createdAt])
 }
 
 model AdminSettingsAuditLog {

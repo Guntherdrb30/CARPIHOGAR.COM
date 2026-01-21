@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { PaymentMethod } from "@prisma/client";
+import { logDesignProjectAudit } from "@/lib/design-project-audit";
 
 const METHOD_VALUES = Object.values(PaymentMethod);
 
@@ -76,5 +77,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     },
   });
 
+  await logDesignProjectAudit({
+    projectId: params.id,
+    userId,
+    action: "DESIGN_PROJECT_PAYMENT_ADDED",
+    details: `amountUSD:${Number(amountUSD).toFixed(2)};paidAt:${paidAt.toISOString().slice(0, 10)};method:${method || "null"};reference:${reference || "null"}`,
+  });
+  if (fileUrl) {
+    await logDesignProjectAudit({
+      projectId: params.id,
+      userId,
+      action: "DESIGN_PROJECT_FILE_UPLOADED",
+      details: `type:payment;paymentId:${payment.id};file:${fileUrl}`,
+    });
+  }
   return NextResponse.json({ payment }, { status: 201 });
 }

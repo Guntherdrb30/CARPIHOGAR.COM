@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { DesignProjectStage, DesignProjectStatus } from "@prisma/client";
+import { logDesignProjectAudit } from "@/lib/design-project-audit";
 
 const STATUS_VALUES = Object.values(DesignProjectStatus);
 const STAGE_VALUES = Object.values(DesignProjectStage);
@@ -21,6 +22,26 @@ function parseStage(value: any) {
   return STAGE_VALUES.includes(raw as DesignProjectStage)
     ? (raw as DesignProjectStage)
     : null;
+}
+
+function dateMs(value: Date | null | undefined) {
+  if (!value) return null;
+  const ms = value.getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
+function formatAuditDate(value: Date | null | undefined) {
+  if (!value) return "null";
+  try {
+    return new Date(value).toISOString().slice(0, 10);
+  } catch {
+    return "invalid";
+  }
+}
+
+function listAdded(prev: string[] | null | undefined, next: string[]) {
+  const prevSet = new Set((prev || []).filter(Boolean));
+  return next.filter((url) => url && !prevSet.has(url));
 }
 
 export async function GET(_: Request, { params }: { params: { id: string } }) {
@@ -44,9 +65,20 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   const role = String((session?.user as any)?.role || "");
+  const auditUserId = String((session?.user as any)?.id || "") || null;
   if (role !== "ADMIN") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const previous = await prisma.designProject.findUnique({
+    where: { id: params.id },
+    select: {
+      startDate: true,
+      dueDate: true,
+      status: true,
+      stage: true,
+      referenceImages: true,
+    },
+  });
   const body = await req.json().catch(() => ({}));
   const payload: any = {};
 
@@ -101,5 +133,44 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     where: { id: params.id },
     data: payload,
   });
+  if (previous) {
+    const dateChanged =
+      dateMs(previous.startDate) !== dateMs(project.startDate) ||
+      dateMs(previous.dueDate) !== dateMs(project.dueDate);
+    if (dateChanged) {
+      await logDesignProjectAudit({
+        projectId: params.id,
+        userId: auditUserId,
+        action: "DESIGN_PROJECT_DATES_CHANGE",
+        details: `start:${formatAuditDate(previous.startDate)}->${formatAuditDate(project.startDate)};due:${formatAuditDate(previous.dueDate)}->${formatAuditDate(project.dueDate)}`,
+      });
+    }
+    if (previous.status !== project.status) {
+      await logDesignProjectAudit({
+        projectId: params.id,
+        userId: auditUserId,
+        action: "DESIGN_PROJECT_STATUS_CHANGE",
+        details: `from:${previous.status};to:${project.status}`,
+      });
+    }
+    if (previous.stage !== project.stage) {
+      await logDesignProjectAudit({
+        projectId: params.id,
+        userId: auditUserId,
+        action: "DESIGN_PROJECT_STAGE_CHANGE",
+        details: `from:${previous.stage};to:${project.stage}`,
+      });
+    }
+    const addedImages = listAdded(previous.referenceImages, project.referenceImages || []);
+    if (addedImages.length) {
+      const sample = addedImages.slice(0, 3).join("|");
+      await logDesignProjectAudit({
+        projectId: params.id,
+        userId: auditUserId,
+        action: "DESIGN_PROJECT_FILE_UPLOADED",
+        details: `type:reference_images;added:${addedImages.length};sample:${sample || "none"}`,
+      });
+    }
+  }
   return NextResponse.json({ project });
 }
