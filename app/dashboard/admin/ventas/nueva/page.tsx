@@ -4,13 +4,15 @@ import { getSettings } from "@/server/actions/settings";
 import { createOfflineSale } from "@/server/actions/sales";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getPriceAdjustmentSettings } from "@/server/price-adjustments";
 
 export default async function NuevaVentaPage({ searchParams }: { searchParams?: Promise<{ error?: string }> }) {
   const sp = (await searchParams) || {} as any;
-  const [sellers, settings, session] = await Promise.all([
+  const [sellers, settings, session, pricing] = await Promise.all([
     getSellers(),
     getSettings(),
     getServerSession(authOptions),
+    getPriceAdjustmentSettings(),
   ]);
   const commission = Number((settings as any).sellerCommissionPercent || 5);
   const iva = Number((settings as any).ivaPercent || 16);
@@ -39,6 +41,8 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams?: 
           unlockCreditWithDeleteSecret={unlockWithDeleteSecret}
           initialPriceMode="P1"
           maxPriceMode={maxPriceMode}
+          usdPaymentDiscountEnabled={Boolean(pricing.usdPaymentDiscountEnabled)}
+          usdPaymentDiscountPercent={Number(pricing.usdPaymentDiscountPercent || 0)}
         />
       </div>
     </div>

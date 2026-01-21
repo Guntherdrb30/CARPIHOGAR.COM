@@ -10,6 +10,7 @@ type Prod = {
   priceUSD: number;
   priceAllyUSD?: number | null;
   priceWholesaleUSD?: number | null;
+  supplierCurrency?: string | null;
 };
 type Line = {
   productId: string;
@@ -19,6 +20,7 @@ type Line = {
   p3?: number | null;
   priceUSD: number;
   quantity: number;
+  supplierCurrency?: string | null;
 };
 
 type PriceMode = "P1" | "P2" | "P3";
@@ -44,6 +46,8 @@ export default function OfflineSaleForm({
   allowCredit = true,
   unlockCreditWithDeleteSecret = false,
   vesSalesDisabled = false,
+  usdPaymentDiscountEnabled = false,
+  usdPaymentDiscountPercent = 0,
 }: {
   sellers: Array<{ id: string; name?: string; email: string }>;
   commissionPercent: number;
@@ -59,6 +63,8 @@ export default function OfflineSaleForm({
   allowCredit?: boolean;
   unlockCreditWithDeleteSecret?: boolean;
   vesSalesDisabled?: boolean;
+  usdPaymentDiscountEnabled?: boolean;
+  usdPaymentDiscountPercent?: number;
 }) {
   const [q, setQ] = useState("");
   const [found, setFound] = useState<Prod[]>([]);
@@ -121,7 +127,13 @@ export default function OfflineSaleForm({
         );
         if (res.ok) {
           const json = await res.json();
-          setFound(json);
+          const rows = Array.isArray(json) ? json : [];
+          setFound(
+            rows.map((p: any) => ({
+              ...p,
+              supplierCurrency: p?.supplier?.chargeCurrency || null,
+            }))
+          );
         }
       } catch {}
     }, 300);
@@ -194,12 +206,46 @@ export default function OfflineSaleForm({
   }, [addrState]);
 
   const totals = useMemo(() => {
-    const subtotal = items.reduce((a, it) => a + it.priceUSD * it.quantity, 0);
-    const iva = subtotal * (Number(ivaPercent) / 100);
-    const totalUSD = subtotal + iva;
+    const subtotalItems = items.reduce((a, it) => a + it.priceUSD * it.quantity, 0);
+    const deliveryFeeUSD = shippingLocalOption === "DELIVERY" ? 6 : 0;
+    const subtotal = subtotalItems + deliveryFeeUSD;
+    const eligibleSubtotalUSD =
+      paymentCurrency === "USD" && usdPaymentDiscountEnabled
+        ? items.reduce((sum, it) => {
+            const currency = String(it.supplierCurrency || "").toUpperCase();
+            if (!currency || currency === "VES") return sum;
+            return sum + it.priceUSD * it.quantity;
+          }, 0)
+        : 0;
+    const discountPct =
+      paymentCurrency === "USD" && usdPaymentDiscountEnabled
+        ? Math.max(0, Number(usdPaymentDiscountPercent || 0)) / 100
+        : 0;
+    const discountUSD = eligibleSubtotalUSD * discountPct;
+    const subtotalAfterDiscount = subtotal - discountUSD;
+    const iva = subtotalAfterDiscount * (Number(ivaPercent) / 100);
+    const totalUSD = subtotalAfterDiscount + iva;
     const totalVES = totalUSD * Number(tasaVES);
-    return { subtotal, iva, totalUSD, totalVES };
-  }, [items, ivaPercent, tasaVES]);
+    return {
+      subtotal,
+      subtotalItems,
+      deliveryFeeUSD,
+      eligibleSubtotalUSD,
+      discountPct,
+      discountUSD,
+      iva,
+      totalUSD,
+      totalVES,
+    };
+  }, [
+    items,
+    ivaPercent,
+    tasaVES,
+    paymentCurrency,
+    usdPaymentDiscountEnabled,
+    usdPaymentDiscountPercent,
+    shippingLocalOption,
+  ]);
 
   const addItem = (p: Prod, mode: PriceMode = "P1") => {
     setItems((prev) => {
@@ -215,7 +261,19 @@ export default function OfflineSaleForm({
       let selected = p1;
       if (mode === "P3" && p3 != null) selected = p3;
       else if (mode === "P2" && p2 != null) selected = p2;
-      return [...prev, { productId: p.id, name: p.name, p1, p2, p3, priceUSD: selected, quantity: 1 }];
+      return [
+        ...prev,
+        {
+          productId: p.id,
+          name: p.name,
+          p1,
+          p2,
+          p3,
+          priceUSD: selected,
+          quantity: 1,
+          supplierCurrency: p.supplierCurrency || null,
+        },
+      ];
     });
   };
 
@@ -761,9 +819,17 @@ export default function OfflineSaleForm({
       </div>
 
       <div className="flex justify-between items-center">
-        <div className="text-sm text-gray-600">IVA: {Number(ivaPercent).toFixed(2)}% {paymentCurrency === "VES" && `· Tasa: ${Number(tasaVES).toFixed(2)}`}</div>
+        <div className="text-sm text-gray-600">IVA: {Number(ivaPercent).toFixed(2)}% {paymentCurrency === "VES" && `- Tasa: ${Number(tasaVES).toFixed(2)}`}</div>
         <div className="text-right">
           <div>Subtotal: ${totals.subtotal.toFixed(2)}</div>
+          {totals.deliveryFeeUSD > 0 && (
+            <div className="text-xs text-gray-500">Incluye delivery: ${totals.deliveryFeeUSD.toFixed(2)}</div>
+          )}
+          {paymentCurrency === "USD" && usdPaymentDiscountEnabled && totals.discountUSD > 0 && (
+            <div className="text-xs text-green-700">
+              Descuento USD ({Number(usdPaymentDiscountPercent || 0).toFixed(2)}% proveedores USD): -${totals.discountUSD.toFixed(2)}
+            </div>
+          )}
           <div>IVA: ${totals.iva.toFixed(2)}</div>
           <div className="font-semibold">Total: {paymentCurrency === "USD" ? `$${totals.totalUSD.toFixed(2)}` : `Bs ${totals.totalVES.toFixed(2)}`}</div>
         </div>

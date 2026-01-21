@@ -4,12 +4,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createOfflineSale } from "@/server/actions/sales";
 import { getAllyQuoteById } from "@/server/actions/quotes";
+import { getPriceAdjustmentSettings } from "@/server/price-adjustments";
 
 export default async function NuevaVentaAliadoPage({ searchParams }: { searchParams?: Promise<{ fromQuote?: string; shipping?: string; useP2?: string }> }) {
   const sp = (await searchParams) || ({} as any);
-  const [settings, session] = await Promise.all([
+  const [settings, session, pricing] = await Promise.all([
     getSettings(),
     getServerSession(authOptions),
+    getPriceAdjustmentSettings(),
   ]);
   const commission = Number((settings as any).sellerCommissionPercent || 5);
   const iva = Number((settings as any).ivaPercent || 16);
@@ -54,6 +56,8 @@ export default async function NuevaVentaAliadoPage({ searchParams }: { searchPar
           initialPriceMode={useP2 ? 'P2' : 'P1'}
           maxPriceMode="P2"
           allowCredit={false}
+          usdPaymentDiscountEnabled={Boolean(pricing.usdPaymentDiscountEnabled)}
+          usdPaymentDiscountPercent={Number(pricing.usdPaymentDiscountPercent || 0)}
         />
       </div>
     </div>
