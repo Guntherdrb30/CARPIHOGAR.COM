@@ -276,7 +276,18 @@ export async function getAllyQuoteById(id: string) {
   if (!myId || (session?.user as any)?.role !== 'ALIADO') throw new Error('Not authorized');
   if (!((session?.user as any)?.emailVerified === true)) throw new Error('Email not verified');
   await autoExpireQuotes();
-  const quote = await prisma.quote.findUnique({ where: { id }, include: { user: true, seller: true, items: { include: { product: true } } } });
+  const quote = await prisma.quote.findUnique({
+    where: { id },
+    include: {
+      user: true,
+      seller: true,
+      items: {
+        include: {
+          product: { include: { supplier: { select: { chargeCurrency: true } } } },
+        },
+      },
+    },
+  });
   if (!quote || String(quote.sellerId || '') !== myId) throw new Error('Not authorized');
   return quote;
 }

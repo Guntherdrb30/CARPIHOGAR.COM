@@ -19,7 +19,7 @@ export default async function NuevaVentaAliadoPage({ searchParams }: { searchPar
   const vesSalesDisabled = Boolean((settings as any).vesSalesDisabled ?? false);
   const me = { id: String((session?.user as any)?.id || ''), name: session?.user?.name || undefined, email: session?.user?.email || '' };
 
-  let initialItems: Array<{ productId: string; name: string; p1: number; p2?: number | null; priceUSD: number; quantity: number }> | undefined = undefined;
+  let initialItems: Array<{ productId: string; name: string; p1: number; p2?: number | null; priceUSD: number; quantity: number; supplierCurrency?: string | null }> | undefined = undefined;
   const fromQuote = String((sp as any).fromQuote || '');
   const useP2 = String((sp as any).useP2 || '') === '1';
   if (fromQuote) {
@@ -29,7 +29,8 @@ export default async function NuevaVentaAliadoPage({ searchParams }: { searchPar
         const p1 = Number(it.priceUSD);
         const p2 = it.product?.priceAllyUSD != null ? Number(it.product.priceAllyUSD) : null;
         const selected = useP2 && p2 != null ? p2 : p1;
-        return { productId: it.productId, name: it.name, p1, p2, priceUSD: selected, quantity: Number(it.quantity) };
+        const supplierCurrency = it.product?.supplier?.chargeCurrency || null;
+        return { productId: it.productId, name: it.name, p1, p2, priceUSD: selected, quantity: Number(it.quantity), supplierCurrency };
       });
     } catch {}
   }
