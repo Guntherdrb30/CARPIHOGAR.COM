@@ -2,12 +2,14 @@
 import React from "react";
 import { useAssistantCtx } from "./AssistantProvider";
 import { Sparkles } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 export default function AssistantButton() {
   const a = useAssistantCtx();
+  const pathname = usePathname() || "";
   const open = () => a.setOpen(true);
   // Hide on admin/dashboard
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard')) return null;
+  if (pathname.startsWith("/dashboard")) return null;
   return (
     <div className="fixed z-50 bottom-4 right-4 flex items-center gap-2">
       <button
