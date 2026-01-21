@@ -98,7 +98,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   fd.append("prompt", prompt);
   fd.append("n", String(variants));
   fd.append("size", "1024x1024");
-  fd.append("response_format", "b64_json");
   fd.append("image", new Blob([inputBuffer], { type: file.type || "image/png" }), "render.png");
 
   const response = await fetch("https://api.openai.com/v1/images/edits", {
@@ -123,8 +122,17 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const records: Array<any> = [];
   for (let i = 0; i < outputs.length; i += 1) {
     const b64 = outputs[i]?.b64_json;
-    if (!b64) continue;
-    const rawBuf = Buffer.from(String(b64), "base64");
+    const url = outputs[i]?.url;
+    let rawBuf: Buffer | null = null;
+    if (b64) {
+      rawBuf = Buffer.from(String(b64), "base64");
+    } else if (url) {
+      const imgRes = await fetch(String(url));
+      if (imgRes.ok) {
+        rawBuf = Buffer.from(await imgRes.arrayBuffer());
+      }
+    }
+    if (!rawBuf) continue;
     const watermarked = await applyWatermark(rawBuf, "TRENDS172");
     const outPath = `design-renders/${params.id}/render_${Date.now()}_${i + 1}.png`;
     const upload = await put(outPath, watermarked, {
