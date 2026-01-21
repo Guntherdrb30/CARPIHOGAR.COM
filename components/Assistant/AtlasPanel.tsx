@@ -164,11 +164,6 @@ export default function AtlasPanel() {
     } catch {}
   };
 
-  const width =
-    typeof window !== "undefined" && window.innerWidth < 768
-      ? "100%"
-      : "420px";
-
   return (
     <AnimatePresence>
       {a.open && (
@@ -185,8 +180,7 @@ export default function AtlasPanel() {
             animate={{ x: 0 }}
             exit={{ x: 500 }}
             transition={{ type: "spring", stiffness: 280, damping: 30 }}
-            className="absolute right-0 top-0 h-full atlas-panel atlas-shadow flex flex-col"
-            style={{ width }}
+            className="absolute right-0 top-0 h-full atlas-panel atlas-shadow flex flex-col w-full sm:w-[420px]"
           >
             <div className="flex items-center justify-between p-3 border-b bg-white rounded-tl-[16px]">
               <div className="flex items-center gap-2">

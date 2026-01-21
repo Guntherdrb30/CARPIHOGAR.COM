@@ -16,7 +16,9 @@ export default function ChatWindow({ messages, onAction }: { messages: Assistant
       <div className="space-y-3">
         {Array.isArray(content.products) && content.products.length > 0 && (
           <div className="space-y-2">
-            {content.products.map((p: any) => <ProductCard key={p.id || p.slug || Math.random()} p={p} />)}
+            {content.products.map((p: any, idx: number) => (
+              <ProductCard key={p.id || p.slug || p.sku || p.code || `product-${idx}`} p={p} />
+            ))}
           </div>
         )}
         {content.cart && (
