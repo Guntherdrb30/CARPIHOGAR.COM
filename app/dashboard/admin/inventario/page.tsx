@@ -16,6 +16,8 @@ export default async function AdminInventoryPage({
     top?: string;
     low?: string;
     cat?: string;
+    from?: string;
+    to?: string;
   }>;
 }) {
   const sp = (await searchParams) || ({} as any);
@@ -23,6 +25,12 @@ export default async function AdminInventoryPage({
   const topLimit = Number(sp.top ?? 10);
   const lowLimit = Number(sp.low ?? 10);
   const cat = (sp.cat ?? '') as string;
+  const from = String(sp.from ?? '');
+  const to = String(sp.to ?? '');
+  const reportParams = new URLSearchParams();
+  if (from) reportParams.set('from', from);
+  if (to) reportParams.set('to', to);
+  const reportQs = reportParams.toString();
 
   let summary: any = { productsCount: 0, totalUnits: 0, totalValueUSD: 0, lowStockThreshold: 5, lowStockCount: 0 };
   let categories: any[] = [];
@@ -118,6 +126,56 @@ export default async function AdminInventoryPage({
             <LeastSoldPanel />
           </div>
         </div>
+      </div>
+
+      <div className="bg-white p-4 rounded-lg shadow">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-bold">Imprimir inventario</h2>
+            <div className="text-xs text-gray-500">
+              Filtra productos con movimientos en el rango (si aplica).
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a
+              className="px-3 py-1 rounded border"
+              target="_blank"
+              href={`/api/reports/inventory-stock${reportQs ? `?${reportQs}` : ''}`}
+            >
+              CSV (Excel)
+            </a>
+            <a
+              className="px-3 py-1 rounded border"
+              target="_blank"
+              href={`/dashboard/admin/inventario/stock/print${reportQs ? `?${reportQs}` : ''}`}
+            >
+              Imprimir PDF
+            </a>
+            <a
+              className="px-3 py-1 rounded border"
+              target="_blank"
+              href="/dashboard/admin/inventario/stock/print"
+            >
+              Inventario actual
+            </a>
+          </div>
+        </div>
+        <form method="get" className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label className="block text-sm text-gray-700">Desde</label>
+            <input type="date" name="from" defaultValue={from} className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Hasta</label>
+            <input type="date" name="to" defaultValue={to} className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div className="flex items-end gap-2">
+            <button className="bg-blue-600 text-white px-3 py-1 rounded">Aplicar</button>
+            <a href="/dashboard/admin/inventario" className="px-3 py-1 rounded border text-gray-700">
+              Limpiar
+            </a>
+          </div>
+        </form>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

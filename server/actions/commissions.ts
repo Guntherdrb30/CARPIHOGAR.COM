@@ -227,3 +227,66 @@ export async function updateSellerCommissionByForm(formData: FormData) {
 
   redirect(`${backTo}?message=${encodeURIComponent('Comision actualizada')}`);
 }
+
+export async function getCommissionPayments(params?: {
+  sellerId?: string;
+  reference?: string;
+  amount?: string;
+  from?: string;
+  to?: string;
+  take?: number;
+}) {
+  await requireAdmin();
+  const where: any = {};
+
+  if (params?.sellerId) where.sellerId = params.sellerId;
+
+  const reference = String(params?.reference || '').trim();
+  if (reference) {
+    where.reference = { contains: reference, mode: 'insensitive' };
+  }
+
+  const amountRaw = String(params?.amount || '').trim();
+  if (amountRaw) {
+    const amount = Number(amountRaw);
+    if (Number.isFinite(amount)) {
+      const min = Math.max(0, amount - 0.01);
+      const max = amount + 0.01;
+      where.amount = { gte: min, lte: max };
+    }
+  }
+
+  const fromRaw = String(params?.from || '').trim();
+  const toRaw = String(params?.to || '').trim();
+  if (fromRaw || toRaw) {
+    const paidAt: any = {};
+    if (fromRaw) {
+      const d = new Date(fromRaw);
+      if (!isNaN(d.getTime())) paidAt.gte = d as any;
+    }
+    if (toRaw) {
+      const d = new Date(toRaw);
+      if (!isNaN(d.getTime())) {
+        const next = new Date(d);
+        next.setDate(next.getDate() + 1);
+        paidAt.lt = next as any;
+      }
+    }
+    if (Object.keys(paidAt).length) where.paidAt = paidAt;
+  }
+
+  const payments = await prisma.commissionPayment.findMany({
+    where,
+    include: {
+      seller: { select: { id: true, name: true, email: true } },
+      createdBy: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { paidAt: 'desc' },
+    take: Math.max(1, Math.min(Number(params?.take || 50), 200)),
+  });
+
+  return payments.map((p: any) => ({
+    ...p,
+    amount: toNumberSafe(p.amount, 0),
+  }));
+}

@@ -1,16 +1,42 @@
 import Link from 'next/link';
-import { getSellerCommissionSummary, updateSellerCommissionByForm } from '@/server/actions/commissions';
+import CommissionPaymentForm from '@/components/admin/commission-payment-form';
+import {
+  getCommissionPayments,
+  getSellerCommissionSummary,
+  updateSellerCommissionByForm,
+} from '@/server/actions/commissions';
 
 export default async function AdminCommissionsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ message?: string; error?: string }>;
+  searchParams?: Promise<{
+    message?: string;
+    error?: string;
+    seller?: string;
+    ref?: string;
+    amount?: string;
+    from?: string;
+    to?: string;
+  }>;
 }) {
   const sp = (await searchParams) || {};
   const message = String(sp.message || '');
   const error = String(sp.error || '');
+  const sellerFilter = String(sp.seller || '').trim();
+  const refFilter = String(sp.ref || '').trim();
+  const amountFilter = String(sp.amount || '').trim();
+  const fromFilter = String(sp.from || '').trim();
+  const toFilter = String(sp.to || '').trim();
 
   const { sellers, defaultCommissionPercent } = await getSellerCommissionSummary();
+  const payments = await getCommissionPayments({
+    sellerId: sellerFilter || undefined,
+    reference: refFilter || undefined,
+    amount: amountFilter || undefined,
+    from: fromFilter || undefined,
+    to: toFilter || undefined,
+    take: 50,
+  });
 
   const totals = sellers.reduce(
     (acc, s) => {
@@ -105,6 +131,137 @@ export default async function AdminCommissionsPage({
                       >
                         Ver ventas
                       </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white p-4 rounded-lg shadow space-y-4">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-bold">Pagos de comisiones</h2>
+            <div className="text-xs text-gray-500">
+              Registra pagos y revisa el historial por vendedor.
+            </div>
+          </div>
+          <div className="text-xs text-gray-500">Ultimos {payments.length} pagos</div>
+        </div>
+
+        <div className="border rounded p-3 bg-gray-50">
+          <CommissionPaymentForm sellers={sellers} defaultSellerId={sellerFilter} />
+        </div>
+
+        <form
+          method="get"
+          className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end"
+        >
+          <div className="md:col-span-2">
+            <label className="block text-xs text-gray-600 mb-1">Vendedor</label>
+            <select
+              name="seller"
+              defaultValue={sellerFilter}
+              className="border rounded px-2 py-1 w-full"
+            >
+              <option value="">Todos</option>
+              {sellers.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name || s.email}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Referencia</label>
+            <input
+              name="ref"
+              defaultValue={refFilter}
+              className="border rounded px-2 py-1 w-full"
+              placeholder="Ref"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Monto</label>
+            <input
+              name="amount"
+              defaultValue={amountFilter}
+              className="border rounded px-2 py-1 w-full"
+              placeholder="Monto"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Desde</label>
+            <input
+              type="date"
+              name="from"
+              defaultValue={fromFilter}
+              className="border rounded px-2 py-1 w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Hasta</label>
+            <input
+              type="date"
+              name="to"
+              defaultValue={toFilter}
+              className="border rounded px-2 py-1 w-full"
+            />
+          </div>
+          <div className="flex gap-2 md:col-span-6">
+            <button className="bg-blue-600 text-white px-3 py-1 rounded">
+              Filtrar
+            </button>
+            <a href="/dashboard/admin/comisiones" className="px-3 py-1 rounded border text-gray-700">
+              Limpiar
+            </a>
+          </div>
+        </form>
+
+        {payments.length === 0 ? (
+          <div className="text-sm text-gray-500">No hay pagos registrados.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full table-auto text-sm">
+              <thead>
+                <tr className="bg-gray-100 text-gray-700">
+                  <th className="px-2 py-1 text-left">Fecha</th>
+                  <th className="px-2 py-1 text-left">Vendedor</th>
+                  <th className="px-2 py-1 text-right">Monto</th>
+                  <th className="px-2 py-1 text-left">Metodo</th>
+                  <th className="px-2 py-1 text-left">Banco</th>
+                  <th className="px-2 py-1 text-left">Referencia</th>
+                  <th className="px-2 py-1 text-left">Responsable</th>
+                  <th className="px-2 py-1 text-left">Soporte</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((p: any) => (
+                  <tr key={p.id} className="border-t">
+                    <td className="px-2 py-1 whitespace-nowrap">
+                      {new Date(p.paidAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-2 py-1">
+                      <div className="font-medium">{p.seller?.name || p.seller?.email}</div>
+                      <div className="text-xs text-gray-500">{p.seller?.email}</div>
+                    </td>
+                    <td className="px-2 py-1 text-right">
+                      {Number(p.amount).toFixed(2)} {p.currency}
+                    </td>
+                    <td className="px-2 py-1">{p.method}</td>
+                    <td className="px-2 py-1">{p.bankName || '-'}</td>
+                    <td className="px-2 py-1">{p.reference || '-'}</td>
+                    <td className="px-2 py-1">{p.paidByName || '-'}</td>
+                    <td className="px-2 py-1">
+                      {p.proofUrl ? (
+                        <a className="text-blue-600 hover:underline" href={p.proofUrl} target="_blank">
+                          Ver
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                   </tr>
                 ))}

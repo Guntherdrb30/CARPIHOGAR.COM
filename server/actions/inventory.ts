@@ -83,6 +83,68 @@ export async function getTopSuppliersByInventory(params?: { categorySlug?: strin
   return { rows: sorted.map(g => ({ supplier: g.supplier, totalValueUSD: g.subtotalUSD })), totalValueUSD: total };
 }
 
+export async function getInventoryStockReport(params?: { from?: string; to?: string }) {
+  const fromRaw = String(params?.from || '').trim();
+  const toRaw = String(params?.to || '').trim();
+  let from: Date | null = null;
+  let to: Date | null = null;
+  if (fromRaw) {
+    const d = new Date(fromRaw);
+    if (!isNaN(d.getTime())) from = d;
+  }
+  if (toRaw) {
+    const d = new Date(toRaw);
+    if (!isNaN(d.getTime())) to = d;
+  }
+
+  let productIds: string[] | null = null;
+  if (from || to) {
+    const movementWhere: any = {};
+    if (from) movementWhere.createdAt = { gte: from };
+    if (to) {
+      const next = new Date(to);
+      next.setDate(next.getDate() + 1);
+      movementWhere.createdAt = { ...(movementWhere.createdAt || {}), lt: next };
+    }
+    const moves = await prisma.stockMovement.findMany({
+      where: movementWhere,
+      select: { productId: true },
+      distinct: ['productId'],
+    });
+    productIds = moves.map((m) => m.productId);
+    if (!productIds.length) {
+      return { rows: [], totalValueUSD: 0 };
+    }
+  }
+
+  const where: any = {};
+  if (productIds) where.id = { in: productIds };
+
+  const products = await prisma.product.findMany({
+    where,
+    include: { supplier: true },
+    orderBy: { name: 'asc' },
+  });
+
+  const rows = products.map((p: any) => {
+    const price = Number(p.priceUSD || 0);
+    const stock = Number(p.stock || 0);
+    const total = price * stock;
+    return {
+      id: p.id,
+      code: p.sku || p.code || '',
+      name: p.name || '',
+      description: p.description || '',
+      supplier: p.supplier?.name || '',
+      stock,
+      priceUSD: price,
+      totalUSD: total,
+    };
+  });
+  const totalValueUSD = rows.reduce((acc, r) => acc + r.totalUSD, 0);
+  return { rows, totalValueUSD };
+}
+
 export async function getTopSoldProducts(days = 30, limit = 10, categoryId?: string) {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   const groups = await (prisma as any).orderItem.groupBy({

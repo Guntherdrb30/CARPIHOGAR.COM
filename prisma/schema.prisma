@@ -169,6 +169,8 @@ model User {
   sellerOrders     Order[]         @relation("OrderSeller")
   reviewedOrders   Order[]         @relation("OrderReviewedBy")
   commissions      Commission[]
+  commissionPayments CommissionPayment[] @relation("CommissionPaymentSeller")
+  commissionPaymentsCreated CommissionPayment[] @relation("CommissionPaymentCreatedBy")
   quotes           Quote[]         @relation("QuoteCustomer")
   quotesAsSeller   Quote[]         @relation("QuoteSeller")
   createdPOs       PurchaseOrder[] @relation("POCreator")
@@ -726,6 +728,26 @@ model Commission {
   amountUSD Decimal          @db.Decimal(10, 2)
   status    CommissionStatus @default(PENDIENTE)
   createdAt DateTime         @default(now())
+}
+
+model CommissionPayment {
+  id           String        @id @default(cuid())
+  sellerId     String
+  seller       User          @relation("CommissionPaymentSeller", fields: [sellerId], references: [id])
+  amount       Decimal       @db.Decimal(12, 2)
+  currency     Currency      @default(USD)
+  method       PaymentMethod
+  reference    String?
+  bankName     String?
+  paidAt       DateTime
+  paidByName   String?
+  proofUrl     String?
+  createdAt    DateTime      @default(now())
+  createdById  String?
+  createdBy    User?         @relation("CommissionPaymentCreatedBy", fields: [createdById], references: [id])
+
+  @@index([sellerId, paidAt])
+  @@index([reference])
 }
 
 enum QuoteStatus {
