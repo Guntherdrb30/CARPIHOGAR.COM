@@ -302,11 +302,11 @@ export async function createOfflineSale(formData: FormData) {
     try { await prisma.auditLog.create({ data: { userId: (session?.user as any)?.id, action: 'OFFLINE_SALE_VALIDATION_FAILED', details: 'Telefono requerido' } }); } catch {}
     redirect(`${backNewSale}?error=El%20tel%C3%A9fono%20del%20cliente%20es%20obligatorio%20y%20debe%20ser%20v%C3%A1lido`);
   }
-  if (saleType === 'CONTADO' && !['PAGO_MOVIL','TRANSFERENCIA','ZELLE'].includes(paymentMethod)) {
+  if (saleType === 'CONTADO' && !['PAGO_MOVIL','TRANSFERENCIA','ZELLE','EFECTIVO'].includes(paymentMethod)) {
     try { await prisma.auditLog.create({ data: { userId: (session?.user as any)?.id, action: 'OFFLINE_SALE_VALIDATION_FAILED', details: 'Método de pago inválido' } }); } catch {}
     redirect(`${backNewSale}?error=M%C3%A9todo%20de%20pago%20inv%C3%A1lido`);
   }
-  if (saleType === 'CONTADO' && !paymentReference.trim()) {
+  if (saleType === 'CONTADO' && paymentMethod !== 'EFECTIVO' && !paymentReference.trim()) {
     try { await prisma.auditLog.create({ data: { userId: (session?.user as any)?.id, action: 'OFFLINE_SALE_VALIDATION_FAILED', details: 'Referencia requerida' } }); } catch {}
     redirect(`${backNewSale}?error=La%20referencia%20de%20pago%20es%20obligatoria`);
   }
@@ -567,7 +567,7 @@ export async function createOfflineSale(formData: FormData) {
   });
 
   // record payment as approved (solo si es contado)
-  const validMethods = ['PAGO_MOVIL','TRANSFERENCIA','ZELLE'];
+  const validMethods = ['PAGO_MOVIL','TRANSFERENCIA','ZELLE','EFECTIVO'];
   const method = validMethods.includes(paymentMethod) ? (paymentMethod as any) : ('ZELLE' as any);
   const currency = paymentCurrency === 'VES' ? ('VES' as any) : ('USD' as any);
   if (saleType === 'CONTADO') {

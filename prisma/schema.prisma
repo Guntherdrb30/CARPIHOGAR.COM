@@ -578,6 +578,7 @@ enum PaymentMethod {
   PAGO_MOVIL
   TRANSFERENCIA
   ZELLE
+  EFECTIVO
 }
 
 enum PaymentStatus {

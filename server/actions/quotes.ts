@@ -326,19 +326,44 @@ export async function convertQuoteToOrder(formData: FormData) {
   const shippingOption = String(formData.get('shippingOption') || '').toUpperCase();
   const quote = await prisma.quote.findUnique({ where: { id }, include: { items: true, user: true } });
   if (!quote) throw new Error('Quote not found');
-  const order = await prisma.order.create({
-    data: {
-      userId: quote.userId,
-      sellerId: quote.sellerId || null,
-      originQuoteId: id,
-      subtotalUSD: quote.subtotalUSD as any,
-      ivaPercent: quote.ivaPercent as any,
-      tasaVES: quote.tasaVES as any,
-      totalUSD: quote.totalUSD as any,
-      totalVES: quote.totalVES as any,
-      status: 'PENDIENTE' as any,
-      items: { create: quote.items.map(it => ({ productId: it.productId, name: it.name, priceUSD: it.priceUSD as any, quantity: it.quantity })) },
-    },
+  const actionUserId = (session?.user as any)?.id || null;
+  const order = await prisma.$transaction(async (tx) => {
+    const created = await tx.order.create({
+      data: {
+        userId: quote.userId,
+        sellerId: quote.sellerId || null,
+        originQuoteId: id,
+        subtotalUSD: quote.subtotalUSD as any,
+        ivaPercent: quote.ivaPercent as any,
+        tasaVES: quote.tasaVES as any,
+        totalUSD: quote.totalUSD as any,
+        totalVES: quote.totalVES as any,
+        status: 'PENDIENTE' as any,
+        items: { create: quote.items.map(it => ({ productId: it.productId, name: it.name, priceUSD: it.priceUSD as any, quantity: it.quantity })) },
+      },
+    });
+    for (const it of quote.items) {
+      const qty = Number(it.quantity || 0);
+      if (!it.productId || !qty) continue;
+      await tx.stockMovement.create({
+        data: {
+          productId: it.productId,
+          type: 'SALIDA' as any,
+          quantity: qty,
+          reason: `VENTA_TIENDA ${created.id}`,
+          userId: actionUserId,
+        },
+      });
+      await tx.product.update({
+        where: { id: it.productId },
+        data: {
+          stock: { decrement: qty },
+          stockUnits: { decrement: qty } as any,
+        },
+      });
+    }
+    await tx.quote.update({ where: { id }, data: { status: 'APROBADO' as any } });
+    return created;
   });
   // Create default shipping for in-store handling
   try {
@@ -360,7 +385,6 @@ export async function convertQuoteToOrder(formData: FormData) {
       },
     });
   } catch {}
-  await prisma.quote.update({ where: { id }, data: { status: 'APROBADO' as any } });
   try { await prisma.auditLog.create({ data: { userId: (session?.user as any)?.id, action: 'QUOTE_CONVERT_ORDER', details: `${id}->${order.id}` } }); } catch {}
   revalidatePath('/dashboard/admin/presupuestos');
   revalidatePath('/dashboard/admin/envios');

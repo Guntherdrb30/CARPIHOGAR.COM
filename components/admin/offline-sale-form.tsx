@@ -77,7 +77,7 @@ export default function OfflineSaleForm({
   const [customerTaxId, setCustomerTaxId] = useState("");
   const [customerFiscalAddress, setCustomerFiscalAddress] = useState("");
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"PAGO_MOVIL" | "TRANSFERENCIA" | "ZELLE">("ZELLE");
+  const [paymentMethod, setPaymentMethod] = useState<"PAGO_MOVIL" | "TRANSFERENCIA" | "ZELLE" | "EFECTIVO">("ZELLE");
   const [paymentCurrency, setPaymentCurrency] = useState<"USD" | "VES">("USD");
   const [paymentReference, setPaymentReference] = useState("");
   const [error, setError] = useState<string>("");
@@ -391,7 +391,7 @@ export default function OfflineSaleForm({
       setLoading(true);
       return;
     }
-    if (!paymentReference.trim()) {
+    if (paymentMethod !== 'EFECTIVO' && !paymentReference.trim()) {
       e.preventDefault();
       setError('La referencia de pago es obligatoria.');
       return;
@@ -744,6 +744,7 @@ export default function OfflineSaleForm({
             <option value="ZELLE">Zelle</option>
             <option value="TRANSFERENCIA">Transferencia</option>
             <option value="PAGO_MOVIL">Pago Móvil</option>
+            <option value="EFECTIVO">Efectivo</option>
           </select>
         </div>
         <div>
@@ -774,8 +775,8 @@ export default function OfflineSaleForm({
         )}
         <div className="md:col-span-3">
           <label className="block text-sm text-gray-700">Referencia</label>
-          <input name="paymentReference" required value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} className={`rounded px-2 py-1 w-full border ${error && !paymentReference.trim() ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500'}`} placeholder="Nº ref, comentario, etc" />
-          {error && !paymentReference.trim() && (
+          <input name="paymentReference" required={saleType === 'CONTADO' && paymentMethod !== 'EFECTIVO'} value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} className={`rounded px-2 py-1 w-full border ${error && !paymentReference.trim() && paymentMethod !== 'EFECTIVO' ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500'}`} placeholder="Nº ref, comentario, etc" />
+          {error && !paymentReference.trim() && paymentMethod !== 'EFECTIVO' && (
             <div className="text-xs text-red-600 mt-1">La referencia de pago es obligatoria.</div>
           )}
         </div>
