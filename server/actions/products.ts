@@ -166,6 +166,53 @@ export async function importProductsCsv(formData: FormData) {
     return { ok: true } as any;
 }
 
+
+const incompleteProductWhere = () => ({
+    OR: [
+        { brand: { equals: 'Sin marca' } },
+        { brand: { equals: '' } },
+        { description: null },
+        { description: { equals: '' } },
+        { images: { isEmpty: true } as any },
+        { categoryId: null },
+    ],
+});
+
+export async function getIncompleteProductsCount() {
+    const session = await getServerSession(authOptions);
+    const role = String((session?.user as any)?.role || '');
+    if (!['ADMIN','VENDEDOR'].includes(role)) throw new Error('Not authorized');
+    try {
+        await ensureProductColumns();
+    } catch {}
+    return prisma.product.count({ where: incompleteProductWhere() as any });
+}
+
+export async function getIncompleteProducts() {
+    const session = await getServerSession(authOptions);
+    const role = String((session?.user as any)?.role || '');
+    if (!['ADMIN','VENDEDOR'].includes(role)) throw new Error('Not authorized');
+    try {
+        await ensureProductColumns();
+    } catch {}
+    const rows = await prisma.product.findMany({
+        where: incompleteProductWhere() as any,
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+        select: {
+            id: true,
+            name: true,
+            brand: true,
+            description: true,
+            images: true,
+            categoryId: true,
+            status: true,
+            createdAt: true,
+            priceUSD: true,
+        },
+    });
+    return rows;
+}
 export async function getProducts(filters?: { isNew?: boolean; categorySlug?: string; q?: string; supplierId?: string }) {
     await ensureProductColumns();
     const where: any = {};

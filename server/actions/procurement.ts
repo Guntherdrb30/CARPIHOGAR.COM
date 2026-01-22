@@ -151,7 +151,8 @@ export async function importPurchasesCsv(form: FormData) {
 export async function getPurchases(filters?: { q?: string; supplierId?: string; from?: string; to?:string }) {
   try {
     const session = await getServerSession(authOptions);
-    if ((session?.user as any)?.role !== 'ADMIN') throw new Error('Not authorized');
+    const role = String((session?.user as any)?.role || '');
+    if (!['ADMIN','VENDEDOR'].includes(role)) throw new Error('Not authorized');
     await ensureSupplierColumns();
     const where: any = {};
     if (filters?.q) {
@@ -184,7 +185,8 @@ export async function getPurchases(filters?: { q?: string; supplierId?: string; 
 
 export async function getPurchaseById(id: string) {
   const session = await getServerSession(authOptions);
-  if ((session?.user as any)?.role !== 'ADMIN') throw new Error('Not authorized');
+  const role = String((session?.user as any)?.role || '');
+  if (!['ADMIN','VENDEDOR'].includes(role)) throw new Error('Not authorized');
   await ensureSupplierColumns();
   const purchase = await prisma.purchase.findUnique({
     where: { id },

@@ -13,9 +13,10 @@ export default async function PurchaseIADetailPage({
 }) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role as string | undefined;
-  if (!session || role !== 'ADMIN') {
+  if (!session || (!role || (role !== 'ADMIN' && role !== 'VENDEDOR'))) {
     return <div className="p-4">No autorizado</div> as any;
   }
+  const canEdit = role === 'ADMIN';
 
   const { id } = await params;
   const sp = (await searchParams) || {};
@@ -60,141 +61,197 @@ export default async function PurchaseIADetailPage({
         </div>
       )}
 
+      
       <div className="bg-white p-4 rounded-lg shadow">
         <h2 className="text-lg font-semibold mb-2">Datos de la factura de entrada</h2>
-        <form action={updatePurchaseByForm} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input type="hidden" name="purchaseId" value={purchase.id} />
-          <div>
-            <div className="text-sm text-gray-600">Proveedor</div>
-            <div>{purchase.supplier?.name || '-'}</div>
+        {canEdit ? (
+          <form action={updatePurchaseByForm} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input type="hidden" name="purchaseId" value={purchase.id} />
+            <div>
+              <div className="text-sm text-gray-600">Proveedor</div>
+              <div>{purchase.supplier?.name || '-'}</div>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700">Nro factura</label>
+              <input
+                name="invoiceNumber"
+                className="form-input"
+                defaultValue={purchase.invoiceNumber || ''}
+                placeholder="Numero de factura del proveedor"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700">Fecha factura</label>
+              <input
+                name="invoiceDate"
+                type="date"
+                className="form-input"
+                defaultValue={
+                  purchase.invoiceDate
+                    ? new Date(purchase.invoiceDate as any)
+                        .toISOString()
+                        .slice(0, 10)
+                    : ''
+                }
+              />
+            </div>
+            <div className="md:col-span-3">
+              <label className="block text-sm text-gray-700">Notas internas</label>
+              <textarea
+                name="notes"
+                className="form-input"
+                rows={2}
+                defaultValue={purchase.notes || ''}
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700">Base imponible USD</label>
+              <input
+                name="baseAmountUSD"
+                type="number"
+                step="0.01"
+                className="form-input"
+                defaultValue={
+                  (purchase as any).baseAmountUSD
+                    ? String(Number((purchase as any).baseAmountUSD))
+                    : subtotalUSD.toFixed(2)
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700">% Descuento</label>
+              <input
+                name="discountPercent"
+                type="number"
+                step="0.01"
+                className="form-input"
+                defaultValue={
+                  (purchase as any).discountPercent != null
+                    ? String(Number((purchase as any).discountPercent))
+                    : ''
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700">% IVA</label>
+              <input
+                name="ivaPercent"
+                type="number"
+                step="0.01"
+                className="form-input"
+                defaultValue={ivaPercent.toFixed(2)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700">Monto IVA USD</label>
+              <input
+                name="ivaAmountUSD"
+                type="number"
+                step="0.01"
+                className="form-input"
+                defaultValue={ivaAmountUSD.toFixed(2)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700">Total factura USD</label>
+              <input
+                name="totalUSD"
+                type="number"
+                step="0.01"
+                className="form-input"
+                defaultValue={totalUSD.toFixed(2)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700">% IGTF</label>
+              <input
+                name="igtfPercent"
+                type="number"
+                step="0.01"
+                className="form-input"
+                defaultValue={
+                  igtfPercent ? igtfPercent.toFixed(2) : ''
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-700">Monto IGTF USD</label>
+              <input
+                name="igtfAmountUSD"
+                type="number"
+                step="0.01"
+                className="form-input"
+                defaultValue={
+                  igtfAmountUSD ? igtfAmountUSD.toFixed(2) : ''
+                }
+              />
+            </div>
+            <div className="md:col-span-3 flex justify-end">
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-3 py-1 rounded"
+              >
+                Guardar cambios
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div>
+              <div className="text-gray-600">Proveedor</div>
+              <div className="font-medium">{purchase.supplier?.name || '-'}</div>
+            </div>
+            <div>
+              <div className="text-gray-600">Nro factura</div>
+              <div className="font-medium">{purchase.invoiceNumber || '-'}</div>
+            </div>
+            <div>
+              <div className="text-gray-600">Fecha factura</div>
+              <div className="font-medium">
+                {purchase.invoiceDate ? new Date(purchase.invoiceDate as any).toLocaleDateString() : '-'}
+              </div>
+            </div>
+            <div className="md:col-span-3">
+              <div className="text-gray-600">Notas internas</div>
+              <div className="font-medium whitespace-pre-wrap">{purchase.notes || '-'}</div>
+            </div>
+            <div>
+              <div className="text-gray-600">Base imponible USD</div>
+              <div className="font-medium">
+                {(purchase as any).baseAmountUSD ? Number((purchase as any).baseAmountUSD).toFixed(2) : subtotalUSD.toFixed(2)}
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-600">% Descuento</div>
+              <div className="font-medium">
+                {(purchase as any).discountPercent != null ? Number((purchase as any).discountPercent).toFixed(2) : '-'}
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-600">% IVA</div>
+              <div className="font-medium">{ivaPercent.toFixed(2)}</div>
+            </div>
+            <div>
+              <div className="text-gray-600">Monto IVA USD</div>
+              <div className="font-medium">{ivaAmountUSD.toFixed(2)}</div>
+            </div>
+            <div>
+              <div className="text-gray-600">Total factura USD</div>
+              <div className="font-medium">{totalUSD.toFixed(2)}</div>
+            </div>
+            <div>
+              <div className="text-gray-600">% IGTF</div>
+              <div className="font-medium">{igtfPercent ? igtfPercent.toFixed(2) : '-'}</div>
+            </div>
+            <div>
+              <div className="text-gray-600">Monto IGTF USD</div>
+              <div className="font-medium">{igtfAmountUSD ? igtfAmountUSD.toFixed(2) : '-'}</div>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm text-gray-700">N° factura</label>
-            <input
-              name="invoiceNumber"
-              className="form-input"
-              defaultValue={purchase.invoiceNumber || ''}
-              placeholder="Número de factura del proveedor"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Fecha factura</label>
-            <input
-              name="invoiceDate"
-              type="date"
-              className="form-input"
-              defaultValue={
-                purchase.invoiceDate
-                  ? new Date(purchase.invoiceDate as any)
-                      .toISOString()
-                      .slice(0, 10)
-                  : ''
-              }
-            />
-          </div>
-          <div className="md:col-span-3">
-            <label className="block text-sm text-gray-700">Notas internas</label>
-            <textarea
-              name="notes"
-              className="form-input"
-              rows={2}
-              defaultValue={purchase.notes || ''}
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Base imponible USD</label>
-            <input
-              name="baseAmountUSD"
-              type="number"
-              step="0.01"
-              className="form-input"
-              defaultValue={
-                (purchase as any).baseAmountUSD
-                  ? String(Number((purchase as any).baseAmountUSD))
-                  : subtotalUSD.toFixed(2)
-              }
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">% Descuento</label>
-            <input
-              name="discountPercent"
-              type="number"
-              step="0.01"
-              className="form-input"
-              defaultValue={
-                (purchase as any).discountPercent != null
-                  ? String(Number((purchase as any).discountPercent))
-                  : ''
-              }
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">% IVA</label>
-            <input
-              name="ivaPercent"
-              type="number"
-              step="0.01"
-              className="form-input"
-              defaultValue={ivaPercent.toFixed(2)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Monto IVA USD</label>
-            <input
-              name="ivaAmountUSD"
-              type="number"
-              step="0.01"
-              className="form-input"
-              defaultValue={ivaAmountUSD.toFixed(2)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Total factura USD</label>
-            <input
-              name="totalUSD"
-              type="number"
-              step="0.01"
-              className="form-input"
-              defaultValue={totalUSD.toFixed(2)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">% IGTF</label>
-            <input
-              name="igtfPercent"
-              type="number"
-              step="0.01"
-              className="form-input"
-              defaultValue={
-                igtfPercent ? igtfPercent.toFixed(2) : ''
-              }
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Monto IGTF USD</label>
-            <input
-              name="igtfAmountUSD"
-              type="number"
-              step="0.01"
-              className="form-input"
-              defaultValue={
-                igtfAmountUSD ? igtfAmountUSD.toFixed(2) : ''
-              }
-            />
-          </div>
-          <div className="md:col-span-3 flex justify-end">
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-3 py-1 rounded"
-            >
-              Guardar cambios
-            </button>
-          </div>
-        </form>
+        )}
       </div>
 
-      <div className="bg-white p-4 rounded-lg shadow">
+<div className="bg-white p-4 rounded-lg shadow">
         <h2 className="text-lg font-semibold mb-2">Resumen de montos</h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
           <div>
@@ -264,21 +321,24 @@ export default async function PurchaseIADetailPage({
         </div>
       </div>
 
+      {canEdit && (
       <div className="bg-white p-4 rounded-lg shadow">
-        <h2 className="text-lg font-semibold mb-2">Acciones avanzadas</h2>
-        <p className="text-sm text-gray-600 mb-3">
-          Puedes eliminar esta compra solo con la clave secreta del administrador.
-          Esta acción revertirá el stock, eliminará la cuenta por pagar y los
-          movimientos bancarios asociados.
-        </p>
-        <SecretDeleteButton
-          action={deletePurchaseByForm}
-          hidden={{ purchaseId: purchase.id }}
-          label="Eliminar compra"
-          title="Eliminar compra"
-          description="Esta acción revertirá esta compra (stock, bancos y cuentas por pagar). Es permanente y requiere la clave secreta del administrador."
-        />
-      </div>
+              <h2 className="text-lg font-semibold mb-2">Acciones avanzadas</h2>
+              <p className="text-sm text-gray-600 mb-3">
+                Puedes eliminar esta compra solo con la clave secreta del administrador.
+                Esta acción revertirá el stock, eliminará la cuenta por pagar y los
+                movimientos bancarios asociados.
+              </p>
+              <SecretDeleteButton
+                action={deletePurchaseByForm}
+                hidden={{ purchaseId: purchase.id }}
+                label="Eliminar compra"
+                title="Eliminar compra"
+                description="Esta acción revertirá esta compra (stock, bancos y cuentas por pagar). Es permanente y requiere la clave secreta del administrador."
+              />
+            </div>
+    )}
+
     </div>
   );
 }

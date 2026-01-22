@@ -18,6 +18,7 @@ export default function AdminSidebar() {
   const [salesPending, setSalesPending] = React.useState(0);
   const [unreadMsgs, setUnreadMsgs] = React.useState(0);
   const [usersPending, setUsersPending] = React.useState(0);
+  const [incompleteProducts, setIncompleteProducts] = React.useState(0);
 
   React.useEffect(() => {
     let active = true;
@@ -80,6 +81,20 @@ export default function AdminSidebar() {
     };
   }, [isAdmin]);
 
+  React.useEffect(() => {
+    if (!isAdmin) return;
+    let alive = true;
+    fetch('/api/admin/incomplete-products-count')
+      .then((r) => (r.ok ? r.json() : { count: 0 }))
+      .then((d) => {
+        if (alive && typeof d?.count === 'number') setIncompleteProducts(d.count);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [isAdmin]);
+
   const links = [
     { href: '/dashboard/admin', label: 'Resumen' },
     { href: '/dashboard/admin/estudio', label: 'Estudio de Diseno' },
@@ -101,6 +116,7 @@ export default function AdminSidebar() {
     { href: '/dashboard/admin/ventas/nueva', label: 'Nueva Venta' },
     { href: '/dashboard/admin/presupuestos', label: 'Presupuestos' },
     { href: '/dashboard/admin/compras', label: 'Compras' },
+    { href: '/dashboard/admin/notificaciones', label: 'Notificaciones' },
     { href: '/dashboard/admin/proveedores', label: 'Proveedores' },
     { href: '/dashboard/admin/bancos', label: 'Bancos' },
     { href: '/dashboard/admin/sucursales', label: 'Sucursales' },
@@ -157,6 +173,11 @@ export default function AdminSidebar() {
                 {l.href === '/dashboard/admin/usuarios' && usersPending > 0 && (
                   <span className="ml-1 inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[11px] px-1.5 min-w-[1.25rem]">
                     {usersPending}
+                  </span>
+                )}
+                {l.href === '/dashboard/admin/notificaciones' && incompleteProducts > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center rounded-full bg-amber-600 text-white text-[11px] px-1.5 min-w-[1.25rem]">
+                    {incompleteProducts}
                   </span>
                 )}
               </span>
