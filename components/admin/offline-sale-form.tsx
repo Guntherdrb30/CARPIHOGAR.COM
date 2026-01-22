@@ -41,6 +41,12 @@ export default function OfflineSaleForm({
   fixedSellerId,
   initialShippingLocalOption,
   originQuoteId,
+  initialSellerId,
+  initialCustomerName,
+  initialCustomerEmail,
+  initialCustomerPhone,
+  initialCustomerTaxId,
+  initialCustomerFiscalAddress,
   initialPriceMode = "P1",
   maxPriceMode = "P2",
   allowCredit = true,
@@ -58,6 +64,12 @@ export default function OfflineSaleForm({
   fixedSellerId?: string;
   initialShippingLocalOption?: "RETIRO_TIENDA" | "DELIVERY" | "";
   originQuoteId?: string;
+  initialSellerId?: string;
+  initialCustomerName?: string;
+  initialCustomerEmail?: string;
+  initialCustomerPhone?: string;
+  initialCustomerTaxId?: string;
+  initialCustomerFiscalAddress?: string;
   initialPriceMode?: PriceMode;
   maxPriceMode?: PriceMode;
   allowCredit?: boolean;
@@ -70,12 +82,12 @@ export default function OfflineSaleForm({
   const [found, setFound] = useState<Prod[]>([]);
   const [items, setItems] = useState<Line[]>(() => initialItems || []);
   const [globalMode, setGlobalMode] = useState<PriceMode>(initialPriceMode === "P3" ? "P3" : initialPriceMode);
-  const [sellerId, setSellerId] = useState<string>(fixedSellerId || "");
-  const [customerName, setCustomerName] = useState("");
-  const [customerEmail, setCustomerEmail] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [customerTaxId, setCustomerTaxId] = useState("");
-  const [customerFiscalAddress, setCustomerFiscalAddress] = useState("");
+  const [sellerId, setSellerId] = useState<string>(fixedSellerId || initialSellerId || "");
+  const [customerName, setCustomerName] = useState(initialCustomerName || "");
+  const [customerEmail, setCustomerEmail] = useState(initialCustomerEmail || "");
+  const [customerPhone, setCustomerPhone] = useState(initialCustomerPhone || "");
+  const [customerTaxId, setCustomerTaxId] = useState(initialCustomerTaxId || "");
+  const [customerFiscalAddress, setCustomerFiscalAddress] = useState(initialCustomerFiscalAddress || "");
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"PAGO_MOVIL" | "TRANSFERENCIA" | "ZELLE" | "EFECTIVO">("ZELLE");
   const [paymentCurrency, setPaymentCurrency] = useState<"USD" | "VES">("USD");

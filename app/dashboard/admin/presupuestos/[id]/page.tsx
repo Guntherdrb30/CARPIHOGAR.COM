@@ -1,4 +1,4 @@
-import { getQuoteById, updateQuoteStatusByForm, convertQuoteToOrder, updateQuoteExpiryByForm } from "@/server/actions/quotes";
+import { getQuoteById, updateQuoteStatusByForm, updateQuoteExpiryByForm } from "@/server/actions/quotes";
 import PrintButton from "@/components/print-button";
 
 export default async function VerPresupuestoPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams?: Promise<{ message?: string }> }) {
@@ -61,15 +61,15 @@ export default async function VerPresupuestoPage({ params, searchParams }: { par
             <input type="hidden" name="status" value="VENCIDO" />
             <button className="px-3 py-1 rounded border">Marcar Vencido</button>
           </form>
-          <form action={convertQuoteToOrder} className="flex items-center gap-2">
-            <input type="hidden" name="quoteId" value={quote.id} />
+          <form method="get" action="/dashboard/admin/ventas/nueva" className="flex items-center gap-2">
+            <input type="hidden" name="fromQuote" value={quote.id} />
             <label className="text-sm text-gray-700">Entrega local (Barinas)</label>
-            <select name="shippingOption" className="form-select">
-              <option value="">Automática</option>
+            <select name="shipping" className="form-select">
+              <option value="">Automatica</option>
               <option value="RETIRO_TIENDA">Retiro en tienda</option>
               <option value="DELIVERY">Delivery (incluido)</option>
             </select>
-            <button className="px-3 py-1 rounded bg-green-600 text-white">Convertir a Venta</button>
+            <button className="px-3 py-1 rounded bg-green-600 text-white" type="submit">Continuar a Venta</button>
           </form>
         </div>
       </div>

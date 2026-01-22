@@ -20,6 +20,11 @@ export default async function NuevaVentaAliadoPage({ searchParams }: { searchPar
   const me = { id: String((session?.user as any)?.id || ''), name: session?.user?.name || undefined, email: session?.user?.email || '' };
 
   let initialItems: Array<{ productId: string; name: string; p1: number; p2?: number | null; priceUSD: number; quantity: number; supplierCurrency?: string | null }> | undefined = undefined;
+  let initialCustomerName: string | undefined = undefined;
+  let initialCustomerEmail: string | undefined = undefined;
+  let initialCustomerPhone: string | undefined = undefined;
+  let initialCustomerTaxId: string | undefined = undefined;
+  let initialCustomerFiscalAddress: string | undefined = undefined;
   const fromQuote = String((sp as any).fromQuote || '');
   const useP2 = String((sp as any).useP2 || '') === '1';
   if (fromQuote) {
@@ -32,6 +37,11 @@ export default async function NuevaVentaAliadoPage({ searchParams }: { searchPar
         const supplierCurrency = it.product?.supplier?.chargeCurrency || null;
         return { productId: it.productId, name: it.name, p1, p2, priceUSD: selected, quantity: Number(it.quantity), supplierCurrency };
       });
+      initialCustomerName = quote.user?.name || undefined;
+      initialCustomerEmail = quote.user?.email || undefined;
+      initialCustomerPhone = quote.user?.phone || undefined;
+      initialCustomerTaxId = quote.customerTaxId || undefined;
+      initialCustomerFiscalAddress = quote.customerFiscalAddress || undefined;
     } catch {}
   }
   const initialShipping = (() => {
@@ -54,6 +64,11 @@ export default async function NuevaVentaAliadoPage({ searchParams }: { searchPar
           fixedSellerId={me.id}
           initialShippingLocalOption={initialShipping}
           originQuoteId={fromQuote || undefined}
+          initialCustomerName={initialCustomerName}
+          initialCustomerEmail={initialCustomerEmail}
+          initialCustomerPhone={initialCustomerPhone}
+          initialCustomerTaxId={initialCustomerTaxId}
+          initialCustomerFiscalAddress={initialCustomerFiscalAddress}
           initialPriceMode={useP2 ? 'P2' : 'P1'}
           maxPriceMode="P2"
           allowCredit={false}
