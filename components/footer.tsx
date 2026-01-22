@@ -18,7 +18,7 @@ export default function Footer({ brandName, contactEmail, contactPhone, whatsapp
   return (
     <footer className="text-white py-10 bg-[var(--color-secondary)]/95 backdrop-blur">
       <div className="container mx-auto px-4 text-center">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
             <h3 className="text-xl font-bold mb-2">{brandName || 'Carpihogar.ai'}</h3>
             <p className="text-gray-400">Tu tienda de confianza para el hogar.</p>
@@ -42,6 +42,17 @@ export default function Footer({ brandName, contactEmail, contactPhone, whatsapp
                 Soporte por WhatsApp
               </Button>
             ) : null}
+          </div>
+
+          <div>
+            <h3 className="text-xl font-bold mb-2">Legal</h3>
+            <ul className="space-y-2 text-gray-400">
+              <li><Link href="/terms-of-use">Terms of Use</Link></li>
+              <li><Link href="/terms-of-sale">Terms of Sale</Link></li>
+              <li><Link href="/company-details">Company Details</Link></li>
+              <li><Link href="/privacy-cookie-policy">Privacy &amp; Cookie Policy</Link></li>
+              <li><Link href="/cookie-settings">Privacy &amp; Cookie Setting</Link></li>
+            </ul>
           </div>
         </div>
         <Divider className="my-8 bg-white/10" />

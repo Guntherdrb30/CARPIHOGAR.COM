@@ -17,13 +17,19 @@ export default async function RegistroCompraPage() {
     wholesale: Number((settings as any)?.defaultMarginWholesalePct || 20),
   };
   const purchaseRows = Array.isArray(purchases) ? purchases : [];
-  const grouped = purchaseRows.reduce((groups: Record<string, any[]>, p: any) => {
+  const grouped = purchaseRows.reduce((groups: Record<string, { label: string; rows: any[] }>, p: any) => {
     const dateBase = p.invoiceDate ? new Date(p.invoiceDate as any) : new Date(p.createdAt as any);
-    const key = isNaN(dateBase.getTime()) ? 'Sin fecha' : dateBase.toLocaleDateString();
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(p);
+    const key = isNaN(dateBase.getTime()) ? 'Sin fecha' : dateBase.toISOString().slice(0, 10);
+    const label = isNaN(dateBase.getTime()) ? 'Sin fecha' : dateBase.toLocaleDateString();
+    if (!groups[key]) groups[key] = { label, rows: [] };
+    groups[key].rows.push(p);
     return groups;
-  }, {} as Record<string, any[]>);
+  }, {} as Record<string, { label: string; rows: any[] }>);
+  const groupedEntries = Object.entries(grouped).sort((a, b) => {
+    const aDate = a[0] === 'Sin fecha' ? 0 : Date.parse(a[0]) || 0;
+    const bDate = b[0] === 'Sin fecha' ? 0 : Date.parse(b[0]) || 0;
+    return bDate - aDate;
+  });
   return (
     <div className="container mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold">Entrada de productos</h1>
@@ -39,9 +45,9 @@ export default async function RegistroCompraPage() {
           Facturas cargadas ({purchaseRows.length})
         </summary>
         <div className="mt-3 space-y-3">
-          {Object.entries(grouped).map(([date, rows]) => (
-            <div key={date} className="border rounded">
-              <div className="px-3 py-2 bg-gray-50 text-sm font-semibold">{date}</div>
+          {groupedEntries.map(([dateKey, group]) => (
+            <div key={dateKey} className="border rounded">
+              <div className="px-3 py-2 bg-gray-50 text-sm font-semibold">{group.label}</div>
               <div className="overflow-x-auto">
                 <table className="w-full table-auto text-sm">
                   <thead>
@@ -57,7 +63,7 @@ export default async function RegistroCompraPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((p: any) => (
+                    {group.rows.map((p: any) => (
                       <tr key={p.id}>
                         <td className="border px-3 py-2">
                           <div className="font-medium">{p.invoiceNumber || 'Sin numero'}</div>
@@ -82,7 +88,7 @@ export default async function RegistroCompraPage() {
                         </td>
                       </tr>
                     ))}
-                    {rows.length === 0 && (
+                    {group.rows.length === 0 && (
                       <tr>
                         <td className="px-3 py-2 text-sm text-gray-500" colSpan={8}>
                           Sin facturas registradas.
