@@ -47,11 +47,11 @@ export default function Footer({ brandName, contactEmail, contactPhone, whatsapp
           <div>
             <h3 className="text-xl font-bold mb-2">Legal</h3>
             <ul className="space-y-2 text-gray-400">
-              <li><Link href="/terms-of-use">Terms of Use</Link></li>
-              <li><Link href="/terms-of-sale">Terms of Sale</Link></li>
-              <li><Link href="/company-details">Company Details</Link></li>
-              <li><Link href="/privacy-cookie-policy">Privacy &amp; Cookie Policy</Link></li>
-              <li><Link href="/cookie-settings">Privacy &amp; Cookie Setting</Link></li>
+              <li><Link href="/terms-of-use">Terminos de Uso</Link></li>
+              <li><Link href="/terms-of-sale">Terminos de Venta</Link></li>
+              <li><Link href="/company-details">Datos de la Empresa</Link></li>
+              <li><Link href="/privacy-cookie-policy">Politica de Privacidad y Cookies</Link></li>
+              <li><Link href="/cookie-settings">Configuracion de Cookies</Link></li>
             </ul>
           </div>
         </div>

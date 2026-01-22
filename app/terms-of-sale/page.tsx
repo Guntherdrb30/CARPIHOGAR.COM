@@ -3,7 +3,7 @@ export const dynamic = 'force-static';
 export default function TermsOfSalePage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-semibold text-gray-900">Terms of Sale</h1>
+      <h1 className="text-2xl font-semibold text-gray-900">Terminos de Venta</h1>
       <p className="mt-4 text-gray-700">
         Estos Terminos de Venta aplican a las compras realizadas en carpihogar.com o en canales
         asociados de Carpihogar.

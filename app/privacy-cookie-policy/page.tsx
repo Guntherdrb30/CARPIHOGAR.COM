@@ -3,7 +3,7 @@ export const dynamic = 'force-static';
 export default function PrivacyCookiePolicyPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-semibold text-gray-900">Privacy & Cookie Policy</h1>
+      <h1 className="text-2xl font-semibold text-gray-900">Politica de Privacidad y Cookies</h1>
       <p className="mt-4 text-gray-700">
         Esta politica describe como carpihogar.com recopila y usa datos personales y cookies. Al usar
         el sitio, aceptas esta politica.

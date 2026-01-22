@@ -3,7 +3,7 @@ export const dynamic = 'force-static';
 export default function TermsOfUsePage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-semibold text-gray-900">Terms of Use</h1>
+      <h1 className="text-2xl font-semibold text-gray-900">Terminos de Uso</h1>
       <p className="mt-4 text-gray-700">
         Al acceder y usar carpihogar.com, aceptas estos Terminos de Uso. Si no estas de acuerdo, no uses
         el sitio.

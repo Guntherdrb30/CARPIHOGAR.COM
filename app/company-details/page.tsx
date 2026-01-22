@@ -3,7 +3,7 @@ export const dynamic = 'force-static';
 export default function CompanyDetailsPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-semibold text-gray-900">Company Details</h1>
+      <h1 className="text-2xl font-semibold text-gray-900">Datos de la Empresa</h1>
       <div className="mt-4 space-y-2 text-gray-700">
         <div><span className="font-medium">Nombre comercial:</span> carpihogar.com</div>
         <div><span className="font-medium">Razon social:</span> trends172,ca</div>

@@ -35,7 +35,7 @@ export default function CookieSettingsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-semibold text-gray-900">Privacy & Cookie Setting</h1>
+      <h1 className="text-2xl font-semibold text-gray-900">Configuracion de Cookies</h1>
       <p className="mt-4 text-gray-700">
         Puedes elegir el tipo de cookies que autorizas en carpihogar.com.
       </p>
