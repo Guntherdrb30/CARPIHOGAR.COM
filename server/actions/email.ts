@@ -41,10 +41,47 @@ export async function sendReceiptEmail(orderId: string, to: string, tipo: 'recib
   try {
     const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true, user: true, payment: true } });
     if (!order) return;
-    const items = (order.items || []).map((it) => `<li>${it.name} x ${it.quantity} — $ ${Number(it.priceUSD as any).toFixed(2)}</li>`).join('');
-    const total = Number(order.totalUSD as any).toFixed(2);
+    const currency = moneda === 'VES' ? 'VES' : 'USD';
+    const rate = Number(order.tasaVES || 0) || 1;
+    const toMoney = (value: number) => (currency === 'VES' ? `Bs ${value.toFixed(2)}` : `$ ${value.toFixed(2)}`);
+    const linePrice = (p: number) => (currency === 'VES' ? p * rate : p);
+    const itemsHtml = (order.items || [])
+      .map((it) => {
+        const unit = linePrice(Number(it.priceUSD || 0));
+        const qty = Number(it.quantity || 0);
+        const lineTotal = unit * qty;
+        return `<tr><td style="padding:6px 0">${it.name}</td><td style="padding:6px 0;text-align:center">${qty}</td><td style="padding:6px 0;text-align:right">${toMoney(unit)}</td><td style="padding:6px 0;text-align:right">${toMoney(lineTotal)}</td></tr>`;
+      })
+      .join('');
+    const subtotalBase = Number(order.subtotalUSD || 0);
+    const subtotal = currency === 'VES' ? subtotalBase * rate : subtotalBase;
+    const ivaPct = Number(order.ivaPercent || 0);
+    const iva = subtotal * (ivaPct / 100);
+    const total = currency === 'VES' ? Number(order.totalVES || 0) : Number(order.totalUSD || 0);
     const titulo = tipo === 'factura' ? 'Factura' : (tipo === 'nota' ? 'Nota de Entrega' : 'Recibo');
-    const body = basicTemplate(`${titulo} de compra`, `<p>Gracias por tu compra ${order.user?.name || ''}.</p><p>Detalle de la orden ${order.id.slice(0,8)}:</p><ul>${items}</ul><p><strong>Total USD:</strong> $ ${total}</p>`);
+    const base = (process.env.NEXT_PUBLIC_URL || process.env.NEXTAUTH_URL || '').replace(/\/$/, '');
+    const pdfUrl = base ? `${base}/api/orders/${order.id}/pdf?tipo=${encodeURIComponent(tipo)}&moneda=${encodeURIComponent(moneda)}` : '';
+    const payMethod = order.payment?.method ? String(order.payment.method).toUpperCase() : '';
+    const payRef = order.payment?.reference ? String(order.payment.reference) : '';
+
+    const body = basicTemplate(
+      `${titulo} de compra`,
+      `
+      <p>Gracias por tu compra ${order.user?.name || ''}.</p>
+      <p>Detalle de la orden <strong>${order.id.slice(0,8)}</strong>:</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid #fed7aa">
+        <tr style="color:#6b7280;font-size:12px"><th align="left">Producto</th><th align="center">Cant.</th><th align="right">Precio</th><th align="right">Subtotal</th></tr>
+        ${itemsHtml}
+      </table>
+      <p style="margin:12px 0 4px"><strong>Subtotal:</strong> ${toMoney(subtotal)}</p>
+      <p style="margin:0 0 4px"><strong>IVA (${ivaPct.toFixed(2)}%):</strong> ${toMoney(iva)}</p>
+      <p style="margin:0 0 12px"><strong>Total:</strong> ${toMoney(total)}</p>
+      ${payMethod ? `<p><strong>Metodo de pago:</strong> ${payMethod}${payRef ? ` (Ref: ${payRef})` : ''}</p>` : ''}
+      ${pdfUrl ? `<p><a href="${pdfUrl}">Descargar ${titulo} en PDF</a></p>` : ''}
+      <p>Gracias por confiar en Carpihogar.</p>
+      `
+    );
     await sendMail({ to, subject: `${titulo} de tu compra ${order.id.slice(0,8)}`, html: body });
   } catch {}
 }
+
