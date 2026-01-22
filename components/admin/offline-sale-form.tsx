@@ -85,7 +85,7 @@ export default function OfflineSaleForm({
   const [pmPayerPhone, setPmPayerPhone] = useState("");
   const [pmBank, setPmBank] = useState("");
   const [sendEmail, setSendEmail] = useState(false);
-  const [docType, setDocType] = useState<'recibo' | 'nota' | 'factura'>('factura');
+  const [docType, setDocType] = useState<'recibo' | 'factura'>('factura');
   const [shippingLocalOption, setShippingLocalOption] = useState<'RETIRO_TIENDA' | 'DELIVERY' | ''>(initialShippingLocalOption || '');
   const [saleType, setSaleType] = useState<"CONTADO" | "CREDITO">("CONTADO");
   const [allowCreditUi, setAllowCreditUi] = useState<boolean>(!!allowCredit);
@@ -223,7 +223,8 @@ export default function OfflineSaleForm({
         : 0;
     const discountUSD = eligibleSubtotalUSD * discountPct;
     const subtotalAfterDiscount = subtotal - discountUSD;
-    const iva = subtotalAfterDiscount * (Number(ivaPercent) / 100);
+    const ivaPct = docType === 'factura' ? Number(ivaPercent) : 0;
+    const iva = subtotalAfterDiscount * (ivaPct / 100);
     const totalUSD = subtotalAfterDiscount + iva;
     const totalVES = totalUSD * Number(tasaVES);
     return {
@@ -239,6 +240,7 @@ export default function OfflineSaleForm({
     };
   }, [
     items,
+    docType,
     ivaPercent,
     tasaVES,
     paymentCurrency,
@@ -511,6 +513,13 @@ export default function OfflineSaleForm({
             <input type="date" name="creditDueDate" value={creditDueDate} onChange={(e) => setCreditDueDate(e.target.value)} className="border rounded px-2 py-1 w-full" />
           </div>
         )}
+        <div>
+          <label className="block text-sm text-gray-700">Tipo de documento</label>
+          <select name="docType" value={docType} onChange={(e) => setDocType(e.target.value as any)} className="border rounded px-2 py-1 w-full">
+            <option value="recibo">Recibo de pago (sin impuestos)</option>
+            <option value="factura">Factura (con IVA/IGTF)</option>
+          </select>
+        </div>
         <div>
           <label className="block text-sm text-gray-700">Cédula / RIF</label>
           <input name="customerTaxId" required value={customerTaxId} onChange={(e) => setCustomerTaxId(e.target.value)} className="border rounded px-2 py-1 w-full" placeholder="V-12345678 ó J-12345678-9" />
@@ -801,8 +810,7 @@ export default function OfflineSaleForm({
               <label className="block text-sm text-gray-700">Documento a enviar</label>
               <select value={docType} onChange={(e) => setDocType(e.target.value as any)} className="border rounded px-2 py-1 w-full">
                 <option value="recibo">Recibo</option>
-                <option value="nota">Nota de Entrega</option>
-                <option value="factura">Factura</option>
+                                <option value="factura">Factura</option>
               </select>
             </div>
           </div>
@@ -820,7 +828,12 @@ export default function OfflineSaleForm({
       </div>
 
       <div className="flex justify-between items-center">
-        <div className="text-sm text-gray-600">IVA: {Number(ivaPercent).toFixed(2)}% {paymentCurrency === "VES" && `- Tasa: ${Number(tasaVES).toFixed(2)}`}</div>
+        {(docType === 'factura' || paymentCurrency === "VES") && (
+          <div className="text-sm text-gray-600">
+            {docType === 'factura' ? `IVA: ${Number(ivaPercent).toFixed(2)}%` : null}
+            {paymentCurrency === "VES" ? `${docType === 'factura' ? ' - ' : ''}Tasa: ${Number(tasaVES).toFixed(2)}` : null}
+          </div>
+        )}
         <div className="text-right">
           <div>Subtotal: ${totals.subtotal.toFixed(2)}</div>
           {totals.deliveryFeeUSD > 0 && (
@@ -831,7 +844,9 @@ export default function OfflineSaleForm({
               Descuento USD ({Number(usdPaymentDiscountPercent || 0).toFixed(2)}% proveedores USD): -${totals.discountUSD.toFixed(2)}
             </div>
           )}
-          <div>IVA: ${totals.iva.toFixed(2)}</div>
+          {docType === 'factura' && (
+            <div>IVA: ${totals.iva.toFixed(2)}</div>
+          )}
           <div className="font-semibold">Total: {paymentCurrency === "USD" ? `$${totals.totalUSD.toFixed(2)}` : `Bs ${totals.totalVES.toFixed(2)}`}</div>
         </div>
       </div>

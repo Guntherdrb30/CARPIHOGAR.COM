@@ -15,6 +15,7 @@ export default async function AdminSalesPage({
     sellerId?: string;
     message?: string;
     orderId?: string;
+    docType?: string;
     invoice?: string;
     cliente?: string;
     rif?: string;
@@ -24,6 +25,7 @@ export default async function AdminSalesPage({
   const sellerId = sp.sellerId || "";
   const message = sp.message || "";
    const orderId = (sp.orderId || "") as string;
+  const docTypeParam = String(sp.docType || "").toLowerCase();
   const invoiceQ = String(sp.invoice || "").trim();
   const clienteQ = String(sp.cliente || "").trim();
   const rifQ = String(sp.rif || "").trim();
@@ -55,20 +57,24 @@ export default async function AdminSalesPage({
           <div>{message}</div>
           {orderId && (
             <div className="flex flex-wrap gap-2 text-sm">
-              <a
-                href={`/dashboard/admin/ventas/${orderId}/print?tipo=recibo`}
-                target="_blank"
-                className="px-2 py-1 border rounded bg-white text-gray-800"
-              >
-                Imprimir recibo
-              </a>
-              <a
-                href={`/dashboard/admin/ventas/${orderId}/print?tipo=factura`}
-                target="_blank"
-                className="px-2 py-1 border rounded bg-white text-gray-800"
-              >
-                Imprimir factura
-              </a>
+              {(docTypeParam !== "factura") && (
+                <a
+                  href={`/dashboard/admin/ventas/${orderId}/print?tipo=recibo`}
+                  target="_blank"
+                  className="px-2 py-1 border rounded bg-white text-gray-800"
+                >
+                  Imprimir recibo
+                </a>
+              )}
+              {(docTypeParam !== "recibo") && (
+                <a
+                  href={`/dashboard/admin/ventas/${orderId}/print?tipo=factura`}
+                  target="_blank"
+                  className="px-2 py-1 border rounded bg-white text-gray-800"
+                >
+                  Imprimir factura
+                </a>
+              )}
             </div>
           )}
         </div>
@@ -176,6 +182,9 @@ export default async function AdminSalesPage({
                   const canPrint =
                     o.status === "PAGADO" || o.status === "COMPLETADO";
                   const canShowDocs = canPrint && isReviewed;
+                  const docType = String((o as any).documentType || "").toUpperCase();
+                  const docChoice =
+                    docType === "RECIBO" ? "recibo" : docType === "FACTURA" ? "factura" : "";
 
                   const invoiceNumber = (o as any).invoiceNumber as
                     | number
@@ -299,27 +308,35 @@ export default async function AdminSalesPage({
                         {canShowDocs ? (
                           <div className="flex flex-wrap items-center gap-1 sm:gap-2">
                             <span className="text-gray-600">PDF:</span>
-                            <a
-                              className="px-2 py-0.5 border rounded whitespace-nowrap"
-                              target="_blank"
-                              href={`/api/orders/${o.id}/pdf?tipo=recibo&moneda=VES`}
-                            >
-                              Recibo
-                            </a>
-                            <a
-                              className="px-2 py-0.5 border rounded whitespace-nowrap"
-                              target="_blank"
-                              href={`/api/orders/${o.id}/pdf?tipo=factura&moneda=VES`}
-                            >
-                              Factura
-                            </a>
+                            {(docChoice !== "factura") && (
+                              <a
+                                className="px-2 py-0.5 border rounded whitespace-nowrap"
+                                target="_blank"
+                                href={`/api/orders/${o.id}/pdf?tipo=recibo&moneda=VES`}
+                              >
+                                Recibo
+                              </a>
+                            )}
+                            {(docChoice !== "recibo") && (
+                              <a
+                                className="px-2 py-0.5 border rounded whitespace-nowrap"
+                                target="_blank"
+                                href={`/api/orders/${o.id}/pdf?tipo=factura&moneda=VES`}
+                              >
+                                Factura
+                              </a>
+                            )}
                             {o.user?.phone && (
                               <form
                                 action={sendOrderWhatsAppPdfByForm}
                                 className="inline-flex"
                               >
                                 <input type="hidden" name="orderId" value={o.id} />
-                                <input type="hidden" name="tipo" value="factura" />
+                                <input
+                                  type="hidden"
+                                  name="tipo"
+                                  value={docChoice || "factura"}
+                                />
                                 <input type="hidden" name="moneda" value="VES" />
                                 <input
                                   type="hidden"

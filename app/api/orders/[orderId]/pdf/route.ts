@@ -37,6 +37,23 @@ function formatAmount(v: number) {
   return v.toFixed(2);
 }
 
+
+function formatDateDMY(date: Date) {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(date.getFullYear());
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function paymentMethodLabel(method?: string | null) {
+  const raw = String(method || '').toUpperCase();
+  if (raw === 'EFECTIVO') return 'Efectivo';
+  if (raw === 'ZELLE') return 'Zelle';
+  if (raw === 'PAGO_MOVIL') return 'Pago Movil';
+  if (raw === 'TRANSFERENCIA') return 'Transferencia';
+  return raw || '-';
+}
+
 function padLeft(num: number, width: number) {
   const s = String(num);
   return s.length >= width ? s : "0".repeat(width - s.length) + s;
@@ -63,7 +80,7 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
   const url = new URL(req.url);
   const tipoRaw = (url.searchParams.get("tipo") || "recibo").toLowerCase();
   const allowedDocs = ["recibo", "factura"] as const;
-  const tipo = (allowedDocs as readonly string[]).includes(tipoRaw)
+  let tipo = (allowedDocs as readonly string[]).includes(tipoRaw)
     ? (tipoRaw as "recibo" | "factura")
     : "recibo";
 
@@ -102,6 +119,10 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
     if (!order) {
       return new NextResponse("Not Found", { status: 404 });
     }
+
+    const storedDocType = String((order as any).documentType || "").toUpperCase();
+    if (storedDocType === "RECIBO") tipo = "recibo";
+    if (storedDocType === "FACTURA") tipo = "factura";
 
     const isOwner = order.userId === userId;
     const isSeller = String(order.sellerId || "") === String(userId || "");
@@ -190,10 +211,11 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
       : 0;
     const discountUSD = subtotalUSD * discountPercent;
     const taxableBaseUSD = subtotalUSD - discountUSD;
-    const ivaUSD = taxableBaseUSD * (ivaPercent / 100);
+    const effectiveIvaPercent = tipo === 'factura' ? ivaPercent : 0;
+    const ivaUSD = taxableBaseUSD * (effectiveIvaPercent / 100);
 
     const totalSinIgtfUSD = taxableBaseUSD + ivaUSD;
-    const igtfUSD = isDivisa ? totalSinIgtfUSD * 0.03 : 0;
+    const igtfUSD = tipo === 'factura' && isDivisa ? totalSinIgtfUSD * 0.03 : 0;
     const totalOperacionUSD = totalSinIgtfUSD + igtfUSD;
 
     const subtotalBs = toMoney(subtotalUSD);
@@ -204,6 +226,8 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
 
     const user = order.user as any;
     const seller = order.seller as any;
+    const paymentMethod = (order as any)?.payment?.method || null;
+    const paymentMethodText = paymentMethodLabel(paymentMethod);
 
     const legalName = (settings as any)?.legalCompanyName || "Trends172, C.A";
     const legalRif = (settings as any)?.legalCompanyRif || "J-31758009-5";
@@ -279,14 +303,14 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
     const headerLeftX = logoBuf ? logoBox.x + logoBox.width + 12 : left;
     const headerTop = 30;
     const docDate = new Date(order.createdAt as any);
-    const docDateLabel = docDate.toLocaleDateString("es-VE");
+    const docDateLabel = formatDateDMY(docDate);
     const docNumber = tipo === "factura"
       ? invoiceNumber
         ? padLeft(invoiceNumber, 6)
         : "000000"
       : receiptNumber
-        ? padLeft(receiptNumber, 6)
-        : "000000";
+        ? padLeft(receiptNumber, 8)
+        : "00000000";
 
     doc.fontSize(13).font("Helvetica-Bold").fillColor(colors.text);
     doc.text(tipo === "factura" ? legalName : brandName, headerLeftX, headerTop);
@@ -304,7 +328,7 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
     }
 
     const boxWidth = 190;
-    const boxHeight = tipo === "factura" ? 64 : 52;
+    const boxHeight = tipo === "factura" ? 76 : 64;
     const boxX = right - boxWidth;
     const boxY = headerTop - 2;
 
@@ -328,8 +352,10 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
     if (tipo === "factura") {
       doc.text(`Control: 00-${docNumber}`, boxX + 10, boxY + 36);
       doc.text(`Fecha: ${docDateLabel}`, boxX + 10, boxY + 48);
+      doc.text(`Metodo: ${paymentMethodText}`, boxX + 10, boxY + 60);
     } else {
       doc.text(`Fecha: ${docDateLabel}`, boxX + 10, boxY + 36);
+      doc.text(`Metodo: ${paymentMethodText}`, boxX + 10, boxY + 48);
     }
 
     doc.save();
@@ -374,7 +400,10 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
       })}`,
     );
     rightLines.push(`Moneda: ${moneda}`);
-    rightLines.push(`IVA: ${ivaPercent}%  -  Tasa: ${tasaVES}`);
+    if (tipo === 'factura') {
+      rightLines.push(`IVA: ${ivaPercent}%`);
+    }
+    rightLines.push(`Tasa: ${tasaVES}`);
 
     if (order.payment) {
       const pay = order.payment as any;
@@ -503,9 +532,12 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
     doc.moveDown(0.8);
 
     const totalsLines: Array<{ label: string; value: string; bold?: boolean }> = [
-      { label: "Base imponible", value: money(subtotalBs) },
-      { label: `I.V.A. (${ivaPercent}%)`, value: money(ivaBs) },
+      { label: tipo === "factura" ? "Base imponible" : "Subtotal", value: money(subtotalBs) },
     ];
+
+    if (tipo === "factura") {
+      totalsLines.push({ label: `I.V.A. (${ivaPercent}%)`, value: money(ivaBs) });
+    }
 
     if (discountUSD > 0) {
       const pctLabel = Number(pricing.usdPaymentDiscountPercent || 0).toFixed(2);
@@ -515,7 +547,9 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
       });
     }
 
-    totalsLines.push({ label: "I.G.T.F. 3%", value: money(igtfBs) });
+    if (tipo === "factura") {
+      totalsLines.push({ label: "I.G.T.F. 3%", value: money(igtfBs) });
+    }
     totalsLines.push({ label: "Total operacion", value: money(totalOperacionBs), bold: true });
 
     const totalsBoxWidth = 210;

@@ -65,43 +65,56 @@ export default async function VentasAliadoPage({ searchParams }: { searchParams?
                     </form>
                   </td>
                   <td className="border px-3 py-2">
+                    {(() => {
+                      const docType = String((o as any).documentType || "").toUpperCase();
+                      const docChoice =
+                        docType === "RECIBO" ? "recibo" : docType === "FACTURA" ? "factura" : "";
+                      return (
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-gray-600">Ver:</span>
-                        <a
-                          className="px-2 py-0.5 border rounded"
-                          target="_blank"
-                          href={`/dashboard/aliado/ventas/${o.id}/print?tipo=recibo`}
-                        >
-                          Recibo
-                        </a>
-                        <a
-                          className="px-2 py-0.5 border rounded"
-                          target="_blank"
-                          href={`/dashboard/aliado/ventas/${o.id}/print?tipo=factura`}
-                        >
-                          Factura
-                        </a>
+                        {docChoice !== "factura" && (
+                          <a
+                            className="px-2 py-0.5 border rounded"
+                            target="_blank"
+                            href={`/dashboard/aliado/ventas/${o.id}/print?tipo=recibo`}
+                          >
+                            Recibo
+                          </a>
+                        )}
+                        {docChoice !== "recibo" && (
+                          <a
+                            className="px-2 py-0.5 border rounded"
+                            target="_blank"
+                            href={`/dashboard/aliado/ventas/${o.id}/print?tipo=factura`}
+                          >
+                            Factura
+                          </a>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 text-sm">
                         <span className="text-gray-600">PDF:</span>
-                        <a
-                          className="px-2 py-0.5 border rounded"
-                          target="_blank"
-                          href={`/api/orders/${o.id}/pdf?tipo=recibo&moneda=VES`}
-                        >
-                          Recibo
-                        </a>
-                        <a
-                          className="px-2 py-0.5 border rounded"
-                          target="_blank"
-                          href={`/api/orders/${o.id}/pdf?tipo=factura&moneda=VES`}
-                        >
-                          Factura
-                        </a>
+                        {docChoice !== "factura" && (
+                          <a
+                            className="px-2 py-0.5 border rounded"
+                            target="_blank"
+                            href={`/api/orders/${o.id}/pdf?tipo=recibo&moneda=VES`}
+                          >
+                            Recibo
+                          </a>
+                        )}
+                        {docChoice !== "recibo" && (
+                          <a
+                            className="px-2 py-0.5 border rounded"
+                            target="_blank"
+                            href={`/api/orders/${o.id}/pdf?tipo=factura&moneda=VES`}
+                          >
+                            Factura
+                          </a>
+                        )}
                         <PdfCopyMenu
                           orderId={o.id}
-                          defaultTipo="factura"
+                          defaultTipo={docChoice || "factura"}
                           defaultMoneda="VES"
                           hasPhone={!!o.user?.phone}
                           backTo="/dashboard/aliado/ventas"
@@ -114,9 +127,11 @@ export default async function VentasAliadoPage({ searchParams }: { searchParams?
                             className="px-2 py-0.5 border rounded text-green-700"
                             target="_blank"
                             href={(function(){
-                              const pdf = `${process.env.NEXT_PUBLIC_URL || ''}/api/orders/${o.id}/pdf?tipo=factura&moneda=VES`;
+                              const tipo = docChoice || 'factura';
+                              const pdf = `${process.env.NEXT_PUBLIC_URL || ''}/api/orders/${o.id}/pdf?tipo=${tipo}&moneda=VES`;
                               const code = o.id.slice(-6);
-                              const body = `Hola ${o.user?.name || 'cliente'}! Te comparto tu factura #${code}: ${pdf}`;
+                              const label = tipo === 'recibo' ? 'recibo' : 'factura';
+                              const body = `Hola ${o.user?.name || 'cliente'}! Te comparto tu ${label} #${code}: ${pdf}`;
                               const phone = String(o.user?.phone || '').replace(/[^0-9]/g,'');
                               return `https://wa.me/${phone}?text=${encodeURIComponent(body)}`;
                             })()}
@@ -125,6 +140,8 @@ export default async function VentasAliadoPage({ searchParams }: { searchParams?
                         </div>
                       )}
                     </div>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))}

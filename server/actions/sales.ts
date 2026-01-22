@@ -244,8 +244,8 @@ export async function createOfflineSale(formData: FormData) {
   const ivaPercentForm = formData.get('ivaPercent');
   const sendEmailFlag = String(formData.get('sendEmail') || '');
   const docTypeRaw = String(formData.get('docType') || 'recibo').toLowerCase();
-  const allowedDocs = ['recibo','nota','factura'];
-  const docType = (allowedDocs.includes(docTypeRaw) ? docTypeRaw : 'recibo') as 'recibo'|'nota'|'factura';
+  const allowedDocs = ['recibo','factura'];
+  const docType = (allowedDocs.includes(docTypeRaw) ? docTypeRaw : 'recibo') as 'recibo'|'factura';
   // Shipping address fields
   const incomingShippingAddressId = String(formData.get('shippingAddressId') || '');
   const addrState = String(formData.get('addr_state') || '').trim();
@@ -393,6 +393,7 @@ export async function createOfflineSale(formData: FormData) {
   const settings = await prisma.siteSettings.findUnique({ where: { id: 1 } });
   const ivaPercent = ivaPercentForm !== null ? Number(ivaPercentForm) : Number(settings?.ivaPercent || 16);
   const tasaVES = Number(settings?.tasaVES || 40);
+  const effectiveIvaPercent = docType === 'factura' ? ivaPercent : 0;
   const vesSalesDisabled = Boolean((settings as any)?.vesSalesDisabled ?? false);
   if (vesSalesDisabled && String(paymentCurrency) === 'VES') {
     try { await prisma.auditLog.create({ data: { userId: (session?.user as any)?.id, action: 'OFFLINE_SALE_VALIDATION_FAILED', details: 'VES sales disabled' } }); } catch {}
@@ -513,7 +514,7 @@ export async function createOfflineSale(formData: FormData) {
     eligibleSubtotalUSD: discountableSubtotalUSD,
   });
   const taxableBaseUSD = discount.subtotalAfterDiscount;
-  const totalUSD = taxableBaseUSD * (1 + ivaPercent/100);
+  const totalUSD = taxableBaseUSD * (1 + effectiveIvaPercent/100);
   const totalVES = totalUSD * tasaVES;
 
   const order = await prisma.$transaction(async (tx) => {
@@ -523,7 +524,7 @@ export async function createOfflineSale(formData: FormData) {
         sellerId: sellerId || null,
         originChannel: 'ERP' as any,
         subtotalUSD,
-        ivaPercent,
+        ivaPercent: effectiveIvaPercent,
         tasaVES,
         totalUSD,
         totalVES,
@@ -533,6 +534,7 @@ export async function createOfflineSale(formData: FormData) {
         customerTaxId: customerTaxId as any,
         customerFiscalAddress: customerFiscalAddress as any,
         originQuoteId: originQuoteId as any,
+        documentType: (docType === 'factura' ? 'FACTURA' : 'RECIBO') as any,
         shippingAddressId: finalShippingAddressId || null,
         items: {
           create: items.map((it) => ({ productId: it.productId, name: it.name || '', priceUSD: it.priceUSD as any, quantity: it.quantity }))
@@ -634,7 +636,7 @@ Total: ${totalTxt}.
   try { revalidatePath('/dashboard/admin/ventas'); } catch {}
   try { revalidatePath('/dashboard/aliado/ventas'); } catch {}
   const backTo = role === 'ALIADO' ? '/dashboard/aliado/ventas' : '/dashboard/admin/ventas';
-  redirect(`${backTo}?message=${encodeURIComponent(finalMessage)}&orderId=${encodeURIComponent(order.id)}`);
+  redirect(`${backTo}?message=${encodeURIComponent(finalMessage)}&orderId=${encodeURIComponent(order.id)}&docType=${encodeURIComponent(docType)}`);
 }
 
 export async function sendOrderWhatsAppByForm(formData: FormData) {
@@ -658,8 +660,10 @@ export async function sendOrderWhatsAppByForm(formData: FormData) {
     const brand = (await prisma.siteSettings.findUnique({ where: { id: 1 } }))?.brandName || 'Carpihogar';
     const totalTxt = `$${Number(order.totalUSD).toFixed(2)}`;
     const code = order.id.slice(-6);
+    const storedDocType = String((order as any).documentType || '').toUpperCase();
+    const docLabel = storedDocType === 'FACTURA' ? 'factura' : storedDocType === 'RECIBO' ? 'recibo' : 'recibo';
     const body = `Hola ${order.user?.name || 'cliente'}!
-Tu recibo ${code} ha sido generado.
+Tu ${docLabel} ${code} ha sido generado.
 Total: ${totalTxt}.
 Gracias por tu compra en ${brand}!`;
     const res = await sendWhatsAppText(phone, body);

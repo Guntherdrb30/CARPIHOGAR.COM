@@ -576,6 +576,11 @@ enum SaleType {
   CREDITO
 }
 
+enum OrderDocumentType {
+  RECIBO
+  FACTURA
+}
+
 enum PaymentMethod {
   PAGO_MOVIL
   TRANSFERENCIA
@@ -649,6 +654,8 @@ model Order {
   customerFiscalAddress String?
   // Vincula la orden con un presupuesto origen (si aplica)
   originQuoteId         String?
+  // Tipo de documento generado para esta venta (recibo o factura)
+  documentType          OrderDocumentType?
 
   // Back-relation to order auth tokens (WhatsApp confirmation)
   authTokens OrderAuthToken[]

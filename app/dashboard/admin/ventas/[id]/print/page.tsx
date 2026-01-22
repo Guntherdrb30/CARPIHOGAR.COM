@@ -2,6 +2,24 @@ import { getOrderById } from "@/server/actions/sales";
 import { getSettings } from "@/server/actions/settings";
 import PrintButton from "@/components/print-button";
 
+
+const formatDateDMY = (date: Date) => {
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yyyy = String(date.getFullYear());
+  return `${dd}/${mm}/${yyyy}`;
+};
+
+const paymentMethodLabel = (method?: string | null) => {
+  const raw = String(method || '').toUpperCase();
+  if (raw === 'EFECTIVO') return 'Efectivo';
+  if (raw === 'ZELLE') return 'Zelle';
+  if (raw === 'PAGO_MOVIL') return 'Pago Movil';
+  if (raw === 'TRANSFERENCIA') return 'Transferencia';
+  return raw || '-';
+};
+
+
 export default async function PrintSalePage({
   params,
   searchParams,
@@ -20,13 +38,18 @@ export default async function PrintSalePage({
 
   if (!order) return <div className="p-4">Venta no encontrada</div>;
 
-  // Las facturas legales s�lo se imprimen en Bs (VES)
+  const storedDocType = String((order as any).documentType || '').toUpperCase();
+  const effectiveTipo = storedDocType === 'RECIBO' ? 'recibo' : storedDocType === 'FACTURA' ? 'factura' : tipo;
+  const hasFixedDocType = storedDocType === 'RECIBO' || storedDocType === 'FACTURA';
+
+  // Las facturas legales solo se imprimen en Bs (VES)
   const moneda = 'VES';
   const ivaPercent = Number(order.ivaPercent || (settings as any).ivaPercent || 16);
   const tasaVES = Number(order.tasaVES || (settings as any).tasaVES || 40);
   const subtotalUSD = Number(order.subtotalUSD);
-  const ivaUSD = Number((subtotalUSD * ivaPercent) / 100);
-  const totalUSD = Number(subtotalUSD + ivaUSD);
+  const effectiveIvaPercent = effectiveTipo === 'factura' ? ivaPercent : 0;
+  const ivaUSD = Number((subtotalUSD * effectiveIvaPercent) / 100);
+  const totalUSD = effectiveTipo === 'factura' ? Number(subtotalUSD + ivaUSD) : Number(order.totalUSD || subtotalUSD);
 
   const toMoney = (v: number) => v * tasaVES;
   const fmt = (v: number) => `Bs ${v.toFixed(2)}`;
@@ -34,23 +57,27 @@ export default async function PrintSalePage({
   const invoiceNumber = (order as any).invoiceNumber as number | null | undefined;
   const receiptNumber = (order as any).receiptNumber as number | null | undefined;
   const code =
-    tipo === "factura"
+    effectiveTipo === "factura"
       ? invoiceNumber
         ? String(invoiceNumber).padStart(6, "0")
         : order.id.slice(-6)
       : receiptNumber
-      ? String(receiptNumber).padStart(6, "0")
+      ? String(receiptNumber).padStart(8, "0")
       : order.id.slice(-6);
 
   const titleMap: any = { recibo: 'Recibo', factura: 'Factura' };
-  const title = titleMap[tipo] || 'Comprobante';
+  const title = titleMap[effectiveTipo] || 'Comprobante';
 
   return (
     <div className="p-6 text-sm">
       <div className="flex items-center justify-between mb-4 print:hidden">
         <div className="space-x-2">
-          <a className="px-3 py-1 border rounded" href={`?tipo=recibo`}>Recibo</a>
-          <a className="px-3 py-1 border rounded" href={`?tipo=factura`}>Factura</a>
+          {!hasFixedDocType && effectiveTipo !== 'factura' && (
+            <a className="px-3 py-1 border rounded" href={`?tipo=recibo`}>Recibo</a>
+          )}
+          {!hasFixedDocType && effectiveTipo !== 'recibo' && (
+            <a className="px-3 py-1 border rounded" href={`?tipo=factura`}>Factura</a>
+          )}
         </div>
         <PrintButton />
       </div>
@@ -69,28 +96,29 @@ export default async function PrintSalePage({
         <div className="flex justify-between mb-4">
           <div>
             <div className="font-semibold">{title}</div>
-            <div className="text-gray-600">N°: {code}</div>
-            <div className="text-gray-600">Fecha: {new Date(order.createdAt as any).toLocaleString()}</div>
+            <div className="text-gray-600">Nro: {code}</div>
+            <div className="text-gray-600">Fecha: {formatDateDMY(new Date(order.createdAt as any))}</div>
+            <div className="text-gray-600">Metodo: {paymentMethodLabel(order.payment?.method)}</div>
             <div className="text-gray-600">Moneda: {moneda}</div>
-            <div className="text-gray-600">IVA: {ivaPercent}%</div>
+            {effectiveTipo === 'factura' && (<div className="text-gray-600">IVA: {ivaPercent}%</div>)}
             {moneda === 'VES' && <div className="text-gray-600">Tasa: {tasaVES}</div>}
           </div>
           <div>
             <div className="font-semibold">Cliente</div>
             <div>{order.user?.name || order.user?.email}</div>
-            {tipo === 'factura' && (
+            {effectiveTipo === 'factura' && (
               <div className="text-gray-600 mt-1">
                 {order.customerTaxId && (<div>Cedula/RIF: {order.customerTaxId}</div>)}
                 {order.customerFiscalAddress && (<div>Direccion fiscal: {order.customerFiscalAddress}</div>)}
               </div>
             )}
-            {tipo !== 'factura' && order.payment && (
+            {effectiveTipo !== 'factura' && order.payment && (
               <div className="text-gray-600 mt-1">
                 Pago: {order.payment.method} - {order.payment.currency}
                 {order.payment.reference ? ` - Ref: ${order.payment.reference}` : ''}
               </div>
             )}
-            {tipo !== 'factura' && order.payment?.method === 'PAGO_MOVIL' && (
+            {effectiveTipo !== 'factura' && order.payment?.method === 'PAGO_MOVIL' && (
               <div className="text-gray-600 mt-1">
                 {order.payment.payerName && (<div>Titular: {order.payment.payerName}</div>)}
                 {order.payment.payerPhone && (<div>Telefono: {order.payment.payerPhone}</div>)}
@@ -146,12 +174,16 @@ export default async function PrintSalePage({
         <div className="flex justify-end">
           <div className="w-64">
             <div className="flex justify-between"><span>Subtotal</span><span>{fmt(toMoney(subtotalUSD))}</span></div>
-            <div className="flex justify-between"><span>IVA ({ivaPercent}%)</span><span>{fmt(toMoney(ivaUSD))}</span></div>
+            {effectiveTipo === 'factura' && (
+              <div className="flex justify-between"><span>IVA ({ivaPercent}%)</span><span>{fmt(toMoney(ivaUSD))}</span></div>
+            )}
             <div className="flex justify-between font-semibold border-t mt-1 pt-1"><span>Total</span><span>{fmt(toMoney(totalUSD))}</span></div>
           </div>
         </div>
 
-        <div className="text-gray-500 text-xs mt-6">Este documento es generado por el sistema. {tipo === 'nota' ? 'No constituye factura.' : ''}</div>
+        <div className="text-gray-500 text-xs mt-6">
+          Este documento es generado por el sistema. {effectiveTipo === 'factura' ? '' : 'No constituye factura fiscal.'}
+        </div>
       </div>
     </div>
   );
