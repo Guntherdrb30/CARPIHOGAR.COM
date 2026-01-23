@@ -51,6 +51,11 @@ export default async function AdminSalesPage({
   return (
     <div className="container mx-auto p-4 space-y-4">
       <h1 className="text-2xl font-bold">Ventas</h1>
+      <div className="text-sm">
+        <a href="/dashboard/admin/ventas/espera" className="text-blue-600 hover:underline">
+          Ver ventas en espera
+        </a>
+      </div>
 
       {message && (
         <div className="border border-green-200 bg-green-50 text-green-800 px-3 py-2 rounded space-y-2">

@@ -76,6 +76,148 @@ export async function getSales(params?: { sellerId?: string; invoice?: string; c
   return orders;
 }
 
+export async function getSaleHolds(params?: { sellerId?: string; q?: string }) {
+  const where: any = {};
+  if (params?.sellerId) where.sellerId = params.sellerId;
+  const q = String(params?.q || '').trim();
+  if (q) {
+    where.OR = [
+      { customerName: { contains: q, mode: 'insensitive' } as any },
+      { customerEmail: { contains: q, mode: 'insensitive' } as any },
+      { customerPhone: { contains: q, mode: 'insensitive' } as any },
+      { customerTaxId: { contains: q, mode: 'insensitive' } as any },
+    ];
+  }
+  return prisma.saleHold.findMany({
+    where,
+    include: { seller: true, createdBy: true },
+    orderBy: { updatedAt: 'desc' },
+  });
+}
+
+export async function getSaleHoldById(id: string) {
+  if (!id) return null;
+  return prisma.saleHold.findUnique({
+    where: { id },
+    include: { seller: true, createdBy: true },
+  });
+}
+
+export async function saveSaleHold(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  const role = String((session?.user as any)?.role || '');
+  if (!['ADMIN', 'VENDEDOR', 'ALIADO'].includes(role)) {
+    throw new Error('Not authorized');
+  }
+  const backNewSale = role === 'ALIADO' ? '/dashboard/aliado/ventas/nueva' : '/dashboard/admin/ventas/nueva';
+  const holdId = String(formData.get('holdId') || '').trim();
+  const rawItems = String(formData.get('itemsDetail') || formData.get('items') || '[]');
+  let items: any[] = [];
+  try {
+    items = JSON.parse(rawItems || '[]');
+  } catch {
+    items = [];
+  }
+  if (!items.length) {
+    redirect(`${backNewSale}?error=${encodeURIComponent('Debes agregar al menos un producto para poner en espera.')}`);
+  }
+  let sellerId = String(formData.get('sellerId') || '');
+  if (role === 'ALIADO') {
+    sellerId = String((session?.user as any)?.id || '');
+  }
+  const customerName = String(formData.get('customerName') || '').trim() || null;
+  const customerEmail = String(formData.get('customerEmail') || '').trim() || null;
+  const customerPhone = String(formData.get('customerPhone') || '').trim() || null;
+  const customerTaxId = String(formData.get('customerTaxId') || '').trim() || null;
+  const customerFiscalAddress = String(formData.get('customerFiscalAddress') || '').trim() || null;
+  const totalUSD = Number(formData.get('holdTotalUSD') || 0) || null;
+  const meta = {
+    priceMode: String(formData.get('priceMode') || ''),
+    paymentMethod: String(formData.get('paymentMethod') || ''),
+    paymentCurrency: String(formData.get('paymentCurrency') || ''),
+    paymentReference: String(formData.get('paymentReference') || ''),
+    pmPayerName: String(formData.get('pm_payer_name') || ''),
+    pmPayerPhone: String(formData.get('pm_payer_phone') || ''),
+    pmBank: String(formData.get('pm_bank') || ''),
+    sendEmail: String(formData.get('sendEmail') || ''),
+    docType: String(formData.get('docType') || ''),
+    saleType: String(formData.get('saleType') || ''),
+    creditDueDate: String(formData.get('creditDueDate') || ''),
+    shippingLocalOption: String(formData.get('shippingLocalOption') || ''),
+    originQuoteId: String(formData.get('originQuoteId') || ''),
+    addrMode: String(formData.get('addrMode') || ''),
+    selectedAddressId: String(formData.get('shippingAddressId') || ''),
+    addrState: String(formData.get('addr_state') || ''),
+    addrCity: String(formData.get('addr_city') || ''),
+    addrZone: String(formData.get('addr_zone') || ''),
+    addr1: String(formData.get('addr_address1') || ''),
+    addr2: String(formData.get('addr_address2') || ''),
+    addrNotes: String(formData.get('addr_notes') || ''),
+  };
+  const userId = String((session?.user as any)?.id || '');
+  let existing: any = null;
+  if (holdId) {
+    existing = await prisma.saleHold.findUnique({ where: { id: holdId } });
+  }
+  if (existing) {
+    if (role !== 'ADMIN' && existing.createdById !== userId && existing.sellerId !== userId) {
+      throw new Error('Not authorized');
+    }
+    await prisma.saleHold.update({
+      where: { id: existing.id },
+      data: {
+        sellerId: sellerId || null,
+        customerName,
+        customerEmail,
+        customerPhone,
+        customerTaxId,
+        customerFiscalAddress,
+        items,
+        meta,
+        totalUSD: totalUSD as any,
+      },
+    });
+  } else {
+    await prisma.saleHold.create({
+      data: {
+        createdById: userId || null,
+        sellerId: sellerId || null,
+        customerName,
+        customerEmail,
+        customerPhone,
+        customerTaxId,
+        customerFiscalAddress,
+        items,
+        meta,
+        totalUSD: totalUSD as any,
+      },
+    });
+  }
+  try { revalidatePath('/dashboard/admin/ventas/espera'); } catch {}
+  try { revalidatePath('/dashboard/aliado/ventas/espera'); } catch {}
+  redirect(`${backNewSale}?message=${encodeURIComponent('Venta en espera guardada')}`);
+}
+
+export async function deleteSaleHold(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  const role = String((session?.user as any)?.role || '');
+  if (!['ADMIN', 'VENDEDOR', 'ALIADO'].includes(role)) throw new Error('Not authorized');
+  const holdId = String(formData.get('holdId') || '');
+  const backToDefault = role === 'ALIADO' ? '/dashboard/aliado/ventas/espera' : '/dashboard/admin/ventas/espera';
+  const backTo = String(formData.get('backTo') || '') || backToDefault;
+  if (!holdId) redirect(`${backTo}?message=${encodeURIComponent('Venta en espera no encontrada')}`);
+  const existing = await prisma.saleHold.findUnique({ where: { id: holdId } });
+  if (!existing) redirect(`${backTo}?message=${encodeURIComponent('Venta en espera no encontrada')}`);
+  const userId = String((session?.user as any)?.id || '');
+  if (role !== 'ADMIN' && existing.createdById !== userId && existing.sellerId !== userId) {
+    throw new Error('Not authorized');
+  }
+  await prisma.saleHold.delete({ where: { id: holdId } });
+  try { revalidatePath('/dashboard/admin/ventas/espera'); } catch {}
+  try { revalidatePath('/dashboard/aliado/ventas/espera'); } catch {}
+  redirect(`${backTo}?message=${encodeURIComponent('Venta en espera eliminada')}`);
+}
+
 export async function markSaleReviewed(formData: FormData) {
   const session = await getServerSession(authOptions);
   if ((session?.user as any)?.role !== 'ADMIN') {
@@ -241,6 +383,7 @@ export async function createOfflineSale(formData: FormData) {
   const customerTaxId = (String(formData.get('customerTaxId') || '').trim() || null);
   const customerFiscalAddress = (String(formData.get('customerFiscalAddress') || '').trim() || null);
   const originQuoteId = (String(formData.get('originQuoteId') || '').trim() || null);
+  const holdId = (String(formData.get('holdId') || '').trim() || null);
   const ivaPercentForm = formData.get('ivaPercent');
   const sendEmailFlag = String(formData.get('sendEmail') || '');
   const docTypeRaw = String(formData.get('docType') || 'recibo').toLowerCase();
@@ -629,6 +772,16 @@ Total: ${totalTxt}.
   if (sellerId && sellerRole === 'VENDEDOR') {
     const amountUSD = Number((totalUSD * commissionPercent) / 100);
     await prisma.commission.create({ data: { orderId: order.id, sellerId, percent: commissionPercent as any, amountUSD: amountUSD as any } });
+  }
+
+  if (holdId) {
+    try {
+      const hold = await prisma.saleHold.findUnique({ where: { id: holdId }, select: { id: true, createdById: true, sellerId: true } });
+      const userId = String((session?.user as any)?.id || '');
+      if (hold && (role === 'ADMIN' || hold.createdById === userId || hold.sellerId === userId)) {
+        await prisma.saleHold.delete({ where: { id: holdId } });
+      }
+    } catch {}
   }
 
   const finalMessage = customerCreated ? `${successMessage} - Cliente creado para tienda online` : successMessage;

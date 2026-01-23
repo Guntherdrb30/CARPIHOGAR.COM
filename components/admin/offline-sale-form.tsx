@@ -37,6 +37,7 @@ export default function OfflineSaleForm({
   ivaPercent,
   tasaVES,
   action,
+  holdAction,
   initialItems,
   fixedSellerId,
   initialShippingLocalOption,
@@ -49,6 +50,25 @@ export default function OfflineSaleForm({
   initialCustomerFiscalAddress,
   initialPriceMode = "P1",
   maxPriceMode = "P2",
+  holdId,
+  initialPaymentMethod = "ZELLE",
+  initialPaymentCurrency = "USD",
+  initialPaymentReference = "",
+  initialPmPayerName = "",
+  initialPmPayerPhone = "",
+  initialPmPayerBank = "",
+  initialSendEmail = false,
+  initialDocType = "factura",
+  initialSaleType = "CONTADO",
+  initialCreditDueDate = "",
+  initialAddressMode = "new",
+  initialSelectedAddressId = "",
+  initialAddrState = "",
+  initialAddrCity = "",
+  initialAddrZone = "",
+  initialAddr1 = "",
+  initialAddr2 = "",
+  initialAddrNotes = "",
   allowCredit = true,
   unlockCreditWithDeleteSecret = false,
   vesSalesDisabled = false,
@@ -60,6 +80,7 @@ export default function OfflineSaleForm({
   ivaPercent: number;
   tasaVES: number;
   action: (formData: FormData) => void;
+  holdAction?: (formData: FormData) => void;
   initialItems?: Line[];
   fixedSellerId?: string;
   initialShippingLocalOption?: "RETIRO_TIENDA" | "DELIVERY" | "";
@@ -72,6 +93,25 @@ export default function OfflineSaleForm({
   initialCustomerFiscalAddress?: string;
   initialPriceMode?: PriceMode;
   maxPriceMode?: PriceMode;
+  holdId?: string;
+  initialPaymentMethod?: "PAGO_MOVIL" | "TRANSFERENCIA" | "ZELLE" | "EFECTIVO";
+  initialPaymentCurrency?: "USD" | "VES";
+  initialPaymentReference?: string;
+  initialPmPayerName?: string;
+  initialPmPayerPhone?: string;
+  initialPmPayerBank?: string;
+  initialSendEmail?: boolean;
+  initialDocType?: "recibo" | "factura";
+  initialSaleType?: "CONTADO" | "CREDITO";
+  initialCreditDueDate?: string;
+  initialAddressMode?: "saved" | "new";
+  initialSelectedAddressId?: string;
+  initialAddrState?: string;
+  initialAddrCity?: string;
+  initialAddrZone?: string;
+  initialAddr1?: string;
+  initialAddr2?: string;
+  initialAddrNotes?: string;
   allowCredit?: boolean;
   unlockCreditWithDeleteSecret?: boolean;
   vesSalesDisabled?: boolean;
@@ -89,17 +129,17 @@ export default function OfflineSaleForm({
   const [customerTaxId, setCustomerTaxId] = useState(initialCustomerTaxId || "");
   const [customerFiscalAddress, setCustomerFiscalAddress] = useState(initialCustomerFiscalAddress || "");
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"PAGO_MOVIL" | "TRANSFERENCIA" | "ZELLE" | "EFECTIVO">("ZELLE");
-  const [paymentCurrency, setPaymentCurrency] = useState<"USD" | "VES">("USD");
-  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"PAGO_MOVIL" | "TRANSFERENCIA" | "ZELLE" | "EFECTIVO">(initialPaymentMethod);
+  const [paymentCurrency, setPaymentCurrency] = useState<"USD" | "VES">(initialPaymentCurrency);
+  const [paymentReference, setPaymentReference] = useState(initialPaymentReference);
   const [error, setError] = useState<string>("");
-  const [pmPayerName, setPmPayerName] = useState("");
-  const [pmPayerPhone, setPmPayerPhone] = useState("");
-  const [pmBank, setPmBank] = useState("");
-  const [sendEmail, setSendEmail] = useState(false);
-  const [docType, setDocType] = useState<'recibo' | 'factura'>('factura');
+  const [pmPayerName, setPmPayerName] = useState(initialPmPayerName);
+  const [pmPayerPhone, setPmPayerPhone] = useState(initialPmPayerPhone);
+  const [pmBank, setPmBank] = useState(initialPmPayerBank);
+  const [sendEmail, setSendEmail] = useState(!!initialSendEmail);
+  const [docType, setDocType] = useState<'recibo' | 'factura'>(initialDocType);
   const [shippingLocalOption, setShippingLocalOption] = useState<'RETIRO_TIENDA' | 'DELIVERY' | ''>(initialShippingLocalOption || '');
-  const [saleType, setSaleType] = useState<"CONTADO" | "CREDITO">("CONTADO");
+  const [saleType, setSaleType] = useState<"CONTADO" | "CREDITO">(initialSaleType);
   const [allowCreditUi, setAllowCreditUi] = useState<boolean>(!!allowCredit);
   const [deleteSecret, setDeleteSecret] = useState<string>("");
   useEffect(() => { if (!allowCreditUi && saleType !== 'CONTADO') setSaleType('CONTADO'); }, [allowCreditUi, saleType]);
@@ -108,18 +148,18 @@ export default function OfflineSaleForm({
       setPaymentCurrency('USD');
     }
   }, [vesSalesDisabled, paymentCurrency]);
-  const [creditDueDate, setCreditDueDate] = useState<string>("");
+  const [creditDueDate, setCreditDueDate] = useState<string>(initialCreditDueDate);
   // Direcciones
   type Address = { id: string; fullname: string; phone: string; state: string; city: string; zone?: string | null; address1: string; address2?: string | null; notes?: string | null };
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
-  const [addrMode, setAddrMode] = useState<'saved'|'new'>('new');
-  const [selectedAddressId, setSelectedAddressId] = useState<string>("");
-  const [addrState, setAddrState] = useState<string>("");
-  const [addrCity, setAddrCity] = useState<string>("");
-  const [addrZone, setAddrZone] = useState<string>("");
-  const [addr1, setAddr1] = useState<string>("");
-  const [addr2, setAddr2] = useState<string>("");
-  const [addrNotes, setAddrNotes] = useState<string>("");
+  const [addrMode, setAddrMode] = useState<'saved'|'new'>(initialAddressMode);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>(initialSelectedAddressId);
+  const [addrState, setAddrState] = useState<string>(initialAddrState);
+  const [addrCity, setAddrCity] = useState<string>(initialAddrCity);
+  const [addrZone, setAddrZone] = useState<string>(initialAddrZone);
+  const [addr1, setAddr1] = useState<string>(initialAddr1);
+  const [addr2, setAddr2] = useState<string>(initialAddr2);
+  const [addrNotes, setAddrNotes] = useState<string>(initialAddrNotes);
   const [cities, setCities] = useState<string[]>([]);
   const [customerSearch, setCustomerSearch] = useState<string>("");
   const [customerSearchResults, setCustomerSearchResults] = useState<CustomerSearchResult[]>([]);
@@ -192,15 +232,20 @@ export default function OfflineSaleForm({
 
         setSavedAddresses(addresses);
         if (addresses.length) {
-          const first = addresses[0];
-          setAddrMode("saved");
-          setSelectedAddressId(first.id);
-          setAddrState(first.state || "");
-          setAddrCity(first.city || "");
-          setAddrZone(first.zone || "");
-          setAddr1(first.address1 || "");
-          setAddr2(first.address2 || "");
-          setAddrNotes(first.notes || "");
+          const keepManual =
+            addrMode === "new" && (!!addr1 || !!addrState || !!addrCity);
+          const selected = addresses.find((a) => a.id === selectedAddressId);
+          const nextAddress = selected || addresses[0];
+          if (!keepManual) {
+            setAddrMode("saved");
+            setSelectedAddressId(nextAddress.id);
+            setAddrState(nextAddress.state || "");
+            setAddrCity(nextAddress.city || "");
+            setAddrZone(nextAddress.zone || "");
+            setAddr1(nextAddress.address1 || "");
+            setAddr2(nextAddress.address2 || "");
+            setAddrNotes(nextAddress.notes || "");
+          }
         } else {
           setAddrMode("new");
           setSelectedAddressId("");
@@ -208,7 +253,18 @@ export default function OfflineSaleForm({
       } catch {}
     }, 500);
     return () => clearTimeout(t);
-  }, [customerEmail, customerPhone, customerTaxId, customerName, customerFiscalAddress]);
+  }, [
+    customerEmail,
+    customerPhone,
+    customerTaxId,
+    customerName,
+    customerFiscalAddress,
+    addrMode,
+    addr1,
+    addrState,
+    addrCity,
+    selectedAddressId,
+  ]);
 
   // Actualizar ciudades al cambiar estado
   useEffect(() => {
@@ -373,6 +429,21 @@ export default function OfflineSaleForm({
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     setError("");
+    const submitter = (e.nativeEvent as any)?.submitter as HTMLButtonElement | null;
+    const submitAction = submitter?.dataset?.action || "";
+    if (submitAction === "hold") {
+      if (!items.length) {
+        e.preventDefault();
+        setError("Debes agregar al menos un producto.");
+        return;
+      }
+      if (!sellerId) {
+        e.preventDefault();
+        setError("Selecciona vendedor.");
+        return;
+      }
+      return;
+    }
     if (!items.length) {
       e.preventDefault();
       setError('Debes agregar al menos un producto.');
@@ -749,6 +820,11 @@ export default function OfflineSaleForm({
       </div>
 
       <input type="hidden" name="items" value={JSON.stringify(items.map(({ productId, name, priceUSD, quantity }) => ({ productId, name, priceUSD, quantity })))} />
+      <input type="hidden" name="itemsDetail" value={JSON.stringify(items)} />
+      <input type="hidden" name="priceMode" value={globalMode} />
+      <input type="hidden" name="holdTotalUSD" value={String(totals.totalUSD)} />
+      <input type="hidden" name="addrMode" value={addrMode} />
+      {holdId ? (<input type="hidden" name="holdId" value={holdId} />) : null}
       {originQuoteId ? (<input type="hidden" name="originQuoteId" value={originQuoteId} />) : null}
       <input type="hidden" name="ivaPercent" value={String(ivaPercent)} />
       <input type="hidden" name="tasaVES" value={String(tasaVES)} />
@@ -863,10 +939,22 @@ export default function OfflineSaleForm({
         </div>
       </div>
 
-      <div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
         <button disabled={loading || !items.length || !sellerId} formNoValidate={saleType === 'CREDITO'} className="bg-green-600 text-white px-3 py-2 rounded disabled:opacity-50">
           Crear Venta
         </button>
+        {holdAction && (
+          <button
+            type="submit"
+            formAction={holdAction}
+            formNoValidate
+            data-action="hold"
+            disabled={!items.length || !sellerId}
+            className="bg-yellow-500 text-white px-3 py-2 rounded disabled:opacity-50"
+          >
+            Poner en espera
+          </button>
+        )}
       </div>
     </form>
   );
