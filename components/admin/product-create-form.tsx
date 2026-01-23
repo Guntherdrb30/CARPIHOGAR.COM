@@ -34,13 +34,38 @@ export default function ProductCreateForm({
     const stockMinUnits = parseInt(String(formData.get("stockMinUnits") || "0"), 10);
     const allowBackorder = String(formData.get("allowBackorder") || "") === "on";
     let priceUSD = parseFloat(String(formData.get("priceUSD") || "0"));
-    const priceAllyUSD = formData.get("priceAllyUSD") ? parseFloat(String(formData.get("priceAllyUSD"))) : null;
-    const priceWholesaleUSD = formData.get("priceWholesaleUSD")
+    let priceAllyUSD = formData.get("priceAllyUSD") ? parseFloat(String(formData.get("priceAllyUSD"))) : null;
+    let priceWholesaleUSD = formData.get("priceWholesaleUSD")
       ? parseFloat(String(formData.get("priceWholesaleUSD")))
       : null;
     const basePriceUsdInput = String(formData.get("basePriceUsd") || "").trim();
     const basePriceUsdParsed = basePriceUsdInput ? parseFloat(basePriceUsdInput) : NaN;
     let basePriceUsd = Number.isFinite(basePriceUsdParsed) ? basePriceUsdParsed : priceUSD;
+    const marginClientPctInput = String(formData.get("marginClientPct") || "").trim();
+    const marginAllyPctInput = String(formData.get("marginAllyPct") || "").trim();
+    const marginWholesalePctInput = String(formData.get("marginWholesalePct") || "").trim();
+    const marginClientPct = marginClientPctInput.length ? parseFloat(marginClientPctInput) : null;
+    const marginAllyPct = marginAllyPctInput.length ? parseFloat(marginAllyPctInput) : null;
+    const marginWholesalePct = marginWholesalePctInput.length ? parseFloat(marginWholesalePctInput) : null;
+    const computePrice = (base: number, margin: number | null) => {
+      if (!Number.isFinite(base)) return null;
+      const pct = margin != null && Number.isFinite(margin) ? margin : 0;
+      return Number((base * (1 + pct / 100)).toFixed(2));
+    };
+    if (Number.isFinite(basePriceUsd)) {
+      if (marginClientPct != null && Number.isFinite(marginClientPct)) {
+        const computed = computePrice(basePriceUsd, marginClientPct);
+        if (computed != null) priceUSD = computed;
+      }
+      if (marginAllyPct != null && Number.isFinite(marginAllyPct)) {
+        const computed = computePrice(basePriceUsd, marginAllyPct);
+        if (computed != null) priceAllyUSD = computed;
+      }
+      if (marginWholesalePct != null && Number.isFinite(marginWholesalePct)) {
+        const computed = computePrice(basePriceUsd, marginWholesalePct);
+        if (computed != null) priceWholesaleUSD = computed;
+      }
+    }
     const unitsPerPackage =
       type === "GROUPED" ? parseInt(String(formData.get("unitsPerPackage") || "0"), 10) || null : null;
     const stockPackages =
@@ -129,6 +154,9 @@ export default function ProductCreateForm({
       priceAllyUSD,
       priceWholesaleUSD,
       basePriceUsd,
+      marginClientPct,
+      marginAllyPct,
+      marginWholesalePct,
       isActive,
       productFamily,
       isParametric,

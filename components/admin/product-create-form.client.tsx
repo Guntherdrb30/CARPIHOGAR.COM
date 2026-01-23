@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { PendingButton } from "@/components/pending-button";
 import ProductMediaManager from "@/components/admin/product-media-manager";
 import RelatedProductsPicker from "@/components/admin/related-products-picker";
+import ProductPricingFields from "@/components/admin/product-pricing-fields.client";
 
 type ProductCreateFormClientProps = {
   products: any[];
@@ -34,6 +36,9 @@ export default function ProductCreateFormClient({
   );
   const isParametricFurniture = productFamily === "PARAMETRIC_FURNITURE";
   const isKitchenModule = productFamily === "KITCHEN_MODULE";
+  const { data: session } = useSession();
+  const role = String((session?.user as any)?.role || "");
+  const canEditPricing = role === "ADMIN";
 
   return (
     <details className="form-card" open={defaultOpen}>
@@ -83,28 +88,7 @@ export default function ProductCreateFormClient({
 
         {!isKitchenModule ? (
           <>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Precio base (USD)</label>
-              <input name="basePriceUsd" type="number" step="0.01" placeholder="Precio base" className="form-input" />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Precio Cliente (USD)</label>
-              <input name="priceUSD" type="number" step="0.01" placeholder="Precio Cliente" className="form-input" required />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Precio Aliado (USD)</label>
-              <input name="priceAllyUSD" type="number" step="0.01" placeholder="Precio Aliado" className="form-input" />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Precio Mayorista (USD)</label>
-              <input
-                name="priceWholesaleUSD"
-                type="number"
-                step="0.01"
-                placeholder="Precio Mayorista"
-                className="form-input"
-              />
-            </div>
+            <ProductPricingFields canEdit={canEditPricing} requiredBase requiredClientPrice />
           </>
         ) : (
           <div className="md:col-span-3 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">

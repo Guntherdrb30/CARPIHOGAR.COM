@@ -4,6 +4,7 @@ import { getProductById, updateProductFull, getRelatedIds, getProducts } from "@
 import ProductMediaManager from "@/components/admin/product-media-manager";
 import RelatedProductsPicker from "@/components/admin/related-products-picker";
 import Model3DPanel from "@/components/admin/model3d-panel";
+import ProductPricingFields from "@/components/admin/product-pricing-fields.client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -46,6 +47,7 @@ export default async function EditProductPage({ params }: { params: { id: string
   const role = String((session?.user as any)?.role || "");
   const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
   const isRoot = role === "ADMIN" && email === rootEmail;
+  const canEditPricing = role === "ADMIN";
 
   return (
     <div className="container mx-auto p-4 space-y-4">
@@ -183,40 +185,20 @@ export default async function EditProductPage({ params }: { params: { id: string
         {/* SECCIÓN 3 – Precios */}
         {!isKitchenModule ? (
           <>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Precio Cliente (USD)</label>
-              <input
-                name="priceUSD"
-                type="number"
-                step="0.01"
-                defaultValue={Number(product.priceUSD)}
-                placeholder="Precio Cliente"
-                className="border rounded px-2 py-1"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Precio Aliado (USD)</label>
-              <input
-                name="priceAllyUSD"
-                type="number"
-                step="0.01"
-                defaultValue={product.priceAllyUSD ? Number(product.priceAllyUSD) : undefined}
-                placeholder="Precio Aliado (opcional)"
-                className="border rounded px-2 py-1"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-700 mb-1">Precio Mayorista (USD)</label>
-              <input
-                name="priceWholesaleUSD"
-                type="number"
-                step="0.01"
-                defaultValue={(product as any).priceWholesaleUSD ? Number((product as any).priceWholesaleUSD) : undefined}
-                placeholder="Precio Mayorista (opcional)"
-                className="border rounded px-2 py-1"
-              />
-            </div>
+            <ProductPricingFields
+              basePriceUsd={(product as any).basePriceUsd ? Number((product as any).basePriceUsd) : null}
+              priceUSD={product.priceUSD ? Number(product.priceUSD) : null}
+              priceAllyUSD={(product as any).priceAllyUSD ? Number((product as any).priceAllyUSD) : null}
+              priceWholesaleUSD={(product as any).priceWholesaleUSD ? Number((product as any).priceWholesaleUSD) : null}
+              marginClientPct={(product as any).marginClientPct ? Number((product as any).marginClientPct) : null}
+              marginAllyPct={(product as any).marginAllyPct ? Number((product as any).marginAllyPct) : null}
+              marginWholesalePct={(product as any).marginWholesalePct ? Number((product as any).marginWholesalePct) : null}
+              canEdit={canEditPricing}
+              inputClassName="border rounded px-2 py-1"
+              labelClassName="block text-sm text-gray-700 mb-1"
+              requiredBase
+              requiredClientPrice
+            />
           </>
         ) : (
           <div className="md:col-span-3 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">

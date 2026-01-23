@@ -655,6 +655,27 @@ export async function updateProductFull(formData: FormData) {
         : [];
     const type = String(formData.get('type') || 'SIMPLE').toUpperCase() as any;
 
+    const basePriceUsdInput = formData.get('basePriceUsd');
+    const basePriceUsd =
+        basePriceUsdInput != null && String(basePriceUsdInput).length
+            ? parseFloat(String(basePriceUsdInput))
+            : null;
+    const marginClientPctInput = formData.get('marginClientPct');
+    const marginClientPct =
+        marginClientPctInput != null && String(marginClientPctInput).length
+            ? parseFloat(String(marginClientPctInput))
+            : null;
+    const marginAllyPctInput = formData.get('marginAllyPct');
+    const marginAllyPct =
+        marginAllyPctInput != null && String(marginAllyPctInput).length
+            ? parseFloat(String(marginAllyPctInput))
+            : null;
+    const marginWholesalePctInput = formData.get('marginWholesalePct');
+    const marginWholesalePct =
+        marginWholesalePctInput != null && String(marginWholesalePctInput).length
+            ? parseFloat(String(marginWholesalePctInput))
+            : null;
+
     const priceUSDInput = formData.get('priceUSD');
     const priceUSDParsed =
         priceUSDInput != null && String(priceUSDInput).length
@@ -702,12 +723,37 @@ export async function updateProductFull(formData: FormData) {
             : currentProduct?.priceUSD != null
                 ? Number((currentProduct as any).priceUSD)
                 : 0;
+    const resolvedBasePriceUsd =
+        basePriceUsd != null && Number.isFinite(basePriceUsd)
+            ? basePriceUsd
+            : (currentProduct as any)?.basePriceUsd != null
+                ? Number((currentProduct as any).basePriceUsd)
+                : null;
+    const computePrice = (base: number | null, margin: number | null) => {
+        if (base == null || !Number.isFinite(base)) return null;
+        const pct = margin != null && Number.isFinite(margin) ? margin : 0;
+        return Number((base * (1 + pct / 100)).toFixed(2));
+    };
+    const computedClientPrice =
+        resolvedBasePriceUsd != null && marginClientPct != null
+            ? computePrice(resolvedBasePriceUsd, marginClientPct)
+            : null;
+    const computedAllyPrice =
+        resolvedBasePriceUsd != null && marginAllyPct != null
+            ? computePrice(resolvedBasePriceUsd, marginAllyPct)
+            : null;
+    const computedWholesalePrice =
+        resolvedBasePriceUsd != null && marginWholesalePct != null
+            ? computePrice(resolvedBasePriceUsd, marginWholesalePct)
+            : null;
     const resolvedPriceUSD =
-        priceUSD != null
-            ? priceUSD
-            : isKitchenModule && resolvedKitchenMid != null
-                ? resolvedKitchenMid
-                : currentPriceUsd;
+        computedClientPrice != null
+            ? computedClientPrice
+            : priceUSD != null
+                ? priceUSD
+                : isKitchenModule && resolvedKitchenMid != null
+                    ? resolvedKitchenMid
+                    : currentPriceUsd;
 
     const stockUnits = parseInt(String(formData.get('stockUnits') || '0'), 10);
     const stockMinUnits = parseInt(String(formData.get('stockMinUnits') || '0'), 10);
@@ -803,13 +849,25 @@ export async function updateProductFull(formData: FormData) {
         updateData.kitchenPriceHighUsd = kitchenPriceHighUsd as any;
     }
     if (formData.has('priceAllyUSD')) {
-        updateData.priceAllyUSD = priceAllyUSD as any;
+        updateData.priceAllyUSD = (computedAllyPrice != null ? computedAllyPrice : priceAllyUSD) as any;
     }
     if (formData.has('priceWholesaleUSD')) {
-        updateData.priceWholesaleUSD = priceWholesaleUSD as any;
+        updateData.priceWholesaleUSD = (computedWholesalePrice != null ? computedWholesalePrice : priceWholesaleUSD) as any;
     }
     if (isKitchenModule && resolvedKitchenMid != null) {
         updateData.basePriceUsd = resolvedKitchenMid as any;
+    }
+    if (!isKitchenModule && formData.has('basePriceUsd')) {
+        updateData.basePriceUsd = resolvedBasePriceUsd as any;
+    }
+    if (formData.has('marginClientPct')) {
+        updateData.marginClientPct = marginClientPct as any;
+    }
+    if (formData.has('marginAllyPct')) {
+        updateData.marginAllyPct = marginAllyPct as any;
+    }
+    if (formData.has('marginWholesalePct')) {
+        updateData.marginWholesalePct = marginWholesalePct as any;
     }
 
     const product = await prisma.product.update({
