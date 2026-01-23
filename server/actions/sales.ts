@@ -60,7 +60,20 @@ export async function getPendingSalesCount() {
 export async function getSales(params?: { sellerId?: string; invoice?: string; cliente?: string; rif?: string }) {
   const where: any = {};
   if (params?.sellerId) where.sellerId = params.sellerId;
-  if (params?.invoice) where.id = { contains: params.invoice } as any;
+  if (params?.invoice) {
+    const raw = String(params.invoice).trim();
+    const maybeNumber = Number(raw);
+    const byDocNumber = Number.isFinite(maybeNumber) && raw && /^\d+$/.test(raw);
+    if (byDocNumber) {
+      where.OR = [
+        { invoiceNumber: Math.trunc(maybeNumber) },
+        { receiptNumber: Math.trunc(maybeNumber) },
+        { id: { contains: raw } as any },
+      ];
+    } else {
+      where.id = { contains: raw } as any;
+    }
+  }
   if (params?.rif) where.customerTaxId = { contains: params.rif, mode: 'insensitive' } as any;
   if (params?.cliente) {
     where.user = { is: { OR: [

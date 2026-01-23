@@ -117,7 +117,7 @@ export default async function AdminSalesPage({
           <input
             name="invoice"
             defaultValue={invoiceQ}
-            placeholder="Factura/Orden"
+            placeholder="Factura/Recibo/Orden"
             className="border rounded px-2 py-1 w-full"
           />
         </div>
@@ -195,19 +195,26 @@ export default async function AdminSalesPage({
                     | number
                     | null
                     | undefined;
-                  const invoiceLabel = invoiceNumber
-                    ? `Factura: ${invoiceNumber.toString().padStart(6, "0")}`
-                    : o.id
-                    ? `Orden: ${String(o.id).slice(-6)}`
-                    : "";
+                  const receiptNumber = (o as any).receiptNumber as
+                    | number
+                    | null
+                    | undefined;
+                  const docLabel =
+                    docType === "FACTURA" && invoiceNumber
+                      ? `Factura: ${invoiceNumber.toString().padStart(6, "0")}`
+                      : docType === "RECIBO" && receiptNumber
+                      ? `Recibo: ${receiptNumber.toString().padStart(8, "0")}`
+                      : o.id
+                      ? `Orden: ${String(o.id).slice(-6)}`
+                      : "";
 
                   return (
                     <tr key={o.id} className="border-t align-top">
                       <td className="px-2 py-1 align-top whitespace-nowrap text-xs sm:text-sm">
                         <div>{new Date(o.createdAt).toLocaleString()}</div>
-                        {invoiceLabel && (
+                        {docLabel && (
                           <div className="text-[11px] text-gray-500">
-                            {invoiceLabel}
+                            {docLabel}
                           </div>
                         )}
                       </td>
