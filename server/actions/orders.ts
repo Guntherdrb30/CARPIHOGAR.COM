@@ -7,6 +7,7 @@ import { createPayment } from './payments';
 import type { Currency } from '@prisma/client';
 import { applyPriceAdjustments, applyUsdPaymentDiscount, getPriceAdjustmentSettings, toCurrencyCode } from '@/server/price-adjustments';
 import { computeConfigurablePrice } from '@/server/ecpd-pricing';
+import { isEmailEnabled } from '@/lib/mailer';
 
 // Use the shared Prisma client to avoid creating multiple connections
 
@@ -376,8 +377,8 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
             });
         } catch {}
 
-        // Enviar recibo por email (deshabilitado por defecto, activar con EMAIL_ENABLED=true)
-        if (process.env.EMAIL_ENABLED === 'true') {
+        // Enviar recibo por email (deshabilitado por defecto, activar con EMAIL_ENABLED)
+        if (isEmailEnabled()) {
             try {
                 const { sendReceiptEmail } = await import('./email');
                 const to = (session?.user as any)?.email as string | undefined;

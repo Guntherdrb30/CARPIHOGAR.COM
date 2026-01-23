@@ -1,6 +1,7 @@
 ﻿"use server";
 
 import prisma from "@/lib/prisma";
+import { isEmailEnabled, sendMail } from "@/lib/mailer";
 import { getDeleteSecret } from "@/server/actions/settings";
 import { revalidatePath } from "next/cache";
 
@@ -438,35 +439,31 @@ export async function sendReceivableReminder(formData: FormData) {
   const text = lines.join('\n');
   const html = text.replace(/\n/g, '<br/>');
 
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 587);
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  const from = process.env.SMTP_FROM || user || 'no-reply@localhost';
-  if (!host || !user || !pass) {
-    console.warn('[sendReceivableReminder] SMTP not configured, skipping send.');
+  if (!isEmailEnabled()) {
+    console.warn('[sendReceivableReminder] EMAIL_ENABLED is off, skipping send.');
     return { ok: false, skipped: true };
   }
 
+  try {
+    let attachments: any[] = [];
     try {
-      const nodemailer = (await import('nodemailer')).default as any;
-      const transporter = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
-      let attachments: any[] = [];
-      try {
-        const orderFull = await prisma.order.findUnique({
-          where: { id: orderId },
-          include: {
-            user: true,
-            seller: true,
-            receivable: { include: { entries: true, noteItems: true } },
-          },
-        });
-        if (orderFull) {
-          const pdf = await generateReceivablePdf(orderFull);
-          attachments.push({ filename: `cxc_${order.id}.pdf`, content: pdf });
-        }
-      } catch {}
-    await transporter.sendMail({ from, to, subject, text, html, attachments });
+      const orderFull = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          user: true,
+          seller: true,
+          receivable: { include: { entries: true, noteItems: true } },
+        },
+      });
+      if (orderFull) {
+        const pdf = await generateReceivablePdf(orderFull);
+        attachments.push({ filename: `cxc_${order.id}.pdf`, content: pdf });
+      }
+    } catch {}
+    const res: any = await sendMail({ to, subject, text, html, attachments });
+    if (!res?.ok) {
+      return { ok: false, error: res?.skipped || 'send_failed' };
+    }
     const stamp = new Date().toISOString().slice(0,10);
     try { await prisma.auditLog.create({ data: { userId: undefined, action: 'RECEIVABLE_REMINDER_SENT', details: `order:${orderId} via:EMAIL date:${stamp}` } }); } catch {}
     try {

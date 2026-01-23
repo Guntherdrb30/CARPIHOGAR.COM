@@ -10,19 +10,25 @@ type MailInput = {
 
 let cachedTransport: any;
 
+export function isEmailEnabled() {
+  const raw = String(process.env.EMAIL_ENABLED || "").trim();
+  return /^(1|true|yes|on)$/i.test(raw);
+}
+
 function getTransport() {
   if (cachedTransport) return cachedTransport;
-  const host = process.env.SMTP_HOST;
+  const host = String(process.env.SMTP_HOST || "").trim();
   const port = Number(process.env.SMTP_PORT || '587');
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const user = String(process.env.SMTP_USER || "").trim();
+  const passRaw = String(process.env.SMTP_PASS || "");
+  const pass = passRaw.includes(" ") ? passRaw.replace(/\s+/g, "") : passRaw.trim();
   if (!host || !user || !pass) return null;
   cachedTransport = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
   return cachedTransport;
 }
 
 export async function sendMail({ to, subject, html, text, attachments }: MailInput) {
-  if (process.env.EMAIL_ENABLED !== 'true') return { ok: false, skipped: 'EMAIL_ENABLED!=true' } as any;
+  if (!isEmailEnabled()) return { ok: false, skipped: "EMAIL_DISABLED" } as any;
   const transport = getTransport();
   if (!transport) return { ok: false, skipped: 'SMTP not configured' } as any;
   const fromEmail = process.env.SMTP_FROM || process.env.SMTP_USER || 'root@carpihogar.com';

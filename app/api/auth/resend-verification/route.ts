@@ -1,5 +1,6 @@
 ﻿import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { isEmailEnabled } from '@/lib/mailer';
 
 export async function POST(req: Request) {
   try {
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
     const expires = new Date(Date.now() + 1000 * 60 * 60 * 24);
     await prisma.user.update({ where: { id: user.id }, data: { emailVerificationToken: token, emailVerificationTokenExpiresAt: expires as any } });
     let emailed = false;
-    if (process.env.EMAIL_ENABLED === 'true') {
+    if (isEmailEnabled()) {
       try {
         const { sendMail, basicTemplate } = await import('@/lib/mailer');
         const base = process.env.NEXT_PUBLIC_URL || new URL(req.url).origin;

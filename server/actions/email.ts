@@ -1,30 +1,30 @@
 import prisma from '@/lib/prisma';
 import { sendMail, basicTemplate } from '@/lib/mailer';
 
-export async function sendPasswordResetEmail(to: string, token: string) {
+export async function sendPasswordResetEmail(to: string, token: string, baseUrl?: string) {
   if (!to || !token) return;
-  const base = process.env.NEXT_PUBLIC_URL || process.env.NEXTAUTH_URL || '';
+  const base = baseUrl || process.env.NEXT_PUBLIC_URL || process.env.NEXTAUTH_URL || '';
   const url = `${String(base).replace(/\/$/, '')}/auth/reset-password?token=${encodeURIComponent(token)}`;
   const html = basicTemplate(
-    'Restablecer contraseña',
-    `<p>Solicitaste restablecer tu contraseña.</p>
-     <p>Puedes crear una nueva contraseña usando este enlace:</p>
-     <p><a href="${url}">Restablecer contraseña</a></p>
+    'Restablecer contrasena',
+    `<p>Solicitaste restablecer tu contrasena.</p>
+     <p>Puedes crear una nueva contrasena usando este enlace:</p>
+     <p><a href="${url}">Restablecer contrasena</a></p>
      <p>Si no funciona, copia y pega esta URL en tu navegador:<br>${url}</p>
      <p>El enlace expira en 1 hora.</p>`
   );
-  await sendMail({ to, subject: 'Recupera tu contraseña', html });
+  await sendMail({ to, subject: 'Recupera tu contrasena', html });
 }
 
 export async function sendWelcomeEmail(to: string, name?: string | null) {
   if (!to) return;
-  const body = basicTemplate('Bienvenido', `<p>Hola ${name || ''},</p><p>¡Gracias por registrarte en Carpihogar.ai!</p><p>Ya puedes iniciar sesión y completar tu perfil.</p>`);
-  await sendMail({ to, subject: '¡Bienvenido a Carpihogar!', html: body });
+  const body = basicTemplate('Bienvenido', `<p>Hola ${name || ''},</p><p>Gracias por registrarte en Carpihogar.ai!</p><p>Ya puedes iniciar sesion y completar tu perfil.</p>`);
+  await sendMail({ to, subject: 'Bienvenido a Carpihogar!', html: body });
 }
 
 export async function sendAdminUserCreatedEmail(to: string, role: string) {
   if (!to) return;
-  const body = basicTemplate('Cuenta creada', `<p>Se ha creado tu cuenta con rol <strong>${role}</strong>.</p><p>Puedes iniciar sesión en el panel.</p>`);
+  const body = basicTemplate('Cuenta creada', `<p>Se ha creado tu cuenta con rol <strong>${role}</strong>.</p><p>Puedes iniciar sesion en el panel.</p>`);
   await sendMail({ to, subject: `Tu usuario (${role}) ha sido creado`, html: body });
 }
 

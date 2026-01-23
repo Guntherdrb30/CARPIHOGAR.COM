@@ -144,8 +144,8 @@ export const authOptions: AuthOptions = {
                 const token = crypto.randomBytes(32).toString('hex');
                 const expires = new Date(Date.now() + 1000 * 60 * 60 * 24);
                 await prisma.user.update({ where: { id: dbUser.id }, data: { emailVerificationToken: token, emailVerificationTokenExpiresAt: expires as any } });
-                if (process.env.EMAIL_ENABLED === 'true') {
-                  const { sendMail, basicTemplate } = await import('@/lib/mailer');
+                const { sendMail, basicTemplate, isEmailEnabled } = await import('@/lib/mailer');
+                if (isEmailEnabled()) {
                   const base = process.env.NEXT_PUBLIC_URL || '';
                   const verifyUrl = `${base}/api/auth/verify-email?token=${token}`;
                   const html = basicTemplate('Verifica tu correo', `<p>Confirma tu correo para activar tu cuenta:</p><p><a href="${verifyUrl}">Verificar correo</a></p>`);

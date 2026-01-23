@@ -7,6 +7,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getDeleteSecret } from '@/server/actions/settings';
 import { isStrongPassword } from '@/lib/password';
+import { isEmailEnabled } from '@/lib/mailer';
 
 const prisma = new PrismaClient();
 
@@ -101,7 +102,7 @@ export async function createAdminUser(name: string, email: string, password: str
   const user = await prisma.user.upsert({ where: { email: emailLc }, update: { name, password: hashed, role: 'ADMIN', alliedStatus: 'NONE' }, create: { name, email: emailLc, password: hashed, role: 'ADMIN', alliedStatus: 'NONE' } });
   revalidatePath('/dashboard/admin/usuarios');
   try {
-    if (process.env.EMAIL_ENABLED === 'true') {
+    if (isEmailEnabled()) {
       const { sendAdminUserCreatedEmail } = await import('@/server/actions/email');
       await sendAdminUserCreatedEmail(email, 'ADMIN');
     }
@@ -112,7 +113,7 @@ export async function createAdminUser(name: string, email: string, password: str
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 1000*60*60*24);
     await prisma.user.update({ where: { id: user.id }, data: { emailVerificationToken: token, emailVerificationTokenExpiresAt: expires as any, emailVerifiedAt: null } });
-    if (process.env.EMAIL_ENABLED === 'true') {
+    if (isEmailEnabled()) {
       const { sendMail, basicTemplate } = await import('@/lib/mailer');
       const base = process.env.NEXT_PUBLIC_URL || '';
       const verifyUrl = `${base}/api/auth/verify-email?token=${token}`;
@@ -131,7 +132,7 @@ export async function createSellerUser(name: string, email: string, password: st
   const user = await prisma.user.upsert({ where: { email: emailLc }, update: { name, password: hashed, role: 'VENDEDOR', alliedStatus: 'NONE', commissionPercent: (commissionPercent ?? null) as any }, create: { name, email: emailLc, password: hashed, role: 'VENDEDOR', alliedStatus: 'NONE', commissionPercent: (commissionPercent ?? null) as any } });
   revalidatePath('/dashboard/admin/usuarios');
   try {
-    if (process.env.EMAIL_ENABLED === 'true') {
+    if (isEmailEnabled()) {
       const { sendAdminUserCreatedEmail } = await import('@/server/actions/email');
       await sendAdminUserCreatedEmail(email, 'VENDEDOR');
     }
@@ -141,7 +142,7 @@ export async function createSellerUser(name: string, email: string, password: st
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 1000*60*60*24);
     await prisma.user.update({ where: { id: user.id }, data: { emailVerificationToken: token, emailVerificationTokenExpiresAt: expires as any, emailVerifiedAt: null } });
-    if (process.env.EMAIL_ENABLED === 'true') {
+    if (isEmailEnabled()) {
       const { sendMail, basicTemplate } = await import('@/lib/mailer');
       const base = process.env.NEXT_PUBLIC_URL || '';
       const verifyUrl = `${base}/api/auth/verify-email?token=${token}`;
@@ -165,7 +166,7 @@ export async function createArchitectUser(name: string, email: string, password:
   });
   revalidatePath('/dashboard/admin/usuarios');
   try {
-    if (process.env.EMAIL_ENABLED === 'true') {
+    if (isEmailEnabled()) {
       const { sendAdminUserCreatedEmail } = await import('@/server/actions/email');
       await sendAdminUserCreatedEmail(email, 'ARCHITECTO');
     }
@@ -182,7 +183,7 @@ export async function createArchitectUser(name: string, email: string, password:
         emailVerifiedAt: null,
       },
     });
-    if (process.env.EMAIL_ENABLED === 'true') {
+    if (isEmailEnabled()) {
       const { sendMail, basicTemplate } = await import('@/lib/mailer');
       const base = process.env.NEXT_PUBLIC_URL || '';
       const verifyUrl = `${base}/api/auth/verify-email?token=${token}`;
@@ -215,7 +216,7 @@ export async function createDispatcherUser(name: string, email: string, password
   });
   revalidatePath('/dashboard/admin/usuarios');
   try {
-    if (process.env.EMAIL_ENABLED === 'true') {
+    if (isEmailEnabled()) {
       const { sendAdminUserCreatedEmail } = await import('@/server/actions/email');
       await sendAdminUserCreatedEmail(email, 'DESPACHO');
       // Issue email verification token and send verify link

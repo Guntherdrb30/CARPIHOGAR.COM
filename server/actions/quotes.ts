@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { applyPriceAdjustments, getPriceAdjustmentSettings, type PriceAdjustmentSettings } from '@/server/price-adjustments';
+import { isEmailEnabled } from '@/lib/mailer';
 
 async function autoExpireQuotes() {
   try {
@@ -226,7 +227,7 @@ export async function createQuote(formData: FormData) {
   try { await prisma.auditLog.create({ data: { userId: (session?.user as any)?.id, action: 'QUOTE_CREATE', details: quote.id } }); } catch {}
   // Send email to customer (best-effort)
   try {
-    if (process.env.EMAIL_ENABLED === 'true') {
+    if (isEmailEnabled()) {
       const { sendQuoteCreatedEmail } = await import('./email');
       await sendQuoteCreatedEmail(quote.id);
     }

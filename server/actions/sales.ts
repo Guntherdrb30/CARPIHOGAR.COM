@@ -6,7 +6,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { basicTemplate, sendMail } from '@/lib/mailer';
+import { basicTemplate, sendMail, isEmailEnabled } from '@/lib/mailer';
 import { applyPriceAdjustments, applyUsdPaymentDiscount, getPriceAdjustmentSettings, toCurrencyCode } from '@/server/price-adjustments';
 
 export async function searchProducts(q: string) {
@@ -609,7 +609,7 @@ Total: ${totalTxt}.
       if (res.ok) successMessage += ' - WhatsApp enviado';
     }
   } catch {}
-  if (process.env.EMAIL_ENABLED === 'true') {
+  if (isEmailEnabled()) {
     try {
       const { sendReceiptEmail } = await import('./email');
       const shouldSend = sendEmailFlag === 'true' || sendEmailFlag === 'on' || sendEmailFlag === '1';

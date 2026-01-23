@@ -5,7 +5,7 @@ import { randomBytes, createHash } from 'crypto';
 import { sendPasswordResetEmail } from './email';
 import { isStrongPassword } from '@/lib/password';
 
-export async function requestPasswordReset(email: string) {
+export async function requestPasswordReset(email: string, baseUrl?: string) {
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (user) {
@@ -22,7 +22,7 @@ export async function requestPasswordReset(email: string) {
       },
     });
 
-    await sendPasswordResetEmail(user.email, token);
+    await sendPasswordResetEmail(user.email, token, baseUrl);
   }
 
   // Always return a generic message to avoid email enumeration
@@ -67,4 +67,3 @@ export async function resetPassword(token: string, newPassword: string) {
 
   return { message: 'Contrasena actualizada correctamente.' };
 }
-

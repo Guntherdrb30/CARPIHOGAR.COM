@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { isStrongPassword } from '@/lib/password';
+import { isEmailEnabled } from '@/lib/mailer';
 
 const prisma = new PrismaClient();
 
@@ -84,7 +85,7 @@ export async function POST(req: Request) {
           emailVerifiedAt: null,
         },
       });
-      if (process.env.EMAIL_ENABLED === 'true') {
+      if (isEmailEnabled()) {
         const { sendMail, basicTemplate } = await import('@/lib/mailer');
         const base = process.env.NEXT_PUBLIC_URL || new URL(req.url).origin;
         const verifyUrl = `${base}/api/auth/verify-email?token=${token}`;
