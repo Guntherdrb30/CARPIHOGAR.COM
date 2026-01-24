@@ -7,7 +7,6 @@ import { signOut } from 'next-auth/react';
 const navItems = [
   // Aliado core
   { name: 'Presupuestos', href: '/dashboard/aliado/presupuestos', icon: 'Clipboard' },
-  { name: 'Ventas', href: '/dashboard/aliado/ventas', icon: 'Cash' },
   { name: 'Reportes', href: '/dashboard/aliado/reportes', icon: 'Chart' },
   { name: 'Resumen', href: '/dashboard/aliado', icon: 'Home' },
   { name: 'Mi Perfil (Aliado)', href: '/dashboard/aliado/perfil', icon: 'User' },

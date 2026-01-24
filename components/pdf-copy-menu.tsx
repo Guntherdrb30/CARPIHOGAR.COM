@@ -12,7 +12,7 @@ export default function PdfCopyMenu({
   defaultMoneda = "VES",
   className,
   hasPhone = false,
-  backTo = "/dashboard/aliado/ventas",
+  backTo = "/dashboard/admin/ventas",
 }: {
   orderId: string;
   defaultTipo?: DocType;

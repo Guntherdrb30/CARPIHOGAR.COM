@@ -7,7 +7,18 @@ export default async function EditarPresupuestoAliadoPage({ params }: { params: 
   const [quote, settings] = await Promise.all([getAllyQuoteById(id), getSettings()]);
   const iva = Number((quote as any).ivaPercent || (settings as any).ivaPercent || 16);
   const tasa = Number((quote as any).tasaVES || (settings as any).tasaVES || 40);
-  const initialItems = quote.items.map((it: any) => ({ productId: it.productId, name: it.name, priceUSD: Number(it.priceUSD), quantity: Number(it.quantity) }));
+  const initialItems = quote.items.map((it: any) => {
+    const p1 = Number(it.product?.priceUSD ?? it.priceUSD);
+    const p2 = it.product?.priceAllyUSD != null ? Number(it.product.priceAllyUSD) : null;
+    return {
+      productId: it.productId,
+      name: it.name,
+      p1,
+      p2,
+      priceUSD: Number(it.priceUSD),
+      quantity: Number(it.quantity),
+    };
+  });
   const backTo = `/dashboard/aliado/presupuestos/${id}`;
   return (
     <div className="container mx-auto p-4 space-y-4">

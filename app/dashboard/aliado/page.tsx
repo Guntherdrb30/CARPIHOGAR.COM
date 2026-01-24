@@ -11,7 +11,7 @@ export default async function AliadoHomePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-800">Hola, {name}</h1>
-        <p className="text-gray-600">Bienvenido al panel de Aliado. Administra tus presupuestos, ventas y reportes.</p>
+        <p className="text-gray-600">Bienvenido al panel de Aliado. Administra tus presupuestos y reportes.</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg p-4 shadow">
@@ -29,7 +29,6 @@ export default async function AliadoHomePage() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link href="/dashboard/aliado/presupuestos" className="bg-brand text-white rounded-lg p-4 text-center hover:bg-opacity-90">Gestionar Presupuestos</Link>
-        <Link href="/dashboard/aliado/ventas" className="bg-green-600 text-white rounded-lg p-4 text-center">Ver Ventas</Link>
         <Link href="/dashboard/aliado/reportes" className="bg-black text-white rounded-lg p-4 text-center">Ver Reportes</Link>
       </div>
       <div className="text-sm text-gray-600">

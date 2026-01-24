@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Prod = { id: string; name: string; sku: string | null; priceUSD: number };
-type Line = { productId: string; name: string; priceUSD: number; quantity: number };
+type PriceMode = "P1" | "P2";
+
+type Prod = { id: string; name: string; sku: string | null; priceUSD: number; priceAllyUSD?: number | null };
+type Line = { productId: string; name: string; p1: number; p2?: number | null; priceUSD: number; quantity: number };
 
 export default function QuoteEditForm({ quoteId, ivaPercent, tasaVES, initialItems, initialNotes, initialTaxId, initialFiscalAddress, action, backTo }: {
   quoteId: string;
@@ -44,11 +46,14 @@ export default function QuoteEditForm({ quoteId, ivaPercent, tasaVES, initialIte
     return { subtotal, iva, totalUSD, totalVES };
   }, [items, ivaPercent, tasaVES]);
 
-  const addItem = (p: Prod) => {
+  const addItem = (p: Prod, mode: PriceMode = "P1") => {
     setItems((prev) => {
       const idx = prev.findIndex((x) => x.productId === p.id);
       if (idx >= 0) { const next = [...prev]; next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 }; return next; }
-      return [...prev, { productId: p.id, name: p.name, priceUSD: Number(p.priceUSD), quantity: 1 }];
+      const p1 = Number(p.priceUSD);
+      const p2 = p.priceAllyUSD != null ? Number(p.priceAllyUSD) : null;
+      const selected = mode === "P2" && p2 != null ? p2 : p1;
+      return [...prev, { productId: p.id, name: p.name, p1, p2, priceUSD: selected, quantity: 1 }];
     });
   };
 
@@ -67,12 +72,21 @@ export default function QuoteEditForm({ quoteId, ivaPercent, tasaVES, initialIte
         <label className="block text-sm text-gray-700">Buscar productos</label>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nombre, SKU o código" className="border rounded px-2 py-1 w-full" />
         {found.length > 0 && (
-          <div className="mt-2 border rounded">
+          <div className="mt-2 border rounded divide-y">
             {found.map((p) => (
-              <button type="button" key={p.id} onClick={() => addItem(p)} className="flex justify-between w-full px-3 py-2 border-b hover:bg-gray-50">
-                <span>{p.name} <span className="text-gray-500">({p.sku || '-'})</span></span>
-                <span className="text-gray-700">${Number(p.priceUSD).toFixed(2)}</span>
-              </button>
+              <div key={p.id} className="flex items-center justify-between w-full px-3 py-2 hover:bg-gray-50 gap-2">
+                <span className="flex-1">
+                  {p.name} <span className="text-gray-500">({p.sku || '-'})</span>
+                  <span className="block text-xs text-gray-500">
+                    P1: ${Number(p.priceUSD).toFixed(2)}
+                    {p.priceAllyUSD != null ? ` · P2: $${Number(p.priceAllyUSD).toFixed(2)}` : ""}
+                  </span>
+                </span>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => addItem(p, "P1")} className="px-2 py-0.5 border rounded text-sm">P1</button>
+                  <button type="button" disabled={p.priceAllyUSD == null} onClick={() => addItem(p, "P2")} className="px-2 py-0.5 border rounded text-sm disabled:opacity-50">P2</button>
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -96,7 +110,33 @@ export default function QuoteEditForm({ quoteId, ivaPercent, tasaVES, initialIte
               {items.map((l) => (
                 <tr key={l.productId}>
                   <td className="border px-2 py-1">{l.name}</td>
-                  <td className="border px-2 py-1 text-right">${l.priceUSD.toFixed(2)}</td>
+                  <td className="border px-2 py-1 text-right">
+                    <select
+                      value={l.p2 != null && l.priceUSD === l.p2 ? "P2" : "P1"}
+                      onChange={(e) => {
+                        const mode = e.target.value as PriceMode;
+                        setItems((prev) =>
+                          prev.map((x) =>
+                            x.productId === l.productId
+                              ? {
+                                  ...x,
+                                  priceUSD:
+                                    mode === "P2" && l.p2 != null
+                                      ? Number(l.p2)
+                                      : Number(l.p1),
+                                }
+                              : x
+                          )
+                        );
+                      }}
+                      className="border rounded px-1 py-0.5"
+                    >
+                      <option value="P1">P1 ${l.p1.toFixed(2)}</option>
+                      <option value="P2" disabled={l.p2 == null}>
+                        P2 {l.p2 != null ? `$${Number(l.p2).toFixed(2)}` : "(N/A)"}
+                      </option>
+                    </select>
+                  </td>
                   <td className="border px-2 py-1 text-right">
                     <input type="number" min={1} value={l.quantity} onChange={(e) => updateQty(l.productId, parseInt(e.target.value || '1', 10))} className="w-20 border rounded px-2 py-1 text-right" />
                   </td>
@@ -107,7 +147,11 @@ export default function QuoteEditForm({ quoteId, ivaPercent, tasaVES, initialIte
             </tbody>
           </table>
         )}
-        <input type="hidden" name="items" value={JSON.stringify(items)} />
+        <input
+          type="hidden"
+          name="items"
+          value={JSON.stringify(items.map(({ productId, name, priceUSD, quantity }) => ({ productId, name, priceUSD, quantity })))}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
@@ -149,4 +193,3 @@ export default function QuoteEditForm({ quoteId, ivaPercent, tasaVES, initialIte
     </form>
   );
 }
-
