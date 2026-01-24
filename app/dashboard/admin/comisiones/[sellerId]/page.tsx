@@ -148,7 +148,7 @@ export default async function AdminCommissionsSellerPage({
               <tbody>
                 {orders.map((o: any) => {
                   const invoiceLabel = o.invoiceNumber
-                    ? `Factura ${String(o.invoiceNumber).padStart(6, '0')}`
+                    ? `Factura ${String(o.invoiceNumber).padStart(10, '0')}`
                     : `Orden ${String(o.id || '').slice(-6)}`;
                   return (
                     <tr key={o.id} className="border-t">

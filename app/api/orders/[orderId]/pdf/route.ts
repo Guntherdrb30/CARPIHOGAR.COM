@@ -306,11 +306,11 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
     const docDateLabel = formatDateDMY(docDate);
     const docNumber = tipo === "factura"
       ? invoiceNumber
-        ? padLeft(invoiceNumber, 6)
-        : "000000"
+        ? padLeft(invoiceNumber, 10)
+        : "0000000000"
       : receiptNumber
-        ? padLeft(receiptNumber, 8)
-        : "00000000";
+        ? padLeft(receiptNumber, 10)
+        : "0000000000";
 
     doc.fontSize(13).font("Helvetica-Bold").fillColor(colors.text);
     doc.text(tipo === "factura" ? legalName : brandName, headerLeftX, headerTop);
@@ -603,7 +603,7 @@ export async function GET(req: Request, { params }: { params: { orderId: string 
 
     const fname =
       tipo === "factura" && invoiceNumber
-        ? `factura_${padLeft(invoiceNumber, 6)}.pdf`
+        ? `factura_${padLeft(invoiceNumber, 10)}.pdf`
         : `${tipo}_${order.id}.pdf`;
 
     const resp = new NextResponse(new Uint8Array(pdfBuf), {

@@ -104,10 +104,10 @@ export default async function PrintMyOrderPage({
   const code =
     effectiveTipo === "factura"
       ? invoiceNumber
-        ? padLeft(invoiceNumber, 6)
+        ? padLeft(invoiceNumber, 10)
         : String(order.id || "").slice(-6)
       : receiptNumber
-      ? padLeft(receiptNumber, 8)
+      ? padLeft(receiptNumber, 10)
       : String(order.id || "").slice(-6);
 
   const titleMap: Record<string, string> = {

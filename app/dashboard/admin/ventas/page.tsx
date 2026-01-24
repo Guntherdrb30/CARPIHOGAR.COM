@@ -201,9 +201,9 @@ export default async function AdminSalesPage({
                     | undefined;
                   const docLabel =
                     docType === "FACTURA" && invoiceNumber
-                      ? `Factura: ${invoiceNumber.toString().padStart(6, "0")}`
+                      ? `Factura: ${invoiceNumber.toString().padStart(10, "0")}`
                       : docType === "RECIBO" && receiptNumber
-                      ? `Recibo: ${receiptNumber.toString().padStart(8, "0")}`
+                      ? `Recibo: ${receiptNumber.toString().padStart(10, "0")}`
                       : o.id
                       ? `Orden: ${String(o.id).slice(-6)}`
                       : "";

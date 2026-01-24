@@ -59,10 +59,10 @@ export default async function PrintSalePage({
   const code =
     effectiveTipo === "factura"
       ? invoiceNumber
-        ? String(invoiceNumber).padStart(6, "0")
+        ? String(invoiceNumber).padStart(10, "0")
         : order.id.slice(-6)
       : receiptNumber
-      ? String(receiptNumber).padStart(8, "0")
+      ? String(receiptNumber).padStart(10, "0")
       : order.id.slice(-6);
 
   const titleMap: any = { recibo: 'Recibo', factura: 'Factura' };
