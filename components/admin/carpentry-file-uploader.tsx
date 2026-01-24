@@ -8,10 +8,34 @@ type UploadedFile = {
   fileType: "PLANO" | "IMAGEN" | "OTRO";
 };
 
-export default function CarpentryFileUploader({ projectId }: { projectId: string }) {
+type Props = {
+  projectId: string;
+  fileType: "PLANO" | "IMAGEN" | "CONTRATO" | "PRESUPUESTO" | "AVANCE" | "OTRO";
+  label?: string;
+  max?: number;
+  existingCount?: number;
+};
+
+export default function CarpentryFileUploader({
+  projectId,
+  fileType,
+  label,
+  max,
+  existingCount = 0,
+}: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
+
+  const allowed = (() => {
+    if (fileType === "PLANO" || fileType === "CONTRATO" || fileType === "PRESUPUESTO") {
+      return "application/pdf";
+    }
+    if (fileType === "IMAGEN" || fileType === "AVANCE") {
+      return "image/*";
+    }
+    return "image/*,application/pdf";
+  })();
 
   const uploadFile = async (file: File) => {
     const isImage = file.type.startsWith("image/");
@@ -25,7 +49,6 @@ export default function CarpentryFileUploader({ projectId }: { projectId: string
     if (!res.ok || !data?.url) {
       throw new Error(data?.error || "Upload fallido");
     }
-    const fileType: UploadedFile["fileType"] = isPdf ? "PLANO" : isImage ? "IMAGEN" : "OTRO";
     return { url: data.url as string, filename: file.name, fileType };
   };
 
@@ -35,13 +58,20 @@ export default function CarpentryFileUploader({ projectId }: { projectId: string
     setBusy(true);
     try {
       const list = Array.from(files);
+      const currentCount = existingCount + uploads.length;
+      const remaining = typeof max === "number" ? Math.max(0, max - currentCount) : list.length;
+      if (typeof max === "number" && remaining <= 0) {
+        setError("Limite de archivos alcanzado.");
+        return;
+      }
+      const limited = typeof max === "number" ? list.slice(0, remaining) : list;
       const next: UploadedFile[] = [];
-      for (const file of list) {
+      for (const file of limited) {
         const up = await uploadFile(file);
         const save = await fetch("/api/admin/carpinteria/files", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId, ...up }),
+          body: JSON.stringify({ projectId, ...up, fileType }),
         });
         if (!save.ok) {
           const msg = await save.json().catch(() => ({} as any));
@@ -59,13 +89,14 @@ export default function CarpentryFileUploader({ projectId }: { projectId: string
 
   return (
     <div className="space-y-2">
+      {label && <div className="text-xs font-semibold text-gray-600">{label}</div>}
       {error && <div className="text-xs text-red-600">{error}</div>}
       <input
         type="file"
-        accept="image/*,application/pdf"
+        accept={allowed}
         multiple
         onChange={(e) => onFiles(e.target.files)}
-        disabled={busy}
+        disabled={busy || (typeof max === "number" && existingCount + uploads.length >= max)}
       />
       {busy && <div className="text-xs text-gray-500">Subiendo...</div>}
       {uploads.length > 0 && (

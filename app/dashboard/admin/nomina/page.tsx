@@ -231,15 +231,24 @@ export default async function NominaAdminPage({ searchParams }: { searchParams?:
           </div>
           <div>
             <label className="block text-sm text-gray-700">Monto USD</label>
-            <input name="amountUSD" type="number" step="0.01" className="border rounded px-2 py-1 w-full" required />
+            <input name="amountUSD" type="number" step="0.01" className="border rounded px-2 py-1 w-full" />
           </div>
           <div>
             <label className="block text-sm text-gray-700">Fecha</label>
             <input name="workDate" type="date" className="border rounded px-2 py-1 w-full" />
           </div>
+          <div>
+            <label className="block text-sm text-gray-700">Estado</label>
+            <select name="status" className="border rounded px-2 py-1 w-full">
+              <option value="PENDIENTE">Pendiente</option>
+              <option value="EN_PROGRESO">En progreso</option>
+              <option value="COMPLETADA">Completada</option>
+            </select>
+          </div>
           <div className="md:col-span-6">
             <label className="block text-sm text-gray-700">Descripcion del trabajo</label>
             <input name="description" className="border rounded px-2 py-1 w-full" required />
+            <div className="text-xs text-gray-500 mt-1">Monto en 0 solo crea tarea sin pago.</div>
           </div>
           <div className="md:col-span-6">
             <button className="px-3 py-1 rounded bg-amber-600 text-white">Registrar pago carpintero</button>

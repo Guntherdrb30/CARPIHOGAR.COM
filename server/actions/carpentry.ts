@@ -19,8 +19,29 @@ export async function getCarpentryProjects() {
   const session = await getServerSession(authOptions);
   requireAdmin(session);
   return prisma.carpentryProject.findMany({
-    include: { files: true },
+    include: {
+      files: true,
+      carpenter: true,
+      architect: true,
+      supervisor: true,
+    },
     orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function getCarpentryProjectById(id: string) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  return prisma.carpentryProject.findUnique({
+    where: { id },
+    include: {
+      files: true,
+      tasks: { include: { employee: true }, orderBy: { workDate: "desc" } },
+      clientPayments: { orderBy: { paidAt: "desc" } },
+      carpenter: true,
+      architect: true,
+      supervisor: true,
+    },
   });
 }
 
@@ -39,11 +60,21 @@ export async function createCarpentryProject(formData: FormData) {
   requireAdmin(session);
   const name = String(formData.get("name") || "").trim();
   const clientName = String(formData.get("clientName") || "").trim() || null;
+  const clientEmail = String(formData.get("clientEmail") || "").trim() || null;
+  const clientPhone = String(formData.get("clientPhone") || "").trim() || null;
+  const clientAddress = String(formData.get("clientAddress") || "").trim() || null;
+  const clientCity = String(formData.get("clientCity") || "").trim() || null;
+  const clientState = String(formData.get("clientState") || "").trim() || null;
   const description = String(formData.get("description") || "").trim() || null;
   const totalAmountUSD = toDecimal(formData.get("totalAmountUSD"), 0);
+  const initialPaymentUSD = toDecimal(formData.get("initialPaymentUSD"), 0);
+  const laborCostUSD = toDecimal(formData.get("laborCostUSD"), 0);
   const status = String(formData.get("status") || "ACTIVO").toUpperCase();
   const startDateRaw = String(formData.get("startDate") || "").trim();
   const endDateRaw = String(formData.get("endDate") || "").trim();
+  const carpenterId = String(formData.get("carpenterId") || "").trim() || null;
+  const architectId = String(formData.get("architectId") || "").trim() || null;
+  const supervisorId = String(formData.get("supervisorId") || "").trim() || null;
   if (!name || !totalAmountUSD || totalAmountUSD <= 0) {
     redirect("/dashboard/admin/carpinteria?error=Nombre%20y%20monto%20requeridos");
   }
@@ -51,8 +82,15 @@ export async function createCarpentryProject(formData: FormData) {
     data: {
       name,
       clientName,
+      clientEmail,
+      clientPhone,
+      clientAddress,
+      clientCity,
+      clientState,
       description,
       totalAmountUSD: totalAmountUSD as any,
+      initialPaymentUSD: initialPaymentUSD ? (initialPaymentUSD as any) : null,
+      laborCostUSD: laborCostUSD ? (laborCostUSD as any) : null,
       status:
         status === "EN_PROCESO"
           ? "EN_PROCESO"
@@ -61,6 +99,9 @@ export async function createCarpentryProject(formData: FormData) {
           : "ACTIVO",
       startDate: startDateRaw ? new Date(startDateRaw) : null,
       endDate: endDateRaw ? new Date(endDateRaw) : null,
+      carpenterId,
+      architectId,
+      supervisorId,
     },
   });
   redirect("/dashboard/admin/carpinteria?message=Proyecto%20creado");
@@ -73,18 +114,35 @@ export async function updateCarpentryProject(formData: FormData) {
   if (!id) throw new Error("Missing id");
   const name = String(formData.get("name") || "").trim();
   const clientName = String(formData.get("clientName") || "").trim() || null;
+  const clientEmail = String(formData.get("clientEmail") || "").trim() || null;
+  const clientPhone = String(formData.get("clientPhone") || "").trim() || null;
+  const clientAddress = String(formData.get("clientAddress") || "").trim() || null;
+  const clientCity = String(formData.get("clientCity") || "").trim() || null;
+  const clientState = String(formData.get("clientState") || "").trim() || null;
   const description = String(formData.get("description") || "").trim() || null;
   const totalAmountUSD = toDecimal(formData.get("totalAmountUSD"), 0);
+  const initialPaymentUSD = toDecimal(formData.get("initialPaymentUSD"), 0);
+  const laborCostUSD = toDecimal(formData.get("laborCostUSD"), 0);
   const status = String(formData.get("status") || "").toUpperCase();
   const startDateRaw = String(formData.get("startDate") || "").trim();
   const endDateRaw = String(formData.get("endDate") || "").trim();
+  const carpenterId = String(formData.get("carpenterId") || "").trim() || null;
+  const architectId = String(formData.get("architectId") || "").trim() || null;
+  const supervisorId = String(formData.get("supervisorId") || "").trim() || null;
   await prisma.carpentryProject.update({
     where: { id },
     data: {
       ...(name ? { name } : {}),
       clientName,
+      clientEmail,
+      clientPhone,
+      clientAddress,
+      clientCity,
+      clientState,
       description,
       ...(totalAmountUSD ? { totalAmountUSD: totalAmountUSD as any } : {}),
+      ...(initialPaymentUSD ? { initialPaymentUSD: initialPaymentUSD as any } : {}),
+      ...(laborCostUSD ? { laborCostUSD: laborCostUSD as any } : {}),
       ...(status
         ? {
             status:
@@ -97,6 +155,9 @@ export async function updateCarpentryProject(formData: FormData) {
         : {}),
       startDate: startDateRaw ? new Date(startDateRaw) : null,
       endDate: endDateRaw ? new Date(endDateRaw) : null,
+      carpenterId,
+      architectId,
+      supervisorId,
     },
   });
   redirect("/dashboard/admin/carpinteria?message=Proyecto%20actualizado");
@@ -131,10 +192,72 @@ export async function addCarpentryProjectFile(formData: FormData) {
           ? "PLANO"
           : fileType === "IMAGEN"
           ? "IMAGEN"
+          : fileType === "CONTRATO"
+          ? "CONTRATO"
+          : fileType === "PRESUPUESTO"
+          ? "PRESUPUESTO"
+          : fileType === "AVANCE"
+          ? "AVANCE"
           : "OTRO",
     },
   });
   redirect("/dashboard/admin/carpinteria?message=Archivo%20agregado");
+}
+
+export async function createCarpentryClientPayment(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  const projectId = String(formData.get("projectId") || "").trim();
+  const amountUSD = toDecimal(formData.get("amountUSD"), 0);
+  const paidAtRaw = String(formData.get("paidAt") || "").trim();
+  const methodRaw = String(formData.get("method") || "").toUpperCase();
+  const reference = String(formData.get("reference") || "").trim() || null;
+  const notes = String(formData.get("notes") || "").trim() || null;
+  const proofUrl = String(formData.get("proofUrl") || "").trim() || null;
+  if (!projectId || !amountUSD || amountUSD <= 0) {
+    redirect("/dashboard/admin/carpinteria?error=Pago%20invalido");
+  }
+  const method =
+    methodRaw === "PAGO_MOVIL"
+      ? "PAGO_MOVIL"
+      : methodRaw === "TRANSFERENCIA"
+      ? "TRANSFERENCIA"
+      : methodRaw === "ZELLE"
+      ? "ZELLE"
+      : methodRaw === "EFECTIVO"
+      ? "EFECTIVO"
+      : null;
+  await prisma.carpentryClientPayment.create({
+    data: {
+      projectId,
+      amountUSD: amountUSD as any,
+      paidAt: paidAtRaw ? new Date(paidAtRaw) : new Date(),
+      method: method as any,
+      reference,
+      notes,
+      proofUrl,
+    },
+  });
+  redirect(`/dashboard/admin/carpinteria/${projectId}?message=Abono%20registrado`);
+}
+
+export async function updateCarpentryTaskStatus(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  const id = String(formData.get("id") || "").trim();
+  const statusRaw = String(formData.get("status") || "").toUpperCase();
+  const status =
+    statusRaw === "EN_PROGRESO"
+      ? "EN_PROGRESO"
+      : statusRaw === "COMPLETADA"
+      ? "COMPLETADA"
+      : "PENDIENTE";
+  await prisma.carpentryTask.update({
+    where: { id },
+    data: { status: status as any },
+  });
+  const backTo = String(formData.get("backTo") || "").trim();
+  redirect(backTo || "/dashboard/admin/carpinteria");
 }
 
 export async function createCarpentryTask(formData: FormData) {
@@ -152,15 +275,23 @@ export async function createCarpentryTask(formData: FormData) {
       : phaseRaw === "INSTALACION"
       ? "INSTALACION"
       : null;
+  const statusRaw = String(formData.get("status") || "").toUpperCase();
+  const status =
+    statusRaw === "EN_PROGRESO"
+      ? "EN_PROGRESO"
+      : statusRaw === "COMPLETADA"
+      ? "COMPLETADA"
+      : "PENDIENTE";
+  const backTo = String(formData.get("backTo") || "").trim();
 
-  if (!employeeId || !description || !amountUSD || amountUSD <= 0) {
-    redirect("/dashboard/admin/nomina?error=Datos%20incompletos");
+  if (!employeeId || !description) {
+    redirect(`${backTo || "/dashboard/admin/nomina"}?error=Datos%20incompletos`);
   }
 
   try {
     await prisma.$transaction(async (tx) => {
       let project = null as any;
-      if (projectId) {
+      if (projectId && amountUSD > 0) {
         project = await tx.carpentryProject.findUnique({ where: { id: projectId } });
         if (!project) throw new Error("Proyecto no encontrado");
         if (!phase) throw new Error("Fase requerida");
@@ -194,26 +325,29 @@ export async function createCarpentryTask(formData: FormData) {
           amountUSD: amountUSD as any,
           workDate: workDateRaw ? new Date(workDateRaw) : new Date(),
           phase: phase as any,
+          status: status as any,
         },
       });
 
-      await tx.payrollPayment.create({
-        data: {
-          employeeId,
-          category: "CARPINTERIA",
-          amountUSD: amountUSD as any,
-          paidAt: workDateRaw ? new Date(workDateRaw) : new Date(),
-          description,
-          service: "Carpinteria",
-          projectId,
-          projectPhase: phase as any,
-        },
-      });
+      if (amountUSD > 0) {
+        await tx.payrollPayment.create({
+          data: {
+            employeeId,
+            category: "CARPINTERIA",
+            amountUSD: amountUSD as any,
+            paidAt: workDateRaw ? new Date(workDateRaw) : new Date(),
+            description,
+            service: "Carpinteria",
+            projectId,
+            projectPhase: phase as any,
+          },
+        });
+      }
     });
   } catch (err: any) {
     const msg = encodeURIComponent(String(err?.message || "No se pudo registrar el pago"));
-    redirect(`/dashboard/admin/nomina?error=${msg}`);
+    redirect(`${backTo || "/dashboard/admin/nomina"}?error=${msg}`);
   }
 
-  redirect("/dashboard/admin/nomina?message=Pago%20carpintero%20registrado");
+  redirect(`${backTo || "/dashboard/admin/nomina"}?message=Pago%20carpintero%20registrado`);
 }

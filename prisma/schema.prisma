@@ -1105,12 +1105,21 @@ enum CarpentryProjectStatus {
 enum CarpentryProjectFileType {
   PLANO
   IMAGEN
+  CONTRATO
+  PRESUPUESTO
+  AVANCE
   OTRO
 }
 
 enum CarpentryProjectPhase {
   FABRICACION
   INSTALACION
+}
+
+enum CarpentryTaskStatus {
+  PENDIENTE
+  EN_PROGRESO
+  COMPLETADA
 }
 
 model Shipping {
@@ -1526,6 +1535,9 @@ model PayrollEmployee {
 
   payments    PayrollPayment[]
   carpentryTasks CarpentryTask[]
+  carpentryProjectsAsCarpenter CarpentryProject[] @relation("ProjectCarpenter")
+  carpentryProjectsAsArchitect CarpentryProject[] @relation("ProjectArchitect")
+  carpentryProjectsAsSupervisor CarpentryProject[] @relation("ProjectSupervisor")
 }
 
 model PayrollPayment {
@@ -1553,8 +1565,15 @@ model CarpentryProject {
   id                 String                 @id @default(cuid())
   name               String
   clientName         String?
+  clientEmail        String?
+  clientPhone        String?
+  clientAddress      String?
+  clientCity         String?
+  clientState        String?
   description        String?
   totalAmountUSD     Decimal                @db.Decimal(12, 2)
+  initialPaymentUSD  Decimal?               @db.Decimal(12, 2)
+  laborCostUSD       Decimal?               @db.Decimal(12, 2)
   fabricationPct     Decimal                @default(70) @db.Decimal(5, 2)
   installationPct    Decimal                @default(30) @db.Decimal(5, 2)
   fabricationPaidUSD Decimal                @default(0) @db.Decimal(12, 2)
@@ -1565,9 +1584,17 @@ model CarpentryProject {
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
 
+  carpenterId        String?
+  carpenter          PayrollEmployee?       @relation("ProjectCarpenter", fields: [carpenterId], references: [id], onDelete: SetNull)
+  architectId        String?
+  architect          PayrollEmployee?       @relation("ProjectArchitect", fields: [architectId], references: [id], onDelete: SetNull)
+  supervisorId       String?
+  supervisor         PayrollEmployee?       @relation("ProjectSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
+
   files              CarpentryProjectFile[]
   tasks              CarpentryTask[]
   payments           PayrollPayment[]
+  clientPayments     CarpentryClientPayment[]
 }
 
 model CarpentryProjectFile {
@@ -1590,12 +1617,29 @@ model CarpentryTask {
   project     CarpentryProject?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
   description String
   workDate    DateTime               @default(now())
-  amountUSD   Decimal                @db.Decimal(12, 2)
+  amountUSD   Decimal                @default(0) @db.Decimal(12, 2)
   phase       CarpentryProjectPhase?
+  status      CarpentryTaskStatus    @default(PENDIENTE)
   createdAt   DateTime               @default(now())
 
   @@index([employeeId])
   @@index([projectId])
+}
+
+model CarpentryClientPayment {
+  id          String        @id @default(cuid())
+  projectId   String
+  project     CarpentryProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  amountUSD   Decimal       @db.Decimal(12, 2)
+  paidAt      DateTime      @default(now())
+  method      PaymentMethod?
+  reference   String?
+  notes       String?
+  proofUrl    String?
+  createdAt   DateTime      @default(now())
+
+  @@index([projectId])
+  @@index([paidAt])
 }
 
 // Token para confirmar órdenes por WhatsApp

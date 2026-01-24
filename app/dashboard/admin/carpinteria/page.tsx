@@ -1,13 +1,13 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import CarpentryFileUploader from "@/components/admin/carpentry-file-uploader";
 import {
   createCarpentryProject,
   deleteCarpentryProject,
   getCarpentryProjects,
   updateCarpentryProject,
 } from "@/server/actions/carpentry";
+import { getPayrollEmployees } from "@/server/actions/payroll";
 
 export default async function CarpinteriaAdminPage({ searchParams }: { searchParams?: Promise<{ message?: string; error?: string }> }) {
   const session = await getServerSession(authOptions);
@@ -18,7 +18,10 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
   const message = sp.message ? decodeURIComponent(String(sp.message)) : "";
   const error = sp.error ? decodeURIComponent(String(sp.error)) : "";
 
-  const projects = await getCarpentryProjects();
+  const [projects, employees] = await Promise.all([
+    getCarpentryProjects(),
+    getPayrollEmployees(),
+  ]);
 
   return (
     <div className="p-4 space-y-6">
@@ -42,8 +45,36 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
             <input name="clientName" className="border rounded px-2 py-1 w-full" />
           </div>
           <div>
+            <label className="block text-sm text-gray-700">Email</label>
+            <input name="clientEmail" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Telefono</label>
+            <input name="clientPhone" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm text-gray-700">Direccion</label>
+            <input name="clientAddress" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Ciudad</label>
+            <input name="clientCity" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Estado</label>
+            <input name="clientState" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div>
             <label className="block text-sm text-gray-700">Monto total USD</label>
             <input name="totalAmountUSD" type="number" step="0.01" className="border rounded px-2 py-1 w-full" required />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Pago inicial USD</label>
+            <input name="initialPaymentUSD" type="number" step="0.01" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Costo mano de obra USD</label>
+            <input name="laborCostUSD" type="number" step="0.01" className="border rounded px-2 py-1 w-full" />
           </div>
           <div>
             <label className="block text-sm text-gray-700">Estado</label>
@@ -51,6 +82,33 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
               <option value="ACTIVO">Activo</option>
               <option value="EN_PROCESO">En proceso</option>
               <option value="CERRADO">Cerrado</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Carpintero</label>
+            <select name="carpenterId" className="border rounded px-2 py-1 w-full">
+              <option value="">Sin asignar</option>
+              {employees.map((e: any) => (
+                <option key={e.id} value={e.id}>{e.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Arquitecto</label>
+            <select name="architectId" className="border rounded px-2 py-1 w-full">
+              <option value="">Sin asignar</option>
+              {employees.map((e: any) => (
+                <option key={e.id} value={e.id}>{e.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Supervisor</label>
+            <select name="supervisorId" className="border rounded px-2 py-1 w-full">
+              <option value="">Sin asignar</option>
+              {employees.map((e: any) => (
+                <option key={e.id} value={e.id}>{e.name}</option>
+              ))}
             </select>
           </div>
           <div>
@@ -84,6 +142,12 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
             const instPaid = Number(p.installationPaidUSD || 0);
             return (
               <div key={p.id} className="border rounded p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-semibold">{p.name}</div>
+                  <a className="text-sm text-blue-600 hover:underline" href={`/dashboard/admin/carpinteria/${p.id}`}>
+                    Ver proyecto
+                  </a>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-2 items-end">
                   <form action={updateCarpentryProject} className="md:col-span-6 grid grid-cols-1 md:grid-cols-6 gap-2 items-end">
                     <input type="hidden" name="id" value={p.id} />
@@ -96,8 +160,36 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
                       <input name="clientName" defaultValue={p.clientName || ""} className="border rounded px-2 py-1 w-full" />
                     </div>
                     <div>
+                      <label className="block text-xs text-gray-600">Email</label>
+                      <input name="clientEmail" defaultValue={p.clientEmail || ""} className="border rounded px-2 py-1 w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600">Telefono</label>
+                      <input name="clientPhone" defaultValue={p.clientPhone || ""} className="border rounded px-2 py-1 w-full" />
+                    </div>
+                    <div className="md:col-span-3">
+                      <label className="block text-xs text-gray-600">Direccion</label>
+                      <input name="clientAddress" defaultValue={p.clientAddress || ""} className="border rounded px-2 py-1 w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600">Ciudad</label>
+                      <input name="clientCity" defaultValue={p.clientCity || ""} className="border rounded px-2 py-1 w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600">Estado</label>
+                      <input name="clientState" defaultValue={p.clientState || ""} className="border rounded px-2 py-1 w-full" />
+                    </div>
+                    <div>
                       <label className="block text-xs text-gray-600">Monto</label>
                       <input name="totalAmountUSD" type="number" step="0.01" defaultValue={p.totalAmountUSD} className="border rounded px-2 py-1 w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600">Pago inicial</label>
+                      <input name="initialPaymentUSD" type="number" step="0.01" defaultValue={p.initialPaymentUSD ?? ""} className="border rounded px-2 py-1 w-full" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600">Mano de obra</label>
+                      <input name="laborCostUSD" type="number" step="0.01" defaultValue={p.laborCostUSD ?? ""} className="border rounded px-2 py-1 w-full" />
                     </div>
                     <div>
                       <label className="block text-xs text-gray-600">Estado</label>
@@ -105,6 +197,33 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
                         <option value="ACTIVO">Activo</option>
                         <option value="EN_PROCESO">En proceso</option>
                         <option value="CERRADO">Cerrado</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600">Carpintero</label>
+                      <select name="carpenterId" defaultValue={p.carpenterId || ""} className="border rounded px-2 py-1 w-full">
+                        <option value="">Sin asignar</option>
+                        {employees.map((e: any) => (
+                          <option key={e.id} value={e.id}>{e.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600">Arquitecto</label>
+                      <select name="architectId" defaultValue={p.architectId || ""} className="border rounded px-2 py-1 w-full">
+                        <option value="">Sin asignar</option>
+                        {employees.map((e: any) => (
+                          <option key={e.id} value={e.id}>{e.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600">Supervisor</label>
+                      <select name="supervisorId" defaultValue={p.supervisorId || ""} className="border rounded px-2 py-1 w-full">
+                        <option value="">Sin asignar</option>
+                        {employees.map((e: any) => (
+                          <option key={e.id} value={e.id}>{e.name}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -144,23 +263,8 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="text-sm font-semibold">Archivos</div>
-                  {p.files?.length ? (
-                    <ul className="text-sm list-disc pl-5">
-                      {p.files.map((f: any) => (
-                        <li key={f.id}>
-                          <a href={f.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
-                            {f.filename || f.url}
-                          </a>{" "}
-                          <span className="text-xs text-gray-500">({f.fileType})</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="text-xs text-gray-500">Sin archivos</div>
-                  )}
-                  <CarpentryFileUploader projectId={p.id} />
+                <div className="text-xs text-gray-500">
+                  Gestiona archivos, abonos y tareas desde el detalle del proyecto.
                 </div>
               </div>
             );
