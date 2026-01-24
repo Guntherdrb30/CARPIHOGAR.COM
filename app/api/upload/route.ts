@@ -28,6 +28,7 @@ function darken(hex: string, factor = 0.7): string | undefined {
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime'];
+const ALLOWED_DOC_TYPES = ['application/pdf'];
 const PUBLIC_MAX_BYTES = 5 * 1024 * 1024; // 5MB for unauthenticated uploads
 
 export const runtime = 'nodejs';
@@ -60,6 +61,13 @@ export async function POST(req: Request) {
       if (!ALLOWED_VIDEO_TYPES.includes(mime)) {
         return NextResponse.json(
           { error: 'Tipo de video no permitido. Usa MP4 o MOV.' },
+          { status: 415 },
+        );
+      }
+    } else if (fileType === 'document') {
+      if (!ALLOWED_DOC_TYPES.includes(mime)) {
+        return NextResponse.json(
+          { error: 'Tipo de documento no permitido. Usa PDF.' },
           { status: 415 },
         );
       }
@@ -153,4 +161,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
 }
-

@@ -1084,6 +1084,35 @@ enum ShippingChannel {
   TIENDA
 }
 
+enum PayrollEmployeeType {
+  FIJA
+  CONTRATADA
+}
+
+enum PayrollPaymentCategory {
+  NOMINA_FIJA
+  NOMINA_CONTRATADA
+  OTRO
+  CARPINTERIA
+}
+
+enum CarpentryProjectStatus {
+  ACTIVO
+  EN_PROCESO
+  CERRADO
+}
+
+enum CarpentryProjectFileType {
+  PLANO
+  IMAGEN
+  OTRO
+}
+
+enum CarpentryProjectPhase {
+  FABRICACION
+  INSTALACION
+}
+
 model Shipping {
   id                  String          @id @default(cuid())
   orderId             String          @unique
@@ -1479,6 +1508,94 @@ model PushSubscription {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+// Nomina y pagos
+model PayrollEmployee {
+  id          String              @id @default(cuid())
+  name        String
+  role        String?
+  phone       String?
+  email       String?
+  type        PayrollEmployeeType @default(FIJA)
+  weeklySalaryUSD Decimal?        @db.Decimal(10, 2)
+  active      Boolean             @default(true)
+  notes       String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  payments    PayrollPayment[]
+  carpentryTasks CarpentryTask[]
+}
+
+model PayrollPayment {
+  id            String               @id @default(cuid())
+  employeeId    String?
+  employee      PayrollEmployee?     @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  category      PayrollPaymentCategory @default(OTRO)
+  amountUSD     Decimal              @db.Decimal(12, 2)
+  paidAt        DateTime             @default(now())
+  description   String?
+  service       String?
+  createdAt     DateTime             @default(now())
+
+  projectId     String?
+  project       CarpentryProject?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectPhase  CarpentryProjectPhase?
+
+  @@index([employeeId])
+  @@index([category, paidAt])
+  @@index([projectId])
+}
+
+// Proyectos de carpinteria
+model CarpentryProject {
+  id                 String                 @id @default(cuid())
+  name               String
+  clientName         String?
+  description        String?
+  totalAmountUSD     Decimal                @db.Decimal(12, 2)
+  fabricationPct     Decimal                @default(70) @db.Decimal(5, 2)
+  installationPct    Decimal                @default(30) @db.Decimal(5, 2)
+  fabricationPaidUSD Decimal                @default(0) @db.Decimal(12, 2)
+  installationPaidUSD Decimal               @default(0) @db.Decimal(12, 2)
+  status             CarpentryProjectStatus @default(ACTIVO)
+  startDate          DateTime?
+  endDate            DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  files              CarpentryProjectFile[]
+  tasks              CarpentryTask[]
+  payments           PayrollPayment[]
+}
+
+model CarpentryProjectFile {
+  id          String                   @id @default(cuid())
+  projectId   String
+  project     CarpentryProject         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  url         String
+  filename    String?
+  fileType    CarpentryProjectFileType @default(OTRO)
+  createdAt   DateTime                 @default(now())
+
+  @@index([projectId])
+}
+
+model CarpentryTask {
+  id          String                 @id @default(cuid())
+  employeeId  String
+  employee    PayrollEmployee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     CarpentryProject?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  description String
+  workDate    DateTime               @default(now())
+  amountUSD   Decimal                @db.Decimal(12, 2)
+  phase       CarpentryProjectPhase?
+  createdAt   DateTime               @default(now())
+
+  @@index([employeeId])
+  @@index([projectId])
 }
 
 // Token para confirmar órdenes por WhatsApp
