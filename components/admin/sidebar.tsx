@@ -96,60 +96,61 @@ export default function AdminSidebar() {
   }, [isAdmin]);
 
   const links = [
-    { href: '/dashboard/admin', label: 'Resumen' },
-    { href: '/dashboard/admin/estudio', label: 'Estudio de Diseno' },
-    { href: '/dashboard/admin/productos', label: 'Productos' },
-    { href: '/dashboard/admin/productos/configurables', label: 'Configurables (ECPD)' },
-    { href: '/dashboard/admin/categorias', label: 'Categorías' },
-    { href: '/dashboard/admin/ventas', label: 'Ventas' },
-    { href: '/dashboard/admin/comisiones', label: 'Comisiones' },
-    { href: '/dashboard/admin/nomina', label: 'Nomina' },
-    { href: '/dashboard/admin/carpinteria', label: 'Carpinteria' },
-    { href: '/dashboard/admin/ventas/aliados', label: 'Ventas Aliados (verificar)' },
-    { href: '/dashboard/admin/delivery/solicitudes', label: 'Delivery (verificar)' },
-    { href: '/dashboard/admin/delivery/dashboard', label: 'Delivery (dashboard)' },
-    { href: '/dashboard/admin/delivery/liquidaciones', label: 'Liquidaciones Delivery' },
-    { href: '/dashboard/admin/cuentas-por-cobrar', label: 'Cuentas por Cobrar' },
-    { href: '/dashboard/admin/cuentas-por-pagar', label: 'Cuentas por Pagar' },
-    { href: '/dashboard/admin/inventario', label: 'Inventario' },
-    { href: '/dashboard/admin/inventario/valuacion', label: 'Valuación' },
-    { href: '/dashboard/admin/inventario/valuacion/por-proveedor', label: 'Val. por Proveedor' },
-    { href: '/dashboard/admin/inventario/productos-por-proveedor', label: 'Prod. por Proveedor' },
-    { href: '/dashboard/admin/ventas/nueva', label: 'Nueva Venta' },
-    { href: '/dashboard/admin/presupuestos', label: 'Presupuestos' },
-    { href: '/dashboard/admin/compras', label: 'Compras' },
     { href: '/dashboard/admin/notificaciones', label: 'Notificaciones' },
-    { href: '/dashboard/admin/proveedores', label: 'Proveedores' },
-    { href: '/dashboard/admin/bancos', label: 'Bancos' },
-    { href: '/dashboard/admin/sucursales', label: 'Sucursales' },
+    { type: 'header', label: 'Administracion' },
+    { href: '/dashboard/admin/ventas/nueva', label: 'Nueva Venta' },
+    { href: '/dashboard/admin/ventas', label: 'Ventas' },
     { href: '/dashboard/admin/usuarios', label: 'Usuarios' },
-    { href: '/dashboard/admin/envios', label: 'Envíos' },
-    { href: '/dashboard/admin/envios/online', label: 'Envíos Online' },
-    { href: '/dashboard/admin/envios/tienda', label: 'Envíos en Tienda' },
+    { type: 'header', label: 'Contabilidad' },
+    { href: '/dashboard/admin/cuentas-por-pagar', label: 'Cuentas por Pagar' },
+    { href: '/dashboard/admin/cuentas-por-cobrar', label: 'Cuentas por Cobrar' },
+    { href: '/dashboard/admin/bancos', label: 'Bancos' },
+    { type: 'header', label: 'Compras' },
+    { href: '/dashboard/admin/compras', label: 'Compras' },
+    { type: 'header', label: 'Pagos' },
+    { href: '/dashboard/admin/nomina', label: 'Nomina' },
+    { href: '/dashboard/admin/comisiones', label: 'Comisiones' },
+    { href: '/dashboard/admin/delivery/liquidaciones', label: 'Liquidaciones Delivery' },
+    { type: 'header', label: 'Proveedores' },
+    { href: '/dashboard/admin/proveedores', label: 'Proveedores' },
+    { type: 'header', label: 'Tienda Online' },
+    { href: '/dashboard/admin/productos', label: 'Productos' },
+    { href: '/dashboard/admin/categorias', label: 'Categorias' },
+    { href: '/dashboard/admin/usuarios?scope=tienda', label: 'Usuarios (Tienda)' },
+    { type: 'header', label: 'Ajustes' },
     { href: '/dashboard/admin/ajustes', label: 'Ajustes' },
-    // Cursos (IA) - sólo visible para ADMIN/ROOT
-    ...(isAdmin ? [{ href: '/dashboard/settings/courses', label: 'Cursos (IA)' }] : []),
-    { href: '/dashboard/admin/envios/logs', label: 'Logs de Envios' },
-    ...(isRoot
-      ? [
-          { href: '/dashboard/admin/root', label: 'Root (panel oculto)' },
-          { href: '/dashboard/admin/root/productos', label: 'Root: Productos sin IVA' },
-          { href: '/dashboard/admin/root/ventas', label: 'Root: Ventas sin IVA' },
-          { href: '/dashboard/admin/ajustes/sistema', label: 'Ajustes del Sistema (Root)' },
-        ]
-      : []),
+    ...(isRoot ? [{ href: '/dashboard/admin/ajustes/sistema', label: 'Ajustes del Sistema (Root)' }] : []),
+    ...(isRoot ? [{ href: '/dashboard/admin/root/productos', label: 'Root: Productos sin IVA' }] : []),
+    ...(isRoot ? [{ href: '/dashboard/admin/root/ventas', label: 'Root: Ventas sin IVA' }] : []),
+    ...(isRoot ? [{ href: '/dashboard/admin/root', label: 'Root (panel oculto)' }] : []),
+    { type: 'header', label: 'Envios' },
+    { href: '/dashboard/admin/envios', label: 'Envios' },
+    { href: '/dashboard/admin/envios/online', label: 'Envios Online' },
+    { href: '/dashboard/admin/envios/tienda', label: 'Envios en Tienda' },
+    { type: 'header', label: 'Reportes' },
     { href: '/dashboard/admin/reportes', label: 'Reportes' },
-    { href: '/dashboard/admin/mensajeria', label: 'Mensajería' },
+    { type: 'header', label: 'Mensajeria' },
+    { href: '/dashboard/admin/mensajeria', label: 'Mensajeria' },
+    { type: 'header', label: 'Carpinteria' },
+    { href: '/dashboard/admin/carpinteria', label: 'Carpinteria' },
   ];
+
 
   return (
     <aside className="w-56 xl:w-60 shrink-0 border-r bg-white min-h-[calc(100vh-64px)] print:hidden">
       <nav className="p-3 space-y-1 text-sm max-h-[calc(100vh-64px)] overflow-y-auto">
-        {links.map((l) => {
+        {links.map((l: any, idx: number) => {
+          if (l.type === 'header') {
+            return (
+              <div key={`h-${l.label}-${idx}`} className="mt-3 text-[11px] uppercase tracking-wide text-gray-400 px-2">
+                {l.label}
+              </div>
+            );
+          }
           const active = pathname === l.href || pathname?.startsWith(l.href + '/');
           return (
             <Link
-              key={l.href}
+              key={`${l.href}-${l.label}`}
               href={l.href}
               className={`block rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                 active ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
@@ -172,7 +173,7 @@ export default function AdminSidebar() {
                     {unreadMsgs}
                   </span>
                 )}
-                {l.href === '/dashboard/admin/usuarios' && usersPending > 0 && (
+                {(l.href === '/dashboard/admin/usuarios' || l.href === '/dashboard/admin/usuarios?scope=tienda') && usersPending > 0 && (
                   <span className="ml-1 inline-flex items-center justify-center rounded-full bg-red-600 text-white text-[11px] px-1.5 min-w-[1.25rem]">
                     {usersPending}
                   </span>
