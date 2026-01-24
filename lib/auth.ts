@@ -135,23 +135,19 @@ export const authOptions: AuthOptions = {
                   email: emailLc,
                   name: (user as any)?.name || undefined,
                   password: hashed,
+                  emailVerifiedAt: new Date(),
                   // role and alliedStatus use schema defaults
                 },
               });
-              // Optionally send verification link for Google sign-ins
-              try {
-                const crypto = await import('crypto');
-                const token = crypto.randomBytes(32).toString('hex');
-                const expires = new Date(Date.now() + 1000 * 60 * 60 * 24);
-                await prisma.user.update({ where: { id: dbUser.id }, data: { emailVerificationToken: token, emailVerificationTokenExpiresAt: expires as any } });
-                const { sendMail, basicTemplate, isEmailEnabled } = await import('@/lib/mailer');
-                if (isEmailEnabled()) {
-                  const base = process.env.NEXT_PUBLIC_URL || '';
-                  const verifyUrl = `${base}/api/auth/verify-email?token=${token}`;
-                  const html = basicTemplate('Verifica tu correo', `<p>Confirma tu correo para activar tu cuenta:</p><p><a href="${verifyUrl}">Verificar correo</a></p>`);
-                  await sendMail({ to: email, subject: 'Verifica tu correo', html });
-                }
-              } catch {}
+            } else if (!(dbUser as any).emailVerifiedAt) {
+              dbUser = await prisma.user.update({
+                where: { id: dbUser.id },
+                data: {
+                  emailVerifiedAt: new Date(),
+                  emailVerificationToken: null,
+                  emailVerificationTokenExpiresAt: null,
+                },
+              });
             }
             token.id = dbUser.id;
             token.role = dbUser.role;
