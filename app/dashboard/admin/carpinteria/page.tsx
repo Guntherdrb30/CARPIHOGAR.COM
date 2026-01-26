@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -8,6 +9,43 @@ import {
 } from "@/server/actions/carpentry";
 import { getPayrollEmployees } from "@/server/actions/payroll";
 import ProofUploader from "@/components/admin/proof-uploader";
+import CarpentryProjectTabs from "@/components/admin/carpentry-project-tabs";
+
+const VENEZUELA_STATES = [
+  "Amazonas",
+  "Anzoátegui",
+  "Apure",
+  "Aragua",
+  "Barinas",
+  "Bolívar",
+  "Carabobo",
+  "Cojedes",
+  "Delta Amacuro",
+  "Distrito Capital",
+  "Falcón",
+  "Guárico",
+  "Lara",
+  "Mérida",
+  "Miranda",
+  "Monagas",
+  "Nueva Esparta",
+  "Portuguesa",
+  "Sucre",
+  "Táchira",
+  "Trujillo",
+  "Vargas",
+  "Yaracuy",
+  "Zulia",
+];
+
+const CITY_MAP: Record<string, string[]> = {
+  Distrito: ["Caracas", "El Hatillo", "Chacao"],
+  Miranda: ["Guatire", "Los Teques", "Higuerote"],
+  Carabobo: ["Valencia", "Naguanagua", "Puerto Cabello"],
+  Lara: ["Barquisimeto", "Cabudare", "Carora"],
+  Zulia: ["Maracaibo", "Cabimas", "San Francisco"],
+  default: ["Maracay", "Puerto Ordaz", "Ciudad Bolívar"],
+};
 
 export default async function CarpinteriaAdminPage({ searchParams }: { searchParams?: Promise<{ message?: string; error?: string }> }) {
   const session = await getServerSession(authOptions);
@@ -33,126 +71,176 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
       {message && <div className="border border-green-200 bg-green-50 text-green-800 px-3 py-2 rounded">{message}</div>}
       {error && <div className="border border-red-200 bg-red-50 text-red-800 px-3 py-2 rounded">{error}</div>}
 
-      <section className="bg-white p-4 rounded-lg shadow space-y-4">
-        <h2 className="text-lg font-semibold">Crear proyecto</h2>
-        <form action={createCarpentryProject} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
-          <div className="md:col-span-2">
-            <label className="block text-sm text-gray-700">Nombre</label>
-            <input name="name" className="border rounded px-2 py-1 w-full" required />
+      <section className="space-y-4">
+        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-xl">
+          <div className="flex flex-col gap-1">
+            <p className="text-xs uppercase tracking-[0.4em] text-gray-500">Crear proyecto</p>
+            <h2 className="text-2xl font-semibold text-gray-900">Nuevo expediente de carpintería</h2>
+            <p className="text-sm text-gray-600">
+              Completa todos los datos obligatorios, sube planos/render, lista de materiales y podrás generar
+              órdenes de compra directamente desde cada proyecto.
+            </p>
           </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm text-gray-700">Cliente</label>
-            <input name="clientName" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Email</label>
-            <input name="clientEmail" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Telefono</label>
-            <input name="clientPhone" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm text-gray-700">Direccion</label>
-            <input name="clientAddress" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Ciudad</label>
-            <input name="clientCity" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Estado</label>
-            <input name="clientState" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Monto total USD</label>
-            <input name="totalAmountUSD" type="number" step="0.01" className="border rounded px-2 py-1 w-full" required />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Pago inicial USD</label>
-            <input name="initialPaymentUSD" type="number" step="0.01" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Metodo pago inicial</label>
-            <select name="initialPaymentMethod" className="border rounded px-2 py-1 w-full">
-              <option value="">Sin metodo</option>
-              <option value="PAGO_MOVIL">Pago movil</option>
-              <option value="TRANSFERENCIA">Transferencia</option>
-              <option value="ZELLE">Zelle</option>
-              <option value="EFECTIVO">Efectivo</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Fecha pago inicial</label>
-            <input name="initialPaymentPaidAt" type="date" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Referencia inicial</label>
-            <input name="initialPaymentReference" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm text-gray-700">Notas pago inicial</label>
-            <input name="initialPaymentNotes" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm text-gray-700">Comprobante inicial</label>
-            <ProofUploader inputName="initialPaymentProofUrl" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Costo mano de obra USD</label>
-            <input name="laborCostUSD" type="number" step="0.01" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Estado</label>
-            <select name="status" className="border rounded px-2 py-1 w-full">
-              <option value="ACTIVO">Activo</option>
-              <option value="EN_PROCESO">En proceso</option>
-              <option value="CERRADO">Cerrado</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Carpintero</label>
-            <select name="carpenterId" className="border rounded px-2 py-1 w-full">
-              <option value="">Sin asignar</option>
-              {employees.map((e: any) => (
-                <option key={e.id} value={e.id}>{e.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Arquitecto</label>
-            <select name="architectId" className="border rounded px-2 py-1 w-full">
-              <option value="">Sin asignar</option>
-              {employees.map((e: any) => (
-                <option key={e.id} value={e.id}>{e.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Supervisor</label>
-            <select name="supervisorId" className="border rounded px-2 py-1 w-full">
-              <option value="">Sin asignar</option>
-              {employees.map((e: any) => (
-                <option key={e.id} value={e.id}>{e.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Inicio</label>
-            <input name="startDate" type="date" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Fin</label>
-            <input name="endDate" type="date" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div className="md:col-span-6">
-            <label className="block text-sm text-gray-700">Descripcion</label>
-            <input name="description" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div className="md:col-span-6">
-            <button className="px-3 py-1 rounded bg-blue-600 text-white">Guardar proyecto</button>
-          </div>
-        </form>
+          <form action={createCarpentryProject} className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1fr,320px]">
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Nombre del proyecto</label>
+                  <input name="name" required className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Cliente</label>
+                  <input name="clientName" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Ciudad</label>
+                  <input
+                    name="clientCity"
+                    list="carpentry-cities"
+                    placeholder="Caracas"
+                    className="mt-1 w-full rounded border px-3 py-2 text-sm"
+                  />
+                  <datalist id="carpentry-cities">
+                    {["Caracas", "Valencia", "Maracay", "Maracaibo", "Barquisimeto"].map((city) => (
+                      <option key={city} value={city} />
+                    ))}
+                  </datalist>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Estado</label>
+                  <select name="clientState" className="mt-1 w-full rounded border px-3 py-2 text-sm">
+                    <option value="">Selecciona un estado</option>
+                    {VENEZUELA_STATES.map((state) => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Dirección</label>
+                  <input name="clientAddress" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Monto total (USD)</label>
+                  <input name="totalAmountUSD" type="number" step="0.01" required className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Pago inicial (USD)</label>
+                  <input name="initialPaymentUSD" type="number" step="0.01" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Método de pago</label>
+                  <select name="initialPaymentMethod" className="mt-1 w-full rounded border px-3 py-2 text-sm">
+                    <option value="">Sin método</option>
+                    <option value="PAGO_MOVIL">Pago móvil</option>
+                    <option value="TRANSFERENCIA">Transferencia</option>
+                    <option value="ZELLE">Zelle</option>
+                    <option value="EFECTIVO">Efectivo</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Fecha de pago</label>
+                  <input name="initialPaymentPaidAt" type="date" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Carpintero</label>
+                  <select name="carpenterId" className="mt-1 w-full rounded border px-3 py-2 text-sm">
+                    <option value="">Sin asignar</option>
+                    {employees.map((e: any) => (
+                      <option key={e.id} value={e.id}>{e.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Arquitecto</label>
+                  <select name="architectId" className="mt-1 w-full rounded border px-3 py-2 text-sm">
+                    <option value="">Sin asignar</option>
+                    {employees.map((e: any) => (
+                      <option key={e.id} value={e.id}>{e.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Supervisor</label>
+                  <select name="supervisorId" className="mt-1 w-full rounded border px-3 py-2 text-sm">
+                    <option value="">Sin asignar</option>
+                    {employees.map((e: any) => (
+                      <option key={e.id} value={e.id}>{e.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Inicio estimado</label>
+                  <input name="startDate" type="date" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Fin estimado</label>
+                  <input name="endDate" type="date" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700">Descripción</label>
+                <textarea name="description" rows={3} className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Estado del proyecto</label>
+                  <select name="status" className="mt-1 w-full rounded border px-3 py-2 text-sm">
+                    <option value="ACTIVO">Activo</option>
+                    <option value="EN_PROCESO">En proceso</option>
+                    <option value="CERRADO">Cerrado</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700">Pago por fase completa (70%)</label>
+                  <input name="secretToken" placeholder="Clave secreta (opcional)" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-600">
+                <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Documentación</p>
+                <p className="text-sm text-gray-800">Adjunta planos iniciales, renders y contratos.</p>
+                <div className="space-y-2 pt-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500">Comprobante inicial</label>
+                    <ProofUploader inputName="initialPaymentProofUrl" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500">Planos / renders</label>
+                    <ProofUploader inputName="projectDrawingsUrl" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500">Lista de materiales (PDF/Excel)</label>
+                    <ProofUploader inputName="materialsListUrl" />
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Control financiero</p>
+                <p className="text-sm text-gray-800">Cuando el cliente haya pagado al menos el 70% puedes generar órdenes de compra desde el detalle.</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold uppercase text-emerald-600">70% pago requerido</span>
+                  <span className="rounded-full bg-blue-100 px-3 py-1 text-[11px] font-semibold uppercase text-blue-600">Compras integradas</span>
+                </div>
+              </div>
+              <div className="pt-2">
+                <button className="w-full rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                  Guardar proyecto
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
       </section>
 
       <section className="space-y-4">
