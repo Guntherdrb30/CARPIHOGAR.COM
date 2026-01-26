@@ -50,6 +50,8 @@ export default async function AdminDashboard() {
         order.status === "COMPLETADO" ||
         order.status === "PAGADO",
   ).length;
+  const salesPending = pendingPayment;
+  const unreadMsgs = 0;
   const fieldClass =
     "w-full rounded-2xl border border-white/20 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400";
 
