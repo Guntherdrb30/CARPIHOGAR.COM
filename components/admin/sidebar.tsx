@@ -236,6 +236,14 @@ export default function AdminSidebar() {
   return (
     <aside className="w-56 xl:w-60 shrink-0 border-r bg-white min-h-[calc(100vh-64px)] print:hidden">
       <nav className="p-3 text-sm max-h-[calc(100vh-64px)] overflow-y-auto space-y-3">
+        <Link
+          href="/dashboard/admin"
+          className="block rounded-md px-3 py-2 text-sm font-medium transition-colors text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+        >
+          <span className="inline-flex items-center gap-2">
+            <span>Panel Admin</span>
+          </span>
+        </Link>
         {sections.map((section) => {
           const isOpen = openSections.has(section.label);
           return (
