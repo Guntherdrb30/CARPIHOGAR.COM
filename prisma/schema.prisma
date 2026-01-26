@@ -1538,6 +1538,8 @@ model PayrollEmployee {
   carpentryProjectsAsCarpenter CarpentryProject[] @relation("ProjectCarpenter")
   carpentryProjectsAsArchitect CarpentryProject[] @relation("ProjectArchitect")
   carpentryProjectsAsSupervisor CarpentryProject[] @relation("ProjectSupervisor")
+  productionOrdersAsCarpentryLead ProductionOrder[] @relation("ProductionCarpenter")
+  productionOrdersAsSupervisor ProductionOrder[] @relation("ProductionSupervisor")
 }
 
 model PayrollPayment {
