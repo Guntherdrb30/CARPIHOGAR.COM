@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -22,6 +23,59 @@ const parseBool = (value: string | null) => {
   const raw = String(value || "").trim().toLowerCase();
   return raw === "true" || raw === "1" || raw === "on";
 };
+
+type UploadedProjectFile = {
+  url: string;
+  filename?: string | null;
+  fileType?: string;
+};
+
+const ALLOWED_CARPENTRY_FILE_TYPES = new Set(["PLANO","IMAGEN","CONTRATO","PRESUPUESTO","AVANCE","OTRO"]);
+
+function parseProjectFiles(formData: FormData, fieldName: string): UploadedProjectFile[] {
+  const values = formData.getAll(fieldName);
+  const files: UploadedProjectFile[] = [];
+  for (const entry of values) {
+    if (typeof entry !== "string") continue;
+    try {
+      const parsed = JSON.parse(entry) as UploadedProjectFile;
+      if (parsed?.url) {
+        files.push(parsed);
+      }
+    } catch (_err) {
+      // ignore invalid payload
+    }
+  }
+  return files;
+}
+
+function normalizeProjectFileType(value?: string) {
+  const normalized = String(value || "").toUpperCase();
+  if (ALLOWED_CARPENTRY_FILE_TYPES.has(normalized)) {
+    return normalized;
+  }
+  return "OTRO";
+}
+
+async function saveProjectFiles(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  files: UploadedProjectFile[]
+) {
+  if (!files.length) return;
+  await Promise.all(
+    files.map((file) =>
+      tx.carpentryProjectFile.create({
+        data: {
+          projectId,
+          url: file.url,
+          filename: file.filename,
+          fileType: normalizeProjectFileType(file.fileType) as any,
+        },
+      })
+    )
+  );
+}
 
 export async function getCarpentryProjects() {
   const session = await getServerSession(authOptions);
@@ -98,6 +152,11 @@ export async function createCarpentryProject(formData: FormData) {
   const carpenterId = String(formData.get("carpenterId") || "").trim() || null;
   const architectId = String(formData.get("architectId") || "").trim() || null;
   const supervisorId = String(formData.get("supervisorId") || "").trim() || null;
+  const budgetFiles = parseProjectFiles(formData, "budgetFiles[]");
+  const renderFiles = parseProjectFiles(formData, "renderFiles[]");
+  const paymentProofFiles = parseProjectFiles(formData, "paymentProofFiles[]");
+  const materialsFiles = parseProjectFiles(formData, "materialsFiles[]");
+  const materialsListName = String(formData.get("materialsListName") || "").trim();
   if (!name || !totalAmountUSD || totalAmountUSD <= 0) {
     redirect("/dashboard/admin/carpinteria?error=Nombre%20y%20monto%20requeridos");
   }
@@ -138,6 +197,20 @@ export async function createCarpentryProject(formData: FormData) {
         supervisorId,
       },
     });
+    await saveProjectFiles(tx, project.id, budgetFiles);
+    await saveProjectFiles(tx, project.id, renderFiles);
+    await saveProjectFiles(tx, project.id, paymentProofFiles);
+    await saveProjectFiles(tx, project.id, materialsFiles);
+    if (materialsFiles.length) {
+      await tx.carpentryProjectMaterialList.create({
+        data: {
+          projectId: project.id,
+          name: materialsListName || `${project.name} - Lista inicial`,
+          fileUrl: materialsFiles[0].url,
+          description: materialsFiles[0].filename || null,
+        },
+      });
+    }
     if (initialPaymentUSD > 0) {
       await tx.carpentryClientPayment.create({
         data: {

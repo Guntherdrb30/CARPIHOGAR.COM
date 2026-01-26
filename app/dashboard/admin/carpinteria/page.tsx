@@ -10,6 +10,7 @@ import {
 import { getPayrollEmployees } from "@/server/actions/payroll";
 import ProofUploader from "@/components/admin/proof-uploader";
 import CarpentryProjectTabs from "@/components/admin/carpentry-project-tabs";
+import CarpentryDocumentUploader from "@/components/admin/carpentry-document-uploader";
 
 const VENEZUELA_STATES = [
   "Amazonas",
@@ -209,21 +210,56 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
             <div className="space-y-4">
               <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-600">
                 <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Documentación</p>
-                <p className="text-sm text-gray-800">Adjunta planos iniciales, renders y contratos.</p>
-                <div className="space-y-2 pt-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500">Comprobante inicial</label>
-                    <ProofUploader inputName="initialPaymentProofUrl" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500">Planos / renders</label>
-                    <ProofUploader inputName="projectDrawingsUrl" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500">Lista de materiales (PDF/Excel)</label>
-                    <ProofUploader inputName="materialsListUrl" />
+                <p className="text-sm text-gray-800">
+                  Adjunta presupuesto, renders, comprobantes y lista de materiales para que el expediente esté completo desde el inicio.
+                </p>
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <CarpentryDocumentUploader
+                    fieldName="budgetFiles"
+                    label="Presupuesto inicial (PDF)"
+                    description="Solo se permite un archivo. Este será la base del total del proyecto."
+                    accept="application/pdf"
+                    fileType="PRESUPUESTO"
+                    max={1}
+                  />
+                  <CarpentryDocumentUploader
+                    fieldName="renderFiles"
+                    label="Renders / imágenes del proyecto"
+                    description="Sube hasta 4 renders; la primera imagen registrada se usará como portada en la tarjeta del proyecto."
+                    accept="image/*"
+                    fileType="IMAGEN"
+                    max={4}
+                  />
+                  <CarpentryDocumentUploader
+                    fieldName="paymentProofFiles"
+                    label="Comprobantes de abonos"
+                    description="Adjunta comprobantes adicionales para respaldar pagos del cliente."
+                    accept="image/*,application/pdf"
+                    fileType="AVANCE"
+                    max={4}
+                  />
+                  <div className="space-y-2">
+                    <CarpentryDocumentUploader
+                      fieldName="materialsFiles"
+                      label="Lista de materiales (PDF/Excel)"
+                      description="Sube el archivo que detalla los materiales del proyecto."
+                      accept="application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                      fileType="OTRO"
+                      max={1}
+                    />
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500">Nombre para la lista</label>
+                      <input
+                        name="materialsListName"
+                        placeholder="Lista de materiales inicial"
+                        className="mt-1 w-full rounded border border-gray-200 px-3 py-2 text-sm"
+                      />
+                    </div>
                   </div>
                 </div>
+                <p className="mt-3 text-[11px] uppercase tracking-[0.3em] text-gray-500">
+                  Los renders cargados serán visibles en la tarjeta del proyecto; asegúrate de que el primero sea el más representativo.
+                </p>
               </div>
               <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
                 <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Control financiero</p>
