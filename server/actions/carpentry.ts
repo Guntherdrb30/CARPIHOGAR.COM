@@ -68,6 +68,11 @@ export async function createCarpentryProject(formData: FormData) {
   const description = String(formData.get("description") || "").trim() || null;
   const totalAmountUSD = toDecimal(formData.get("totalAmountUSD"), 0);
   const initialPaymentUSD = toDecimal(formData.get("initialPaymentUSD"), 0);
+  const initialPaymentMethodRaw = String(formData.get("initialPaymentMethod") || "").toUpperCase();
+  const initialPaymentReference = String(formData.get("initialPaymentReference") || "").trim() || null;
+  const initialPaymentNotes = String(formData.get("initialPaymentNotes") || "").trim() || null;
+  const initialPaymentPaidAtRaw = String(formData.get("initialPaymentPaidAt") || "").trim();
+  const initialPaymentProofUrl = String(formData.get("initialPaymentProofUrl") || "").trim() || null;
   const laborCostUSD = toDecimal(formData.get("laborCostUSD"), 0);
   const status = String(formData.get("status") || "ACTIVO").toUpperCase();
   const startDateRaw = String(formData.get("startDate") || "").trim();
@@ -78,31 +83,56 @@ export async function createCarpentryProject(formData: FormData) {
   if (!name || !totalAmountUSD || totalAmountUSD <= 0) {
     redirect("/dashboard/admin/carpinteria?error=Nombre%20y%20monto%20requeridos");
   }
-  await prisma.carpentryProject.create({
-    data: {
-      name,
-      clientName,
-      clientEmail,
-      clientPhone,
-      clientAddress,
-      clientCity,
-      clientState,
-      description,
-      totalAmountUSD: totalAmountUSD as any,
-      initialPaymentUSD: initialPaymentUSD ? (initialPaymentUSD as any) : null,
-      laborCostUSD: laborCostUSD ? (laborCostUSD as any) : null,
-      status:
-        status === "EN_PROCESO"
-          ? "EN_PROCESO"
-          : status === "CERRADO"
-          ? "CERRADO"
-          : "ACTIVO",
-      startDate: startDateRaw ? new Date(startDateRaw) : null,
-      endDate: endDateRaw ? new Date(endDateRaw) : null,
-      carpenterId,
-      architectId,
-      supervisorId,
-    },
+  const initialPaymentMethod =
+    initialPaymentMethodRaw === "PAGO_MOVIL"
+      ? "PAGO_MOVIL"
+      : initialPaymentMethodRaw === "TRANSFERENCIA"
+      ? "TRANSFERENCIA"
+      : initialPaymentMethodRaw === "ZELLE"
+      ? "ZELLE"
+      : initialPaymentMethodRaw === "EFECTIVO"
+      ? "EFECTIVO"
+      : null;
+  await prisma.$transaction(async (tx) => {
+    const project = await tx.carpentryProject.create({
+      data: {
+        name,
+        clientName,
+        clientEmail,
+        clientPhone,
+        clientAddress,
+        clientCity,
+        clientState,
+        description,
+        totalAmountUSD: totalAmountUSD as any,
+        initialPaymentUSD: initialPaymentUSD ? (initialPaymentUSD as any) : null,
+        laborCostUSD: laborCostUSD ? (laborCostUSD as any) : null,
+        status:
+          status === "EN_PROCESO"
+            ? "EN_PROCESO"
+            : status === "CERRADO"
+            ? "CERRADO"
+            : "ACTIVO",
+        startDate: startDateRaw ? new Date(startDateRaw) : null,
+        endDate: endDateRaw ? new Date(endDateRaw) : null,
+        carpenterId,
+        architectId,
+        supervisorId,
+      },
+    });
+    if (initialPaymentUSD > 0) {
+      await tx.carpentryClientPayment.create({
+        data: {
+          projectId: project.id,
+          amountUSD: initialPaymentUSD as any,
+          paidAt: initialPaymentPaidAtRaw ? new Date(initialPaymentPaidAtRaw) : new Date(),
+          method: initialPaymentMethod as any,
+          reference: initialPaymentReference,
+          notes: initialPaymentNotes,
+          proofUrl: initialPaymentProofUrl,
+        },
+      });
+    }
   });
   redirect("/dashboard/admin/carpinteria?message=Proyecto%20creado");
 }
@@ -282,6 +312,8 @@ export async function createCarpentryTask(formData: FormData) {
       : statusRaw === "COMPLETADA"
       ? "COMPLETADA"
       : "PENDIENTE";
+  const methodRaw = String(formData.get("method") || "").toUpperCase();
+  const reference = String(formData.get("reference") || "").trim() || null;
   const backTo = String(formData.get("backTo") || "").trim();
 
   if (!employeeId || !description) {
@@ -330,12 +362,24 @@ export async function createCarpentryTask(formData: FormData) {
       });
 
       if (amountUSD > 0) {
+        const method =
+          methodRaw === "PAGO_MOVIL"
+            ? "PAGO_MOVIL"
+            : methodRaw === "TRANSFERENCIA"
+            ? "TRANSFERENCIA"
+            : methodRaw === "ZELLE"
+            ? "ZELLE"
+            : methodRaw === "EFECTIVO"
+            ? "EFECTIVO"
+            : null;
         await tx.payrollPayment.create({
           data: {
             employeeId,
             category: "CARPINTERIA",
             amountUSD: amountUSD as any,
             paidAt: workDateRaw ? new Date(workDateRaw) : new Date(),
+            method: method as any,
+            reference,
             description,
             service: "Carpinteria",
             projectId,

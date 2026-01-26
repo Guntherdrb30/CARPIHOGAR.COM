@@ -18,12 +18,41 @@ export async function POST(req: Request) {
     if (!projectId || !url) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
     }
-    const fileType =
-      fileTypeRaw === "PLANO"
-        ? "PLANO"
-        : fileTypeRaw === "IMAGEN"
-        ? "IMAGEN"
-        : "OTRO";
+    const allowedTypes = new Set([
+      "PLANO",
+      "IMAGEN",
+      "CONTRATO",
+      "PRESUPUESTO",
+      "AVANCE",
+      "OTRO",
+    ]);
+    if (!allowedTypes.has(fileTypeRaw)) {
+      return NextResponse.json({ error: "Tipo de archivo invalido" }, { status: 400 });
+    }
+    const fileType = fileTypeRaw as
+      | "PLANO"
+      | "IMAGEN"
+      | "CONTRATO"
+      | "PRESUPUESTO"
+      | "AVANCE"
+      | "OTRO";
+    const maxByType: Record<string, number | null> = {
+      PRESUPUESTO: 1,
+      PLANO: 2,
+      CONTRATO: 1,
+      IMAGEN: null,
+      AVANCE: null,
+      OTRO: null,
+    };
+    const max = maxByType[fileType];
+    if (typeof max === "number") {
+      const count = await prisma.carpentryProjectFile.count({
+        where: { projectId, fileType: fileType as any },
+      });
+      if (count >= max) {
+        return NextResponse.json({ error: "Limite de archivos alcanzado" }, { status: 400 });
+      }
+    }
     const file = await prisma.carpentryProjectFile.create({
       data: { projectId, url, filename, fileType },
     });

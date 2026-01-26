@@ -233,6 +233,16 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
             <input name="workDate" type="date" className="border rounded px-2 py-1 w-full" />
           </div>
           <div>
+            <label className="block text-sm text-gray-700">Metodo</label>
+            <select name="method" className="border rounded px-2 py-1 w-full">
+              <option value="">Sin metodo</option>
+              <option value="PAGO_MOVIL">Pago movil</option>
+              <option value="TRANSFERENCIA">Transferencia</option>
+              <option value="ZELLE">Zelle</option>
+              <option value="EFECTIVO">Efectivo</option>
+            </select>
+          </div>
+          <div>
             <label className="block text-sm text-gray-700">Estado</label>
             <select name="status" className="border rounded px-2 py-1 w-full">
               <option value="PENDIENTE">Pendiente</option>
@@ -244,6 +254,10 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
             <label className="block text-sm text-gray-700">Descripcion</label>
             <input name="description" className="border rounded px-2 py-1 w-full" required />
             <div className="text-xs text-gray-500 mt-1">Monto en 0 solo crea tarea sin pago.</div>
+          </div>
+          <div className="md:col-span-6">
+            <label className="block text-sm text-gray-700">Referencia</label>
+            <input name="reference" className="border rounded px-2 py-1 w-full" />
           </div>
           <div className="md:col-span-6">
             <button className="px-3 py-1 rounded bg-amber-600 text-white">Agregar tarea</button>

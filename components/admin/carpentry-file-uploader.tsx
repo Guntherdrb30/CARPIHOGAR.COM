@@ -5,7 +5,7 @@ import { useState } from "react";
 type UploadedFile = {
   url: string;
   filename: string;
-  fileType: "PLANO" | "IMAGEN" | "OTRO";
+  fileType: "PLANO" | "IMAGEN" | "CONTRATO" | "PRESUPUESTO" | "AVANCE" | "OTRO";
 };
 
 type Props = {

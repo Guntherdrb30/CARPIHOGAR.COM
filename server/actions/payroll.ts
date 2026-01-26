@@ -106,11 +106,23 @@ export async function createPayrollPayment(formData: FormData) {
   const amountUSD = toDecimal(formData.get("amountUSD"), 0);
   const paidAtRaw = String(formData.get("paidAt") || "").trim();
   const paidAt = paidAtRaw ? new Date(paidAtRaw) : new Date();
+  const methodRaw = String(formData.get("method") || "").toUpperCase();
+  const reference = String(formData.get("reference") || "").trim() || null;
   const description = String(formData.get("description") || "").trim() || null;
   const service = String(formData.get("service") || "").trim() || null;
   if (!amountUSD || amountUSD <= 0) {
     redirect("/dashboard/admin/nomina?error=Monto%20invalido");
   }
+  const method =
+    methodRaw === "PAGO_MOVIL"
+      ? "PAGO_MOVIL"
+      : methodRaw === "TRANSFERENCIA"
+      ? "TRANSFERENCIA"
+      : methodRaw === "ZELLE"
+      ? "ZELLE"
+      : methodRaw === "EFECTIVO"
+      ? "EFECTIVO"
+      : null;
   await prisma.payrollPayment.create({
     data: {
       employeeId,
@@ -124,6 +136,8 @@ export async function createPayrollPayment(formData: FormData) {
           : "OTRO",
       amountUSD: amountUSD as any,
       paidAt: paidAt as any,
+      method: method as any,
+      reference,
       description,
       service,
     },

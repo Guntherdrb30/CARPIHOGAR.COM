@@ -8,6 +8,7 @@ import {
   updateCarpentryProject,
 } from "@/server/actions/carpentry";
 import { getPayrollEmployees } from "@/server/actions/payroll";
+import ProofUploader from "@/components/admin/proof-uploader";
 
 export default async function CarpinteriaAdminPage({ searchParams }: { searchParams?: Promise<{ message?: string; error?: string }> }) {
   const session = await getServerSession(authOptions);
@@ -71,6 +72,32 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
           <div>
             <label className="block text-sm text-gray-700">Pago inicial USD</label>
             <input name="initialPaymentUSD" type="number" step="0.01" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Metodo pago inicial</label>
+            <select name="initialPaymentMethod" className="border rounded px-2 py-1 w-full">
+              <option value="">Sin metodo</option>
+              <option value="PAGO_MOVIL">Pago movil</option>
+              <option value="TRANSFERENCIA">Transferencia</option>
+              <option value="ZELLE">Zelle</option>
+              <option value="EFECTIVO">Efectivo</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Fecha pago inicial</label>
+            <input name="initialPaymentPaidAt" type="date" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Referencia inicial</label>
+            <input name="initialPaymentReference" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm text-gray-700">Notas pago inicial</label>
+            <input name="initialPaymentNotes" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm text-gray-700">Comprobante inicial</label>
+            <ProofUploader inputName="initialPaymentProofUrl" />
           </div>
           <div>
             <label className="block text-sm text-gray-700">Costo mano de obra USD</label>
