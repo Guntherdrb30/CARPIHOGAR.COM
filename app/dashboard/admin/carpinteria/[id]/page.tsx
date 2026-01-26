@@ -11,6 +11,7 @@ import {
 import { getPayrollEmployees } from "@/server/actions/payroll";
 import CarpentryFileUploader from "@/components/admin/carpentry-file-uploader";
 import ProofUploader from "@/components/admin/proof-uploader";
+import CarpentryProjectTabs from "@/components/admin/carpentry-project-tabs";
 
 export default async function CarpinteriaProjectPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams?: Promise<{ message?: string; error?: string }> }) {
   const session = await getServerSession(authOptions);
@@ -30,16 +31,6 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
     return <div className="p-4">Proyecto no encontrado.</div>;
   }
 
-  const clientPaid = project.clientPayments.reduce((sum: number, p: any) => sum + Number(p.amountUSD || 0), 0);
-  const total = Number(project.totalAmountUSD || 0);
-  const balance = total - clientPaid;
-  const fabPct = Number(project.fabricationPct || 70);
-  const instPct = Number(project.installationPct || 30);
-  const fabBudget = (total * fabPct) / 100;
-  const instBudget = (total * instPct) / 100;
-  const fabPaid = Number(project.fabricationPaidUSD || 0);
-  const instPaid = Number(project.installationPaidUSD || 0);
-
   const countByType = (type: string) => project.files.filter((f: any) => f.fileType === type).length;
 
   return (
@@ -57,43 +48,7 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
       {message && <div className="border border-green-200 bg-green-50 text-green-800 px-3 py-2 rounded">{message}</div>}
       {error && <div className="border border-red-200 bg-red-50 text-red-800 px-3 py-2 rounded">{error}</div>}
 
-      <section className="bg-white p-4 rounded-lg shadow space-y-3">
-        <h2 className="text-lg font-semibold">Resumen</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-          <div>
-            <div className="text-gray-600">Cliente</div>
-            <div className="font-medium">{project.clientName || "-"}</div>
-            <div>{project.clientPhone || ""}</div>
-            <div>{project.clientEmail || ""}</div>
-          </div>
-          <div>
-            <div className="text-gray-600">Direccion</div>
-            <div>{project.clientAddress || "-"}</div>
-            <div>{[project.clientCity, project.clientState].filter(Boolean).join(", ")}</div>
-          </div>
-          <div>
-            <div className="text-gray-600">Montos</div>
-            <div>Total: ${total.toFixed(2)}</div>
-            <div>Pago inicial: ${Number(project.initialPaymentUSD || 0).toFixed(2)}</div>
-            <div>Pagado: ${clientPaid.toFixed(2)}</div>
-            <div className="font-semibold">Saldo: ${balance.toFixed(2)}</div>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-          <div className="border rounded p-2">
-            <div className="text-gray-600">Fabricacion (70%)</div>
-            <div className="font-semibold">${fabPaid.toFixed(2)} / ${fabBudget.toFixed(2)}</div>
-          </div>
-          <div className="border rounded p-2">
-            <div className="text-gray-600">Instalacion (30%)</div>
-            <div className="font-semibold">${instPaid.toFixed(2)} / ${instBudget.toFixed(2)}</div>
-          </div>
-          <div className="border rounded p-2">
-            <div className="text-gray-600">Mano de obra</div>
-            <div className="font-semibold">${Number(project.laborCostUSD || 0).toFixed(2)}</div>
-          </div>
-        </div>
-      </section>
+      <CarpentryProjectTabs project={project} employees={employees} />
 
       <section className="bg-white p-4 rounded-lg shadow space-y-3">
         <h2 className="text-lg font-semibold">Equipo</h2>

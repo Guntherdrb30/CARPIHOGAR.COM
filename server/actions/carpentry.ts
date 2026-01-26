@@ -14,6 +14,14 @@ const toDecimal = (value: FormDataEntryValue | null, fallback = 0) => {
   const n = Number(String(value || "").trim());
   return Number.isFinite(n) ? n : fallback;
 };
+const parseDate = (value: string | null) => {
+  const raw = String(value || "").trim();
+  return raw ? new Date(raw) : null;
+};
+const parseBool = (value: string | null) => {
+  const raw = String(value || "").trim().toLowerCase();
+  return raw === "true" || raw === "1" || raw === "on";
+};
 
 export async function getCarpentryProjects() {
   const session = await getServerSession(authOptions);
@@ -41,6 +49,16 @@ export async function getCarpentryProjectById(id: string) {
       carpenter: true,
       architect: true,
       supervisor: true,
+      materialLists: {
+        include: { items: true },
+        orderBy: { uploadedAt: "desc" },
+      },
+      purchaseOrders: { orderBy: { createdAt: "desc" } },
+      expenses: { orderBy: { date: "desc" } },
+      productionOrders: {
+        include: { tasks: { orderBy: { workDate: "desc" } } },
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 }
@@ -315,6 +333,7 @@ export async function createCarpentryTask(formData: FormData) {
   const methodRaw = String(formData.get("method") || "").toUpperCase();
   const reference = String(formData.get("reference") || "").trim() || null;
   const backTo = String(formData.get("backTo") || "").trim();
+  const productionOrderId = String(formData.get("productionOrderId") || "").trim() || null;
 
   if (!employeeId || !description) {
     redirect(`${backTo || "/dashboard/admin/nomina"}?error=Datos%20incompletos`);
@@ -358,6 +377,7 @@ export async function createCarpentryTask(formData: FormData) {
           workDate: workDateRaw ? new Date(workDateRaw) : new Date(),
           phase: phase as any,
           status: status as any,
+          productionOrderId,
         },
       });
 
@@ -394,4 +414,167 @@ export async function createCarpentryTask(formData: FormData) {
   }
 
   redirect(`${backTo || "/dashboard/admin/nomina"}?message=Pago%20carpintero%20registrado`);
+}
+
+const purchaseStatusMap: Record<string, string> = {
+  PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  DELIVERED: "DELIVERED",
+  CANCELLED: "CANCELLED",
+};
+
+const expenseTypeMap: Record<string, string> = {
+  FLETE: "FLETE",
+  EXTRA: "EXTRA",
+  MATERIAL: "MATERIAL",
+  OTRO: "OTRO",
+};
+
+const productionStatusMap: Record<string, string> = {
+  PLANNED: "PLANNED",
+  IN_PROGRESS: "IN_PROGRESS",
+  COMPLETED: "COMPLETED",
+  ON_HOLD: "ON_HOLD",
+};
+
+function normalizeEnum<T extends Record<string, string>>(map: T, value: string, fallback: T[keyof T]) {
+  const key = value.toUpperCase();
+  return (map[key] as T[keyof T]) || fallback;
+}
+
+export async function createCarpentryProjectMaterialList(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  const projectId = String(formData.get("projectId") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  const description = String(formData.get("description") || "").trim() || null;
+  const fileUrl = String(formData.get("fileUrl") || "").trim();
+  const itemsRaw = String(formData.get("items") || "[]");
+  if (!projectId || !name || !fileUrl) {
+    redirect("/dashboard/admin/carpinteria?error=Lista%20invalida");
+  }
+  let items: any[] = [];
+  try {
+    items = JSON.parse(itemsRaw);
+    if (!Array.isArray(items)) items = [];
+  } catch {
+    items = [];
+  }
+  await prisma.carpentryProjectMaterialList.create({
+    data: {
+      projectId,
+      name,
+      description,
+      fileUrl,
+      items: {
+        create: items.map((item) => ({
+          sku: item?.sku || null,
+          name: String(item?.name || "").trim() || "Material",
+          category: item?.category || null,
+          unit: item?.unit || null,
+          quantity: Number(item?.quantity) || 0,
+          unitPriceUSD: toDecimal(item?.unitPriceUSD, 0) as any,
+        })),
+      },
+    },
+  });
+  redirect(`/dashboard/admin/carpinteria/${projectId}?message=Lista%20de%20materiales%20guardada`);
+}
+
+export async function createCarpentryProjectPurchaseOrder(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  const projectId = String(formData.get("projectId") || "").trim();
+  const totalUSD = toDecimal(formData.get("totalUSD"), 0);
+  const saleId = String(formData.get("saleId") || "").trim() || null;
+  const statusRaw = String(formData.get("status") || "PENDING").toUpperCase();
+  const notes = String(formData.get("notes") || "").trim() || null;
+  const requireSecret = parseBool(String(formData.get("requiresSecret") || ""));
+  const secretToken = requireSecret ? String(formData.get("secretToken") || "").trim() : null;
+  if (!projectId || totalUSD <= 0) {
+    redirect("/dashboard/admin/carpinteria?error=Orden%20invalida");
+  }
+  await prisma.carpentryProjectPurchaseOrder.create({
+    data: {
+      projectId,
+      saleId,
+      totalUSD: totalUSD as any,
+      status: normalizeEnum(purchaseStatusMap, statusRaw, purchaseStatusMap.PENDING),
+      requiresSecret: requireSecret,
+      secretToken,
+      notes,
+    },
+  });
+  redirect(`/dashboard/admin/carpinteria/${projectId}?message=Orden%20de%20compra%20creada`);
+}
+
+export async function createCarpentryProjectExpense(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  const projectId = String(formData.get("projectId") || "").trim();
+  if (!projectId) throw new Error("Proyecto requerido");
+  const provider = String(formData.get("provider") || "").trim();
+  const description = String(formData.get("description") || "").trim();
+  const expenseTypeRaw = String(formData.get("expenseType") || "MATERIAL").toUpperCase();
+  const date = parseDate(String(formData.get("date") || ""));
+  const quantity = Number(formData.get("quantity") || "1") || 1;
+  const unitCostUSD = toDecimal(formData.get("unitCostUSD"), 0);
+  const totalCostUSD = toDecimal(formData.get("totalCostUSD"), quantity * unitCostUSD);
+  const invoiceNumber = String(formData.get("invoiceNumber") || "").trim() || null;
+  const receiptUrl = String(formData.get("receiptUrl") || "").trim() || null;
+  const createdById = (session?.user as any)?.id || null;
+  if (!provider || !description || !date) {
+    redirect(`/dashboard/admin/carpinteria/${projectId}?error=Datos%20incompletos`);
+  }
+  await prisma.carpentryProjectExpense.create({
+    data: {
+      projectId,
+      provider,
+      invoiceNumber,
+      description,
+      expenseType: normalizeEnum(expenseTypeMap, expenseTypeRaw, expenseTypeMap.MATERIAL) as any,
+      date,
+      quantity,
+      unitCostUSD: unitCostUSD as any,
+      totalCostUSD: totalCostUSD as any,
+      receiptUrl,
+      createdById,
+    },
+  });
+  redirect(`/dashboard/admin/carpinteria/${projectId}?message=Gasto%20registrado`);
+}
+
+export async function createProductionOrder(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  const projectId = String(formData.get("projectId") || "").trim();
+  const number = String(formData.get("number") || "").trim();
+  const carpentryLeadId = String(formData.get("carpentryLeadId") || "").trim() || null;
+  const supervisorId = String(formData.get("supervisorId") || "").trim() || null;
+  const phaseRaw = String(formData.get("phase") || "").toUpperCase();
+  const scheduledStart = parseDate(String(formData.get("scheduledStart") || ""));
+  const scheduledEnd = parseDate(String(formData.get("scheduledEnd") || ""));
+  const installDate = parseDate(String(formData.get("installDate") || ""));
+  const statusRaw = String(formData.get("status") || "PLANNED").toUpperCase();
+  const progressPct = toDecimal(formData.get("progressPct"), 0);
+  const notes = String(formData.get("notes") || "").trim() || null;
+  if (!projectId || !number) {
+    redirect(`/dashboard/admin/carpinteria/${projectId}?error=Numero%20requerido`);
+  }
+  await prisma.productionOrder.create({
+    data: {
+      projectId,
+      number,
+      carpentryLeadId,
+      supervisorId,
+      phase: phaseRaw || null,
+      scheduledStart,
+      scheduledEnd,
+      installDate,
+      status: normalizeEnum(productionStatusMap, statusRaw, productionStatusMap.PLANNED) as any,
+      progressPct: progressPct as any,
+      notes,
+    },
+  });
+  redirect(`/dashboard/admin/carpinteria/${projectId}?message=Orden%20de%20produccion%20creada`);
 }

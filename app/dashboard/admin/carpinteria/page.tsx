@@ -3,7 +3,6 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import {
   createCarpentryProject,
-  deleteCarpentryProject,
   getCarpentryProjects,
   updateCarpentryProject,
 } from "@/server/actions/carpentry";
@@ -156,142 +155,48 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
         </form>
       </section>
 
-      <section className="bg-white p-4 rounded-lg shadow space-y-4">
-        <h2 className="text-lg font-semibold">Proyectos</h2>
-        <div className="space-y-4">
-          {projects.map((p: any) => {
-            const total = Number(p.totalAmountUSD || 0);
-            const fabPct = Number(p.fabricationPct || 70);
-            const instPct = Number(p.installationPct || 30);
-            const fabBudget = (total * fabPct) / 100;
-            const instBudget = (total * instPct) / 100;
-            const fabPaid = Number(p.fabricationPaidUSD || 0);
-            const instPaid = Number(p.installationPaidUSD || 0);
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Proyectos</h2>
+          <span className="text-sm text-gray-500">{projects.length} proyectos</span>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {projects.map((projectItem: any) => {
+            const cover = projectItem.files?.find((f: any) => f.fileType === "IMAGEN")?.url || projectItem.files?.[0]?.url;
+            const paid = projectItem.clientPayments?.reduce((sum: number, p: any) => sum + Number(p.amountUSD || 0), 0) || 0;
             return (
-              <div key={p.id} className="border rounded p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold">{p.name}</div>
-                  <a className="text-sm text-blue-600 hover:underline" href={`/dashboard/admin/carpinteria/${p.id}`}>
-                    Ver proyecto
-                  </a>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-2 items-end">
-                  <form action={updateCarpentryProject} className="md:col-span-6 grid grid-cols-1 md:grid-cols-6 gap-2 items-end">
-                    <input type="hidden" name="id" value={p.id} />
-                    <div className="md:col-span-2">
-                      <label className="block text-xs text-gray-600">Nombre</label>
-                      <input name="name" defaultValue={p.name} className="border rounded px-2 py-1 w-full" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs text-gray-600">Cliente</label>
-                      <input name="clientName" defaultValue={p.clientName || ""} className="border rounded px-2 py-1 w-full" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600">Email</label>
-                      <input name="clientEmail" defaultValue={p.clientEmail || ""} className="border rounded px-2 py-1 w-full" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600">Telefono</label>
-                      <input name="clientPhone" defaultValue={p.clientPhone || ""} className="border rounded px-2 py-1 w-full" />
-                    </div>
-                    <div className="md:col-span-3">
-                      <label className="block text-xs text-gray-600">Direccion</label>
-                      <input name="clientAddress" defaultValue={p.clientAddress || ""} className="border rounded px-2 py-1 w-full" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600">Ciudad</label>
-                      <input name="clientCity" defaultValue={p.clientCity || ""} className="border rounded px-2 py-1 w-full" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600">Estado</label>
-                      <input name="clientState" defaultValue={p.clientState || ""} className="border rounded px-2 py-1 w-full" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600">Monto</label>
-                      <input name="totalAmountUSD" type="number" step="0.01" defaultValue={p.totalAmountUSD} className="border rounded px-2 py-1 w-full" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600">Pago inicial</label>
-                      <input name="initialPaymentUSD" type="number" step="0.01" defaultValue={p.initialPaymentUSD ?? ""} className="border rounded px-2 py-1 w-full" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600">Mano de obra</label>
-                      <input name="laborCostUSD" type="number" step="0.01" defaultValue={p.laborCostUSD ?? ""} className="border rounded px-2 py-1 w-full" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600">Estado</label>
-                      <select name="status" defaultValue={p.status} className="border rounded px-2 py-1 w-full">
-                        <option value="ACTIVO">Activo</option>
-                        <option value="EN_PROCESO">En proceso</option>
-                        <option value="CERRADO">Cerrado</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600">Carpintero</label>
-                      <select name="carpenterId" defaultValue={p.carpenterId || ""} className="border rounded px-2 py-1 w-full">
-                        <option value="">Sin asignar</option>
-                        {employees.map((e: any) => (
-                          <option key={e.id} value={e.id}>{e.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600">Arquitecto</label>
-                      <select name="architectId" defaultValue={p.architectId || ""} className="border rounded px-2 py-1 w-full">
-                        <option value="">Sin asignar</option>
-                        {employees.map((e: any) => (
-                          <option key={e.id} value={e.id}>{e.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600">Supervisor</label>
-                      <select name="supervisorId" defaultValue={p.supervisorId || ""} className="border rounded px-2 py-1 w-full">
-                        <option value="">Sin asignar</option>
-                        {employees.map((e: any) => (
-                          <option key={e.id} value={e.id}>{e.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600">Inicio</label>
-                      <input name="startDate" type="date" defaultValue={p.startDate ? new Date(p.startDate).toISOString().slice(0, 10) : ""} className="border rounded px-2 py-1 w-full" />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-gray-600">Fin</label>
-                      <input name="endDate" type="date" defaultValue={p.endDate ? new Date(p.endDate).toISOString().slice(0, 10) : ""} className="border rounded px-2 py-1 w-full" />
-                    </div>
-                    <div className="md:col-span-6">
-                      <label className="block text-xs text-gray-600">Descripcion</label>
-                      <input name="description" defaultValue={p.description || ""} className="border rounded px-2 py-1 w-full" />
-                    </div>
-                    <div className="md:col-span-6 flex gap-2">
-                      <button className="px-3 py-1 rounded bg-emerald-600 text-white">Actualizar</button>
-                    </div>
-                  </form>
-                  <form action={deleteCarpentryProject} className="md:col-span-6">
-                    <input type="hidden" name="id" value={p.id} />
-                    <button className="px-3 py-1 rounded border text-red-600" type="submit">Eliminar</button>
-                  </form>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                  <div className="border rounded p-2">
-                    <div className="text-gray-600">Fabricacion (70%)</div>
-                    <div className="font-semibold">${fabPaid.toFixed(2)} / ${fabBudget.toFixed(2)}</div>
+              <div key={projectItem.id} className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-lg">
+                {cover ? (
+                  <div className="h-40 w-full overflow-hidden">
+                    <img src={cover} alt={projectItem.name} className="h-full w-full object-cover" />
                   </div>
-                  <div className="border rounded p-2">
-                    <div className="text-gray-600">Instalacion (30%)</div>
-                    <div className="font-semibold">${instPaid.toFixed(2)} / ${instBudget.toFixed(2)}</div>
+                ) : (
+                  <div className="flex h-40 items-center justify-center bg-slate-100 text-sm text-gray-500">Sin imagen</div>
+                )}
+                <div className="p-4 space-y-2 text-sm text-gray-700">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-semibold text-gray-900">{projectItem.name}</h3>
+                    <span className="rounded-full bg-emerald-100 px-3 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-600">
+                      {projectItem.status}
+                    </span>
                   </div>
-                  <div className="border rounded p-2">
-                    <div className="text-gray-600">Total</div>
-                    <div className="font-semibold">${total.toFixed(2)}</div>
+                  <p className="text-xs text-gray-500">{projectItem.clientName || "Cliente sin definir"}</p>
+                  <div className="text-xs text-gray-500">Pagado: ${paid.toFixed(2)}</div>
+                  <div className="text-xs text-gray-500">Monto total: ${Number(projectItem.totalAmountUSD || 0).toFixed(2)}</div>
+                  <div className="flex gap-2 pt-3">
+                    <a
+                      className="rounded-full border border-blue-600 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-blue-600 hover:bg-blue-50"
+                      href={`/dashboard/admin/carpinteria/${projectItem.id}`}
+                    >
+                      Ver proyecto
+                    </a>
+                    <a
+                      className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-slate-600 hover:bg-slate-50"
+                      href={`/dashboard/admin/carpinteria/${projectItem.id}`}
+                    >
+                      Control completo
+                    </a>
                   </div>
-                </div>
-
-                <div className="text-xs text-gray-500">
-                  Gestiona archivos, abonos y tareas desde el detalle del proyecto.
                 </div>
               </div>
             );
