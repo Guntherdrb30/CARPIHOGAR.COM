@@ -132,7 +132,13 @@ export default function AdminSidebar() {
     { type: 'header', label: 'Mensajeria' },
     { href: '/dashboard/admin/mensajeria', label: 'Mensajeria' },
     { type: 'header', label: 'Carpinteria' },
-    { href: '/dashboard/admin/carpinteria', label: 'Carpinteria' },
+    { href: '/dashboard/admin/carpinteria', label: 'Proyectos de Carpinteria' },
+    { href: '/dashboard/admin/estudio', label: 'Estudio de Diseño Interior' },
+    { href: '/dashboard/admin/estudio/nuevo', label: 'Nuevo proyecto de diseño' },
+    { href: '/dashboard/admin/inventario', label: 'Inventario Carpinteria' },
+    { href: '/dashboard/admin/inventario/valuacion', label: 'Valuación del Inventario' },
+    { href: '/dashboard/admin/inventario/valuacion/por-proveedor', label: 'Val. por proveedor' },
+    { href: '/dashboard/admin/inventario/productos-por-proveedor', label: 'Productos por proveedor' },
   ];
 
 
