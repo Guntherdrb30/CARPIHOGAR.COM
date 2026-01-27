@@ -1,5 +1,5 @@
 "use client";
-
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import ProofUploader from "@/components/admin/proof-uploader";
 import {
@@ -13,6 +13,7 @@ import type {
   CarpentryProjectExpense,
   CarpentryProjectMaterialList,
   CarpentryProjectPurchaseOrder,
+  Order,
   PayrollEmployee,
   ProductionOrder,
 } from "@prisma/client";
@@ -21,7 +22,7 @@ type ProjectWithExtras = CarpentryProject & {
   files: { id: string; url: string; fileType: string; filename?: string }[];
   clientPayments: { amountUSD: number }[];
   materialLists: (CarpentryProjectMaterialList & { items: { name: string; unitPriceUSD: number; quantity: number }[] })[];
-  purchaseOrders: CarpentryProjectPurchaseOrder[];
+  purchaseOrders: (CarpentryProjectPurchaseOrder & { sale?: Order | null })[];
   expenses: CarpentryProjectExpense[];
   productionOrders: (ProductionOrder & { tasks?: { id: string; description: string; status: string }[] })[];
 };
@@ -58,6 +59,20 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
   const progressInstallation = installationGoal
     ? Math.min(100, (installationPaid / installationGoal) * 100)
     : 0;
+  const saleFormHref = (() => {
+    const params = new URLSearchParams();
+    const customerName = project.clientName?.trim() || "trends172,ca";
+    params.set("customerName", customerName);
+    params.set("customerEmail", project.clientEmail?.trim() || "root@carpihogar.com");
+    params.set("customerPhone", project.clientPhone?.trim() || "04245262306");
+    params.set("customerTaxId", "J-31758009-5");
+    params.set("customerFiscalAddress", "Av Industrial, Edificio Teca, Barinas, Estado Barinas, Venezuela");
+    params.set("docType", "recibo");
+    params.set("lockDocType", "1");
+    params.set("carpentryProjectId", project.id);
+    params.set("backTo", `/dashboard/admin/carpinteria/${project.id}`);
+    return `/dashboard/admin/ventas/nueva?${params.toString()}`;
+  })();
 
   const summaryContent = (
     <div className="space-y-6">
@@ -207,23 +222,65 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
 
   const purchaseContent = (
     <div className="space-y-4">
+      <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4 space-y-3 text-sm text-gray-600">
+        <div className="flex flex-col gap-2">
+          <p className="text-xs uppercase tracking-[0.4em] text-gray-500">Compras oficiales</p>
+          <h3 className="text-base font-semibold text-gray-900">Registrar materiales como venta</h3>
+          <p>
+            Cada compra se registra como una venta oficial para trends172,ca, se puede repetir tantas veces como lo necesites
+            y se mostrará en este historial junto a su recibo.
+          </p>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">Recibos de compra vinculados a este proyecto</span>
+          <Link
+            href={saleFormHref}
+            className="rounded-full bg-blue-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white transition hover:bg-blue-700"
+          >
+            Hacer compra
+          </Link>
+        </div>
+      </div>
       <div className="rounded-2xl border border-gray-200 bg-white p-4">
-        <div className="text-sm font-semibold text-gray-900">Órdenes de compra Carpihogar</div>
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold text-gray-900">Órdenes de compra Carpihogar</div>
+          <span className="text-xs text-gray-500">{project.purchaseOrders?.length ?? 0} compras</span>
+        </div>
         {project.purchaseOrders?.length ? (
-          <div className="mt-3 text-sm text-gray-600">
-            <ul className="space-y-2">
-              {project.purchaseOrders.map((order) => (
-                <li key={order.id} className="flex justify-between border-b pb-2 last:border-0">
-                  <div>
-                    <div className="font-semibold text-gray-800">Orden #{order.id.slice(0, 6)}</div>
-                    <div className="text-xs text-gray-500">
-                      {order.status} — ${Number(order.totalUSD).toFixed(2)}
+          <div className="mt-3 space-y-2 text-sm text-gray-600">
+            {project.purchaseOrders.map((order) => {
+              const sale = order.sale;
+              const docLabel = sale?.documentType === "FACTURA" ? "Factura" : "Recibo";
+              return (
+                <div key={order.id} className="rounded-xl border border-slate-100 px-3 py-2 space-y-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-gray-800">Compra #{order.id.slice(0, 6)}</div>
+                      <div className="text-xs text-gray-500">
+                        {order.status} · ${Number(order.totalUSD).toFixed(2)} · {docLabel}
+                      </div>
                     </div>
+                    {sale?.id && (
+                      <Link
+                        href={`/dashboard/admin/ventas/${sale.id}`}
+                        className="text-xs uppercase tracking-[0.3em] text-blue-600 hover:underline"
+                      >
+                        Ver venta
+                      </Link>
+                    )}
                   </div>
-                  <div className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleDateString()}</div>
-                </li>
-              ))}
-            </ul>
+                  {sale?.payment && (
+                    <div className="text-xs text-gray-500">
+                      Pago: {sale.payment.method} · Ref. {sale.payment.reference || "N/A"}
+                    </div>
+                  )}
+                  <div className="text-xs text-gray-400">
+                    {new Date(order.createdAt).toLocaleDateString()}
+                    {sale?.payment?.status ? ` · Estado del pago: ${sale.payment.status}` : ""}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <p className="mt-2 text-xs text-gray-400">Sin órdenes registradas.</p>
@@ -455,7 +512,7 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
           </button>
         ))}
       </div>
-      <div className="rounded-3xl border border-gray-200 bg-gradient-to-br from-gray-950/60 via-slate-950 to-black p-5 text-white shadow-2xl">
+      <div className="rounded-3xl border border-gray-200 bg-gradient-to-br from-gray-950/60 via-slate-950 to-black p-5 shadow-2xl">
         {activeContent}
       </div>
     </div>

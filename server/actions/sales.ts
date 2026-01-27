@@ -396,6 +396,8 @@ export async function createOfflineSale(formData: FormData) {
   const docTypeRaw = String(formData.get('docType') || 'recibo').toLowerCase();
   const allowedDocs = ['recibo','factura'];
   const docType = (allowedDocs.includes(docTypeRaw) ? docTypeRaw : 'recibo') as 'recibo'|'factura';
+  const carpentryProjectId = String(formData.get('carpentryProjectId') || '').trim();
+  const backToParam = String(formData.get('backTo') || '').trim();
   // Shipping address fields
   const incomingShippingAddressId = String(formData.get('shippingAddressId') || '');
   const addrState = String(formData.get('addr_state') || '').trim();
@@ -791,7 +793,24 @@ Total: ${totalTxt}.
   const finalMessage = customerCreated ? `${successMessage} - Cliente creado para tienda online` : successMessage;
 
   try { revalidatePath('/dashboard/admin/ventas'); } catch {}
-  const backTo = '/dashboard/admin/ventas';
+  if (carpentryProjectId) {
+    try {
+      const existing = await prisma.carpentryProjectPurchaseOrder.findFirst({ where: { saleId: order.id } });
+      if (!existing) {
+        await prisma.carpentryProjectPurchaseOrder.create({
+          data: {
+            projectId: carpentryProjectId,
+            saleId: order.id,
+            totalUSD: totalUSD as any,
+            status: 'APPROVED' as any,
+            notes: `Compra generada desde venta ${order.id}`,
+          },
+        });
+      }
+      try { revalidatePath(`/dashboard/admin/carpinteria/${carpentryProjectId}`); } catch {}
+    } catch {}
+  }
+  const backTo = backToParam || '/dashboard/admin/ventas';
   redirect(`${backTo}?message=${encodeURIComponent(finalMessage)}&orderId=${encodeURIComponent(order.id)}&docType=${encodeURIComponent(docType)}`);
 }
 

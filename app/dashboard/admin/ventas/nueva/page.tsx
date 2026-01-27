@@ -7,8 +7,38 @@ import { authOptions } from "@/lib/auth";
 import { getPriceAdjustmentSettings } from "@/server/price-adjustments";
 import { getQuoteById } from "@/server/actions/quotes";
 
-export default async function NuevaVentaPage({ searchParams }: { searchParams?: Promise<{ error?: string; message?: string; holdId?: string; fromQuote?: string; shipping?: string }> }) {
-  const sp = (await searchParams) || {} as any;
+type SalePageQuery = {
+  error?: string;
+  message?: string;
+  holdId?: string;
+  fromQuote?: string;
+  shipping?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  customerTaxId?: string;
+  customerFiscalAddress?: string;
+  docType?: string;
+  lockDocType?: string;
+  carpentryProjectId?: string;
+  backTo?: string;
+};
+
+export default async function NuevaVentaPage({ searchParams }: { searchParams?: Promise<SalePageQuery> }) {
+  const sp = (await searchParams) || ({} as SalePageQuery);
+  const decodeValue = (value?: string) => (value ? decodeURIComponent(String(value)) : undefined);
+  const initialCustomerNameOverride = decodeValue(sp.customerName);
+  const initialCustomerEmailOverride = decodeValue(sp.customerEmail);
+  const initialCustomerPhoneOverride = decodeValue(sp.customerPhone);
+  const initialCustomerTaxIdOverride = decodeValue(sp.customerTaxId);
+  const initialCustomerFiscalAddressOverride = decodeValue(sp.customerFiscalAddress);
+  const docTypeQuery = decodeValue(sp.docType);
+  const docTypeCandidate =
+    docTypeQuery === "factura" ? "factura" : docTypeQuery === "recibo" ? "recibo" : undefined;
+  const lockDocTypeFlag = ["1", "true", "yes"].includes(String(sp.lockDocType || "").toLowerCase());
+  const docTypeOptions = lockDocTypeFlag && docTypeCandidate ? [docTypeCandidate] : undefined;
+  const prefillBackTo = decodeValue(sp.backTo);
+  const prefillCarpentryProjectId = decodeValue(sp.carpentryProjectId);
   const [sellers, settings, session, pricing] = await Promise.all([
     getSellers(),
     getSettings(),
@@ -24,15 +54,15 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams?: 
   const allowCredit = role === 'ADMIN';
   const unlockWithDeleteSecret = role === 'VENDEDOR';
   const maxPriceMode: 'P1' | 'P2' | 'P3' = 'P3';
-  const fromQuote = String((sp as any).fromQuote || '');
-  const holdId = String((sp as any).holdId || '');
+  const fromQuote = String(sp.fromQuote || '');
+  const holdId = String(sp.holdId || '');
   let initialItems: Array<{ productId: string; name: string; p1: number; p2?: number | null; p3?: number | null; priceUSD: number; quantity: number; supplierCurrency?: string | null }> | undefined = undefined;
   let initialSellerId: string | undefined = undefined;
-  let initialCustomerName: string | undefined = undefined;
-  let initialCustomerEmail: string | undefined = undefined;
-  let initialCustomerPhone: string | undefined = undefined;
-  let initialCustomerTaxId: string | undefined = undefined;
-  let initialCustomerFiscalAddress: string | undefined = undefined;
+  let initialCustomerName: string | undefined = initialCustomerNameOverride;
+  let initialCustomerEmail: string | undefined = initialCustomerEmailOverride;
+  let initialCustomerPhone: string | undefined = initialCustomerPhoneOverride;
+  let initialCustomerTaxId: string | undefined = initialCustomerTaxIdOverride;
+  let initialCustomerFiscalAddress: string | undefined = initialCustomerFiscalAddressOverride;
   let initialPaymentMethod: "PAGO_MOVIL" | "TRANSFERENCIA" | "ZELLE" | "EFECTIVO" | undefined = undefined;
   let initialPaymentCurrency: "USD" | "VES" | undefined = undefined;
   let initialPaymentReference: string | undefined = undefined;
@@ -40,7 +70,7 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams?: 
   let initialPmPayerPhone: string | undefined = undefined;
   let initialPmPayerBank: string | undefined = undefined;
   let initialSendEmail: boolean | undefined = undefined;
-  let initialDocType: "recibo" | "factura" | undefined = undefined;
+  let initialDocType: "recibo" | "factura" | undefined = docTypeCandidate;
   let initialSaleType: "CONTADO" | "CREDITO" | undefined = undefined;
   let initialCreditDueDate: string | undefined = undefined;
   let initialAddressMode: "saved" | "new" | undefined = undefined;
@@ -212,6 +242,7 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams?: 
           initialPmPayerBank={initialPmPayerBank}
           initialSendEmail={initialSendEmail}
           initialDocType={initialDocType}
+          availableDocTypes={docTypeOptions}
           initialSaleType={initialSaleType}
           initialCreditDueDate={initialCreditDueDate}
           initialAddressMode={initialAddressMode}
@@ -222,6 +253,8 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams?: 
           initialAddr1={initialAddr1}
           initialAddr2={initialAddr2}
           initialAddrNotes={initialAddrNotes}
+          carpentryProjectId={prefillCarpentryProjectId}
+          backTo={prefillBackTo}
         />
       </div>
     </div>

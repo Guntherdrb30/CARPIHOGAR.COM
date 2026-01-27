@@ -62,6 +62,7 @@ export default function OfflineSaleForm({
   initialPmPayerBank = "",
   initialSendEmail = false,
   initialDocType = "factura",
+  availableDocTypes,
   initialSaleType = "CONTADO",
   initialCreditDueDate = "",
   initialAddressMode = "new",
@@ -72,6 +73,8 @@ export default function OfflineSaleForm({
   initialAddr1 = "",
   initialAddr2 = "",
   initialAddrNotes = "",
+  carpentryProjectId,
+  backTo,
   allowCredit = true,
   unlockCreditWithDeleteSecret = false,
   vesSalesDisabled = false,
@@ -105,6 +108,7 @@ export default function OfflineSaleForm({
   initialPmPayerBank?: string;
   initialSendEmail?: boolean;
   initialDocType?: "recibo" | "factura";
+  availableDocTypes?: Array<"recibo" | "factura">;
   initialSaleType?: "CONTADO" | "CREDITO";
   initialCreditDueDate?: string;
   initialAddressMode?: "saved" | "new";
@@ -115,6 +119,8 @@ export default function OfflineSaleForm({
   initialAddr1?: string;
   initialAddr2?: string;
   initialAddrNotes?: string;
+  carpentryProjectId?: string;
+  backTo?: string;
   allowCredit?: boolean;
   unlockCreditWithDeleteSecret?: boolean;
   vesSalesDisabled?: boolean;
@@ -140,7 +146,27 @@ export default function OfflineSaleForm({
   const [pmPayerPhone, setPmPayerPhone] = useState(initialPmPayerPhone);
   const [pmBank, setPmBank] = useState(initialPmPayerBank);
   const [sendEmail, setSendEmail] = useState(!!initialSendEmail);
-  const [docType, setDocType] = useState<'recibo' | 'factura'>(initialDocType);
+  const docTypeOptions = useMemo<("recibo" | "factura")[]>(() => {
+    if (availableDocTypes && availableDocTypes.length) {
+      const normalized = availableDocTypes.filter((value) => value === "recibo" || value === "factura");
+      return normalized.length ? normalized : ["recibo", "factura"];
+    }
+    return ["recibo", "factura"];
+  }, [availableDocTypes]);
+  const [docType, setDocType] = useState<'recibo' | 'factura'>(() => {
+    if (initialDocType && docTypeOptions.includes(initialDocType)) {
+      return initialDocType;
+    }
+    return docTypeOptions[0];
+  });
+  const docTypeOptionsKey = docTypeOptions.join(",");
+  useEffect(() => {
+    const nextDocType =
+      initialDocType && docTypeOptions.includes(initialDocType) ? initialDocType : docTypeOptions[0];
+    if (docType !== nextDocType) {
+      setDocType(nextDocType);
+    }
+  }, [docTypeOptionsKey, initialDocType, docType]);
   const [shippingLocalOption, setShippingLocalOption] = useState<'RETIRO_TIENDA' | 'DELIVERY' | ''>(initialShippingLocalOption || '');
   const [saleType, setSaleType] = useState<"CONTADO" | "CREDITO">(initialSaleType);
   const [allowCreditUi, setAllowCreditUi] = useState<boolean>(!!allowCredit);
@@ -604,9 +630,18 @@ export default function OfflineSaleForm({
         )}
         <div>
           <label className="block text-sm text-gray-700">Tipo de documento</label>
-          <select name="docType" value={docType} onChange={(e) => setDocType(e.target.value as any)} className="border rounded px-2 py-1 w-full">
-            <option value="recibo">Recibo de pago (sin impuestos)</option>
-            <option value="factura">Factura (con IVA/IGTF)</option>
+          <select
+            name="docType"
+            value={docType}
+            onChange={(e) => setDocType(e.target.value as any)}
+            className="border rounded px-2 py-1 w-full"
+            disabled={docTypeOptions.length === 1}
+          >
+            {docTypeOptions.map((option) => (
+              <option key={option} value={option}>
+                {option === "factura" ? "Factura (con IVA/IGTF)" : "Recibo de pago (sin impuestos)"}
+              </option>
+            ))}
           </select>
         </div>
         <div>
@@ -848,6 +883,8 @@ export default function OfflineSaleForm({
       <input type="hidden" name="sendEmail" value={sendEmail ? 'true' : 'false'} />
       <input type="hidden" name="docType" value={docType} />
       <input type="hidden" name="saleType" value={saleType} />
+      {carpentryProjectId ? <input type="hidden" name="carpentryProjectId" value={carpentryProjectId} /> : null}
+      {backTo ? <input type="hidden" name="backTo" value={backTo} /> : null}
       {(allowCreditUi && unlockCreditWithDeleteSecret && deleteSecret.trim()) ? (<input type="hidden" name="deleteSecret" value={deleteSecret} />) : null}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
@@ -913,9 +950,17 @@ export default function OfflineSaleForm({
             </div>
             <div>
               <label className="block text-sm text-gray-700">Documento a enviar</label>
-              <select value={docType} onChange={(e) => setDocType(e.target.value as any)} className="border rounded px-2 py-1 w-full">
-                <option value="recibo">Recibo</option>
-                                <option value="factura">Factura</option>
+              <select
+                value={docType}
+                onChange={(e) => setDocType(e.target.value as any)}
+                className="border rounded px-2 py-1 w-full"
+                disabled={docTypeOptions.length === 1}
+              >
+                {docTypeOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option === "factura" ? "Factura (con IVA/IGTF)" : "Recibo de pago (sin impuestos)"}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

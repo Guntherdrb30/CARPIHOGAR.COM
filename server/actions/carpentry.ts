@@ -94,7 +94,7 @@ export async function getCarpentryProjects() {
 export async function getCarpentryProjectById(id: string) {
   const session = await getServerSession(authOptions);
   requireAdmin(session);
-  return prisma.carpentryProject.findUnique({
+  const project = await prisma.carpentryProject.findUnique({
     where: { id },
     include: {
       files: true,
@@ -115,6 +115,25 @@ export async function getCarpentryProjectById(id: string) {
       },
     },
   });
+  if (!project) return null;
+  const saleIds = project.purchaseOrders?.filter((po) => po.saleId).map((po) => po.saleId || "") || [];
+  let saleMap = new Map<string, any>();
+  if (saleIds.length) {
+    const sales = await prisma.order.findMany({
+      where: { id: { in: saleIds } },
+      include: { payment: true },
+    });
+    saleMap = new Map(sales.map((sale) => [sale.id, sale]));
+  }
+  const enrichedPurchaseOrders = project.purchaseOrders.map((po) => ({
+    ...po,
+    sale: po.saleId ? saleMap.get(po.saleId) || null : null,
+  }));
+
+  return {
+    ...project,
+    purchaseOrders: enrichedPurchaseOrders,
+  };
 }
 
 export async function getCarpentryTasks() {
