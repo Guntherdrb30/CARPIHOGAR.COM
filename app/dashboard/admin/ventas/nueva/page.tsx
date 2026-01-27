@@ -64,7 +64,18 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams?: 
           const p2 = it.product?.priceAllyUSD != null ? Number(it.product.priceAllyUSD) : null;
           const p3 = it.product?.priceWholesaleUSD != null ? Number(it.product.priceWholesaleUSD) : null;
           const supplierCurrency = it.product?.supplier?.chargeCurrency || null;
-          return { productId: it.productId, name: it.name, p1, p2, p3, priceUSD: p1, quantity: Number(it.quantity), supplierCurrency };
+          return {
+            productId: it.productId,
+            name: it.name,
+            sku: it.product?.sku || null,
+            availableQty: Number(it.stock || 0),
+            p1,
+            p2,
+            p3,
+            priceUSD: p1,
+            quantity: Number(it.quantity),
+            supplierCurrency,
+          };
         });
         initialSellerId = quote.sellerId || undefined;
         initialCustomerName = quote.user?.name || undefined;
@@ -87,6 +98,8 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams?: 
         initialItems = parsedItems.map((it: any) => ({
           productId: String(it.productId || ''),
           name: String(it.name || ''),
+          sku: String(it.sku || ''),
+          availableQty: Number(it.availableQty || 0),
           p1: Number(it.p1 || it.priceUSD || 0),
           p2: it.p2 != null ? Number(it.p2) : null,
           p3: it.p3 != null ? Number(it.p3) : null,

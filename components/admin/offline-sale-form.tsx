@@ -11,16 +11,19 @@ type Prod = {
   priceAllyUSD?: number | null;
   priceWholesaleUSD?: number | null;
   supplierCurrency?: string | null;
+  stock?: number | null;
 };
 type Line = {
   productId: string;
   name: string;
+  sku?: string | null;
   p1: number;
   p2?: number | null;
   p3?: number | null;
   priceUSD: number;
   quantity: number;
   supplierCurrency?: string | null;
+  availableQty?: number | null;
 };
 
 type PriceMode = "P1" | "P2" | "P3";
@@ -180,12 +183,13 @@ export default function OfflineSaleForm({
         if (res.ok) {
           const json = await res.json();
           const rows = Array.isArray(json) ? json : [];
-          setFound(
-            rows.map((p: any) => ({
-              ...p,
-              supplierCurrency: p?.supplier?.chargeCurrency || null,
-            }))
-          );
+        setFound(
+          rows.map((p: any) => ({
+            ...p,
+            supplierCurrency: p?.supplier?.chargeCurrency || null,
+            stock: typeof p.stock === "number" ? p.stock : Number(p.stock || 0),
+          }))
+        );
         }
       } catch {}
     }, 300);
@@ -331,19 +335,21 @@ export default function OfflineSaleForm({
       let selected = p1;
       if (mode === "P3" && p3 != null) selected = p3;
       else if (mode === "P2" && p2 != null) selected = p2;
-      return [
-        ...prev,
-        {
-          productId: p.id,
-          name: p.name,
-          p1,
-          p2,
-          p3,
-          priceUSD: selected,
-          quantity: 1,
-          supplierCurrency: p.supplierCurrency || null,
-        },
-      ];
+        return [
+          ...prev,
+          {
+            productId: p.id,
+            name: p.name,
+            sku: p.sku || null,
+            p1,
+            p2,
+            p3,
+            priceUSD: selected,
+            quantity: 1,
+            supplierCurrency: p.supplierCurrency || null,
+            availableQty: typeof p.stock === "number" ? p.stock : Number(p.stock || 0),
+          },
+        ];
     });
   };
 
@@ -708,9 +714,15 @@ export default function OfflineSaleForm({
           <div className="mt-2 border rounded divide-y">
             {found.map((p) => (
               <div key={p.id} className="flex items-center justify-between px-2 py-1 hover:bg-gray-50 gap-2">
-                <div className="flex-1 min-w-0 truncate">
+                <div className="flex-1 min-w-0 truncate space-y-1">
                   <div className="truncate">{p.name}</div>
-                  <div className="text-xs text-gray-500">P1: ${Number(p.priceUSD).toFixed(2)}{p.priceAllyUSD != null ? ` · P2: $${Number(p.priceAllyUSD).toFixed(2)}` : ''}</div>
+                  <div className="text-xs text-gray-500">
+                    P1: ${Number(p.priceUSD).toFixed(2)}
+                    {p.priceAllyUSD != null ? ` · P2: $${Number(p.priceAllyUSD).toFixed(2)}` : ''}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    SKU: {p.sku || "-"} · Disponibles: {typeof p.stock === "number" ? p.stock : Number(p.stock || 0)}
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -746,20 +758,24 @@ export default function OfflineSaleForm({
       </div>
 
       <div className="bg-white border rounded">
-        <table className="w-full table-auto">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="px-2 py-1 text-left">Producto</th>
-              <th className="px-2 py-1">Precio</th>
-              <th className="px-2 py-1">Cantidad</th>
-              <th className="px-2 py-1">Subtotal</th>
-              <th className="px-2 py-1"></th>
-            </tr>
-          </thead>
+          <table className="w-full table-auto">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="px-2 py-1 text-left">Producto</th>
+                <th className="px-2 py-1">Precio</th>
+                <th className="px-2 py-1">Cantidad</th>
+                <th className="px-2 py-1">Disponible</th>
+                <th className="px-2 py-1">Subtotal</th>
+                <th className="px-2 py-1"></th>
+              </tr>
+            </thead>
           <tbody>
             {items.map((l) => (
               <tr key={l.productId}>
-                <td className="border px-2 py-1">{l.name}</td>
+                <td className="border px-2 py-1 space-y-1">
+                  <div className="font-semibold">{l.name}</div>
+                  <div className="text-xs text-gray-500">SKU: {l.sku || "-"}</div>
+                </td>
                 <td className="border px-2 py-1">
                   <select
                     value={
@@ -807,6 +823,7 @@ export default function OfflineSaleForm({
                 <td className="border px-2 py-1">
                   <input type="number" min={1} value={l.quantity} onChange={(e) => updateQty(l.productId, parseInt(e.target.value || "1", 10))} className="w-20 border rounded px-1 py-0.5" />
                 </td>
+                <td className="border px-2 py-1 text-center">{typeof l.availableQty === "number" ? l.availableQty : "-"}</td>
                 <td className="border px-2 py-1">{(l.priceUSD * l.quantity).toFixed(2)}</td>
                 <td className="border px-2 py-1 text-right">
                   <button type="button" onClick={() => remove(l.productId)} className="text-red-600 hover:underline">
