@@ -85,6 +85,20 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
           <div>
             <button className="px-3 py-1 rounded bg-blue-600 text-white">Actualizar equipo</button>
           </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm text-gray-700">Costo mano de obra USD</label>
+            <input
+              name="laborCostUSD"
+              type="number"
+              step="0.01"
+              defaultValue={project.laborCostUSD ?? ""}
+              className="border rounded px-2 py-1 w-full"
+              placeholder="Monto a controlar con porcentaje 70/30"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Este valor es el presupuesto fijo de mano de obra; el sistema divide automáticamente 70% para fabricación y 30% para instalación cuando registra pagos a carpinteros.
+            </p>
+          </div>
         </form>
       </section>
 
