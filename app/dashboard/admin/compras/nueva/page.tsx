@@ -35,6 +35,17 @@ export default async function NuevaOCPage({ searchParams }: { searchParams?: Pro
               <label className="form-label">Notas</label>
               <input name="notes" className="form-input" />
             </div>
+            <div>
+              <label className="form-label">Tipo de compra</label>
+              <select name="purchaseType" className="form-select">
+                <option value="CONTADO">Contado</option>
+                <option value="PARCIAL">Pago parcial</option>
+                <option value="CREDITO">Crédito</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Marca como crédito o pago parcial para generar cuentas por pagar.
+              </p>
+            </div>
           </div>
 
           <PoItemsEditor />

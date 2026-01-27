@@ -502,6 +502,9 @@ export async function createPO(formData: FormData) {
   const expectedAt = String(formData.get('expectedAt') || '');
   const itemsJson = String(formData.get('items') || '[]');
   const notes = String(formData.get('notes') || '');
+  const purchaseTypeRaw = String(formData.get('purchaseType') || 'CONTADO').toUpperCase();
+  const allowedPurchaseTypes = new Set(['CONTADO', 'PARCIAL', 'CREDITO']);
+  const purchaseType = allowedPurchaseTypes.has(purchaseTypeRaw) ? (purchaseTypeRaw as any) : 'CONTADO';
   const items: Array<{ productId: string; quantity: number; costUSD: number }> = JSON.parse(itemsJson || '[]');
   if (!supplierId || !items.length) redirect('/dashboard/admin/compras/nueva?error=Proveedor%20e%20items%20requeridos');
   const totalUSD = items.reduce((a, it) => a + Number(it.quantity) * Number(it.costUSD), 0);
@@ -511,6 +514,7 @@ export async function createPO(formData: FormData) {
     expectedAt: expectedAt ? (new Date(expectedAt) as any) : null,
     notes: notes || null,
     totalUSD: totalUSD as any,
+    purchaseType,
     createdById: (session?.user as any)?.id,
     items: { create: items.map(it => ({ productId: it.productId, quantity: Number(it.quantity), costUSD: Number(it.costUSD) as any })) },
   }});

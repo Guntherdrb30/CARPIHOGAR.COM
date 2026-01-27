@@ -923,12 +923,19 @@ enum POStatus {
   CANCELLED
 }
 
+enum PurchaseType {
+  CONTADO
+  PARCIAL
+  CREDITO
+}
+
 model PurchaseOrder {
   id           String              @id @default(cuid())
   supplierId   String
   supplier     Supplier            @relation(fields: [supplierId], references: [id])
   status       POStatus            @default(DRAFT)
   expectedAt   DateTime?
+  purchaseType PurchaseType        @default(CONTADO)
   totalUSD     Decimal             @default(0) @db.Decimal(12, 2)
   notes        String?
   createdAt    DateTime            @default(now())
