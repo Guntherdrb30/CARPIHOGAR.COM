@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import {
   createCarpentryClientPayment,
   createCarpentryTask,
+  deleteCarpentryClientPayment,
   getCarpentryProjectById,
   updateCarpentryProject,
   updateCarpentryTaskStatus,
@@ -129,13 +130,14 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
         <div className="overflow-x-auto">
           <table className="w-full table-auto text-sm">
             <thead>
-              <tr className="bg-gray-100">
-                <th className="px-2 py-1 text-left">Fecha</th>
-                <th className="px-2 py-1">Monto</th>
-                <th className="px-2 py-1">Metodo</th>
-                <th className="px-2 py-1">Referencia</th>
-                <th className="px-2 py-1">Comprobante</th>
-              </tr>
+            <tr className="bg-gray-100">
+              <th className="px-2 py-1 text-left">Fecha</th>
+              <th className="px-2 py-1">Monto</th>
+              <th className="px-2 py-1">Metodo</th>
+              <th className="px-2 py-1">Referencia</th>
+              <th className="px-2 py-1">Comprobante</th>
+              <th className="px-2 py-1">Acción</th>
+            </tr>
             </thead>
             <tbody>
               {project.clientPayments.map((p: any) => (
@@ -147,10 +149,18 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
                   <td className="border px-2 py-1">
                     {p.proofUrl ? <a href={p.proofUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Ver</a> : "-"}
                   </td>
+                  <td className="border px-2 py-1">
+                    <form action={deleteCarpentryClientPayment} method="post">
+                      <input type="hidden" name="id" value={p.id} />
+                      <button type="submit" className="text-xs font-semibold uppercase tracking-[0.3em] text-red-600 hover:text-red-800">
+                        Eliminar
+                      </button>
+                    </form>
+                  </td>
                 </tr>
               ))}
               {!project.clientPayments.length && (
-                <tr><td colSpan={5} className="border px-2 py-2 text-center text-gray-500">Sin abonos</td></tr>
+                <tr><td colSpan={6} className="border px-2 py-2 text-center text-gray-500">Sin abonos</td></tr>
               )}
             </tbody>
           </table>

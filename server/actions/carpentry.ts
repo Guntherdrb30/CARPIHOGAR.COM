@@ -362,6 +362,21 @@ export async function createCarpentryClientPayment(formData: FormData) {
   redirect(`/dashboard/admin/carpinteria/${projectId}?message=Abono%20registrado`);
 }
 
+export async function deleteCarpentryClientPayment(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  const id = String(formData.get("id") || "").trim();
+  if (!id) {
+    redirect("/dashboard/admin/carpinteria?error=Pago%20no%20especificado");
+  }
+  const payment = await prisma.carpentryClientPayment.findUnique({ where: { id } });
+  if (!payment) {
+    redirect("/dashboard/admin/carpinteria?error=Pago%20no%20encontrado");
+  }
+  await prisma.carpentryClientPayment.delete({ where: { id } });
+  redirect(`/dashboard/admin/carpinteria/${payment.projectId}?message=Abono%20eliminado`);
+}
+
 export async function updateCarpentryTaskStatus(formData: FormData) {
   const session = await getServerSession(authOptions);
   requireAdmin(session);
