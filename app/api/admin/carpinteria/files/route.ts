@@ -36,6 +36,7 @@ export async function POST(req: Request) {
       | "CONTRATO"
       | "PRESUPUESTO"
       | "AVANCE"
+      | "SOPORTE"
       | "OTRO";
     const maxByType: Record<string, number | null> = {
       PRESUPUESTO: 1,
