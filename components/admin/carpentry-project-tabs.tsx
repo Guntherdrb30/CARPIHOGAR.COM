@@ -152,6 +152,9 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
                   {file.filename || file.url}
                 </a>{" "}
                 <span className="text-xs text-gray-400">({file.fileType})</span>
+                {file.description && (
+                  <div className="text-[11px] text-gray-500 mt-0.5">{file.description}</div>
+                )}
               </li>
             ))}
           </ul>

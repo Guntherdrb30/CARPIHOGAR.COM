@@ -24,6 +24,7 @@ export async function POST(req: Request) {
       "CONTRATO",
       "PRESUPUESTO",
       "AVANCE",
+      "SOPORTE",
       "OTRO",
     ]);
     if (!allowedTypes.has(fileTypeRaw)) {
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
       CONTRATO: 1,
       IMAGEN: null,
       AVANCE: null,
+      SOPORTE: null,
       OTRO: null,
     };
     const max = maxByType[fileType];
@@ -53,8 +55,9 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Limite de archivos alcanzado" }, { status: 400 });
       }
     }
+    const description = String(body?.description || "").trim() || null;
     const file = await prisma.carpentryProjectFile.create({
-      data: { projectId, url, filename, fileType },
+      data: { projectId, url, filename, fileType, description },
     });
     return NextResponse.json({ ok: true, file });
   } catch (err: any) {

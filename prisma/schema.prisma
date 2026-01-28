@@ -1115,6 +1115,7 @@ enum CarpentryProjectFileType {
   CONTRATO
   PRESUPUESTO
   AVANCE
+  SOPORTE
   OTRO
 }
 
@@ -1618,6 +1619,7 @@ model CarpentryProjectFile {
   project     CarpentryProject         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   url         String
   filename    String?
+  description String?
   fileType    CarpentryProjectFileType @default(OTRO)
   createdAt   DateTime                 @default(now())
 

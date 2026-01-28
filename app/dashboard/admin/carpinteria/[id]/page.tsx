@@ -12,6 +12,7 @@ import {
 import { getPayrollEmployees } from "@/server/actions/payroll";
 import CarpentryFileUploader from "@/components/admin/carpentry-file-uploader";
 import ProofUploader from "@/components/admin/proof-uploader";
+import SupportFileUploader from "@/components/admin/support-file-uploader";
 import CarpentryProjectTabs from "@/components/admin/carpentry-project-tabs";
 
 export default async function CarpinteriaProjectPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams?: Promise<{ message?: string; error?: string }> }) {
@@ -33,6 +34,7 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
   }
 
   const countByType = (type: string) => project.files.filter((f: any) => f.fileType === type).length;
+  const supportFiles = project.files.filter((f: any) => f.fileType === "SOPORTE");
 
   return (
     <div className="p-4 space-y-6">
@@ -309,12 +311,58 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
                   <a href={f.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
                     {f.filename || f.url}
                   </a>
+                  {f.description && (
+                    <div className="text-xs text-gray-500">{f.description}</div>
+                  )}
                 </li>
               ))}
             </ul>
           ) : (
             <div className="text-xs text-gray-500">Sin archivos.</div>
           )}
+        </div>
+      </section>
+
+      <section className="bg-white p-4 rounded-lg shadow space-y-4">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Soportes del proyecto</h2>
+            <p className="text-xs text-gray-500 max-w-2xl">
+              Agrega archivos en PDF o Excel con una breve descripción para documentar entregables, listas de materiales 
+              o respaldo técnico. Puedes subir tantos como necesites.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr,320px] gap-4">
+          <div className="space-y-3">
+            {supportFiles.length ? (
+              supportFiles.map((file: any) => (
+                <div key={file.id} className="rounded border border-gray-200 p-3 space-y-1 text-sm">
+                  <div className="flex items-center justify-between">
+                    <a href={file.url} target="_blank" rel="noreferrer" className="text-blue-600 underline">
+                      {file.filename || "Soporte sin nombre"}
+                    </a>
+                    <span className="text-[11px] text-gray-500 uppercase tracking-[0.2em]">
+                      {String(file.fileType || "SOPORTE")}
+                    </span>
+                  </div>
+                  {file.description && (
+                    <div className="text-xs text-gray-600">{file.description}</div>
+                  )}
+                  <div className="text-[11px] text-gray-500">
+                    Cargado el {file.createdAt ? new Date(file.createdAt).toLocaleDateString() : "—"}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-xs text-gray-500">
+                Aún no hay soportes registrados para este proyecto.
+              </div>
+            )}
+          </div>
+          <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50">
+            <SupportFileUploader projectId={project.id} />
+          </div>
         </div>
       </section>
     </div>
