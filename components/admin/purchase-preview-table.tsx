@@ -53,6 +53,8 @@ export default function PurchasePreviewTable({
   paymentReference,
   notes,
   defaultMargins,
+  paymentMode: paymentModeProp = "CONTADO",
+  onPaymentModeChange,
 }: {
   supplierId?: string;
   currency: "USD" | "VES";
@@ -66,6 +68,10 @@ export default function PurchasePreviewTable({
   paymentReference?: string;
   notes?: string;
   defaultMargins: Margins;
+  paymentMode?: "CONTADO" | "CREDITO_SIN_ABONO" | "CREDITO_CON_ABONO";
+  onPaymentModeChange?: (
+    mode: "CONTADO" | "CREDITO_SIN_ABONO" | "CREDITO_CON_ABONO",
+  ) => void;
 }) {
   const rate = currency === "VES" ? Number(tasaVES || 0) : 1;
   const [rows, setRows] = useState<PurchaseRow[]>([]);
@@ -91,7 +97,18 @@ export default function PurchasePreviewTable({
   const [ivaAmountCurrency, setIvaAmountCurrency] = useState<number>(0);
   const [paymentMode, setPaymentMode] = useState<
     "CONTADO" | "CREDITO_SIN_ABONO" | "CREDITO_CON_ABONO"
-  >("CONTADO");
+  >(paymentModeProp);
+  useEffect(() => {
+    if (paymentModeProp !== paymentMode) {
+      setPaymentMode(paymentModeProp);
+    }
+  }, [paymentModeProp, paymentMode]);
+  const handlePaymentModeChange = (
+    mode: "CONTADO" | "CREDITO_SIN_ABONO" | "CREDITO_CON_ABONO",
+  ) => {
+    setPaymentMode(mode);
+    onPaymentModeChange?.(mode);
+  };
   const [paidAmountUSD, setPaidAmountUSD] = useState<number | "">("");
   const [igtfAmountManualUSD, setIgtfAmountManualUSD] = useState<number>(0);
 
@@ -986,7 +1003,7 @@ export default function PurchasePreviewTable({
                   type="radio"
                   name="paymentMode"
                   checked={paymentMode === "CONTADO"}
-                  onChange={() => setPaymentMode("CONTADO")}
+                  onChange={() => handlePaymentModeChange("CONTADO")}
                 />
                 <span>Pago inmediato (pago completo)</span>
               </label>
@@ -995,7 +1012,7 @@ export default function PurchasePreviewTable({
                   type="radio"
                   name="paymentMode"
                   checked={paymentMode === "CREDITO_SIN_ABONO"}
-                  onChange={() => setPaymentMode("CREDITO_SIN_ABONO")}
+                  onChange={() => handlePaymentModeChange("CREDITO_SIN_ABONO")}
                 />
                 <span>Crédito (sin abono inicial)</span>
               </label>
@@ -1004,7 +1021,7 @@ export default function PurchasePreviewTable({
                   type="radio"
                   name="paymentMode"
                   checked={paymentMode === "CREDITO_CON_ABONO"}
-                  onChange={() => setPaymentMode("CREDITO_CON_ABONO")}
+                  onChange={() => handlePaymentModeChange("CREDITO_CON_ABONO")}
                 />
                 <span>Crédito con abono inicial</span>
               </label>

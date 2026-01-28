@@ -47,6 +47,9 @@ export default function PurchaseEntryForm({
   );
   const [bankAccountId, setBankAccountId] = useState<string>("");
   const [paymentReference, setPaymentReference] = useState<string>("");
+  const [paymentMode, setPaymentMode] = useState<
+    "CONTADO" | "CREDITO_SIN_ABONO" | "CREDITO_CON_ABONO"
+  >("CONTADO");
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
   const [paymentUploading, setPaymentUploading] = useState(false);
   const [paymentReceiptUrl, setPaymentReceiptUrl] = useState<string>("");
@@ -182,6 +185,29 @@ export default function PurchaseEntryForm({
                   {b.name} {b.bankName ? `- ${b.bankName}` : ""} ({b.currency})
                 </option>
               ))}
+            </select>
+          </div>
+          <div className="md:col-span-4">
+            <label className="form-label">Tipo de pago</label>
+            <select
+              className="form-select"
+              value={paymentMode}
+              onChange={(e) =>
+                setPaymentMode(
+                  e.target.value as
+                    | "CONTADO"
+                    | "CREDITO_SIN_ABONO"
+                    | "CREDITO_CON_ABONO",
+                )
+              }
+            >
+              <option value="CONTADO">Contado (pago completo)</option>
+              <option value="CREDITO_CON_ABONO">
+                Pago parcial (crédito con abono inicial)
+              </option>
+              <option value="CREDITO_SIN_ABONO">
+                Crédito (sin abono inicial)
+              </option>
             </select>
           </div>
         </div>

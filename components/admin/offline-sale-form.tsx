@@ -163,10 +163,8 @@ export default function OfflineSaleForm({
   useEffect(() => {
     const nextDocType =
       initialDocType && docTypeOptions.includes(initialDocType) ? initialDocType : docTypeOptions[0];
-    if (docType !== nextDocType) {
-      setDocType(nextDocType);
-    }
-  }, [docTypeOptionsKey, initialDocType, docType]);
+    setDocType((prev) => (prev === nextDocType ? prev : nextDocType));
+  }, [docTypeOptionsKey, initialDocType]);
   const [shippingLocalOption, setShippingLocalOption] = useState<'RETIRO_TIENDA' | 'DELIVERY' | ''>(initialShippingLocalOption || '');
   const [saleType, setSaleType] = useState<"CONTADO" | "CREDITO">(initialSaleType);
   const [allowCreditUi, setAllowCreditUi] = useState<boolean>(!!allowCredit);
