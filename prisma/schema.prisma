@@ -1,21 +1,1338 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
+model Branch {
+  id               String     @id @default(cuid())
+  name             String
+  code             String     @unique
+  state            String
+  city             String
+  address          String
+  lat              Decimal?   @db.Decimal(10, 7)
+  lng              Decimal?   @db.Decimal(10, 7)
+  motoRatePerKmUSD Decimal?   @db.Decimal(10, 4)
+  carRatePerKmUSD  Decimal?   @db.Decimal(10, 4)
+  vanRatePerKmUSD  Decimal?   @db.Decimal(10, 4)
+  motoMinFeeUSD    Decimal?   @db.Decimal(10, 2)
+  vanMinFeeUSD     Decimal?   @db.Decimal(10, 2)
+  isActive         Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @default(now()) @updatedAt
+  shippings        Shipping[]
+  users            User[]
+}
+
+model User {
+  id                              String                  @id @default(cuid())
+  email                           String                  @unique
+  password                        String
+  name                            String?
+  phone                           String?
+  role                            Role                    @default(CLIENTE)
+  alliedStatus                    AlliedStatus            @default(NONE)
+  createdAt                       DateTime                @default(now())
+  commissionPercent               Decimal?                @db.Decimal(5, 2)
+  passwordResetToken              String?                 @unique
+  passwordResetTokenExpiresAt     DateTime?
+  profileImageUrl                 String?
+  bio                             String?
+  services                        String[]
+  portfolioUrls                   String[]
+  portfolioText                   String?
+  deliveryStatus                  DeliveryStatus          @default(NONE)
+  deliveryCedula                  String?
+  deliveryAddress                 String?
+  deliveryMotoPlate               String?
+  deliveryChassisSerial           String?
+  deliveryIdImageUrl              String?
+  deliverySelfieUrl               String?
+  deliveryAgreementAcceptedAt     DateTime?
+  deliveryAgreementVersion        Int?
+  deliveryAgreementIp             String?
+  emailVerifiedAt                 DateTime?               @db.Timestamp(6)
+  emailVerificationToken          String?
+  emailVerificationTokenExpiresAt DateTime?               @db.Timestamp(6)
+  deliveryVehicleBrand            String?
+  deliveryVehicleModel            String?
+  deliveryVehicleType             String?
+  deliverySignedContractUrl       String?
+  payoutBankName                  String?
+  payoutBankAccount               String?
+  payoutBankIdNumber              String?
+  payoutPmBank                    String?
+  payoutPmPhone                   String?
+  payoutPmIdNumber                String?
+  branchId                        String?
+  addresses                       Address[]
+  adminSettingsAuditLogs          AdminSettingsAuditLog[]
+  allyProjects                    AllyProject[]           @relation("UserAllyProjects")
+  assistantCarts                  AssistantCart[]
+  commissions                     Commission[]
+  commissionPaymentsCreated       CommissionPayment[]     @relation("CommissionPaymentCreatedBy")
+  commissionPayments              CommissionPayment[]     @relation("CommissionPaymentSeller")
+  assignedConversations           Conversation[]          @relation("ConversationAssignedTo")
+  conversations                   Conversation[]          @relation("ConversationUser")
+  designProjectsAssigned          DesignProject[]         @relation("DesignProjectArchitect")
+  designProjectsCreated           DesignProject[]         @relation("DesignProjectCreatedBy")
+  designPaymentsCreated           DesignProjectPayment[]  @relation("DesignProjectPaymentCreatedBy")
+  designRendersCreated            DesignProjectRender[]   @relation("DesignProjectRenderCreatedBy")
+  designTasksAssigned             DesignProjectTask[]     @relation("DesignTaskAssignee")
+  designTasksCreated              DesignProjectTask[]     @relation("DesignTaskCreatedBy")
+  designUpdatesCreated            DesignProjectUpdate[]   @relation("DesignProjectUpdateAuthor")
+  driverLocations                 DriverLocation[]
+  ecpdDesigns                     EcpdDesign[]
+  kitchenDesigns                  KitchenDesign[]
+  moodboards                      Moodboard[]
+  news                            News[]                  @relation("UserNews")
+  reviewedOrders                  Order[]                 @relation("OrderReviewedBy")
+  sellerOrders                    Order[]                 @relation("OrderSeller")
+  orders                          Order[]                 @relation("OrderCustomer")
+  createdPurchases                Purchase[]              @relation("PurchaseCreatedBy")
+  createdPOs                      PurchaseOrder[]         @relation("POCreator")
+  receivedPOs                     PurchaseOrder[]         @relation("POReceiver")
+  quotesAsSeller                  Quote[]                 @relation("QuoteSeller")
+  quotes                          Quote[]                 @relation("QuoteCustomer")
+  saleHoldsCreated                SaleHold[]              @relation("SaleHoldCreatedBy")
+  deliveriesAssigned              Shipping[]              @relation("DeliveryAssignee")
+  branch                          Branch?                 @relation(fields: [branchId], references: [id], onUpdate: NoAction, map: "User_branch_fkey")
+  wishlistItems                   WishlistItem[]
+}
+
+model DesignProject {
+  id                  String                 @id @default(cuid())
+  name                String
+  clientName          String
+  location            String
+  architectId         String?
+  priority            Int                    @default(5)
+  startDate           DateTime?
+  dueDate             DateTime?
+  status              DesignProjectStatus    @default(NUEVO)
+  description         String?
+  createdById         String?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @default(now()) @updatedAt
+  stage               DesignProjectStage     @default(BRIEFING)
+  designTotalUSD      Decimal?               @db.Decimal(12, 2)
+  initialMeasurements String?
+  referenceImages     String[]               @default([])
+  architect           User?                  @relation("DesignProjectArchitect", fields: [architectId], references: [id])
+  createdBy           User?                  @relation("DesignProjectCreatedBy", fields: [createdById], references: [id])
+  payments            DesignProjectPayment[]
+  renders             DesignProjectRender[]
+  tasks               DesignProjectTask[]
+  updates             DesignProjectUpdate[]
+
+  @@index([architectId, status])
+  @@index([status, dueDate])
+}
+
+model DesignProjectTask {
+  id           String           @id @default(cuid())
+  projectId    String
+  title        String
+  assignedToId String?
+  dueDate      DateTime?
+  priority     Int              @default(5)
+  status       DesignTaskStatus @default(PENDIENTE)
+  comments     String?
+  createdById  String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @default(now()) @updatedAt
+  assignedTo   User?            @relation("DesignTaskAssignee", fields: [assignedToId], references: [id])
+  createdBy    User?            @relation("DesignTaskCreatedBy", fields: [createdById], references: [id])
+  project      DesignProject    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status])
+  @@index([assignedToId, dueDate])
+}
+
+model DesignProjectUpdate {
+  id          String        @id @default(cuid())
+  projectId   String
+  note        String?
+  fileUrl     String?
+  createdById String?
+  createdAt   DateTime      @default(now())
+  createdBy   User?         @relation("DesignProjectUpdateAuthor", fields: [createdById], references: [id])
+  project     DesignProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+}
+
+model DesignProjectPayment {
+  id          String         @id @default(cuid())
+  projectId   String
+  amountUSD   Decimal        @db.Decimal(12, 2)
+  paidAt      DateTime
+  method      PaymentMethod?
+  reference   String?
+  fileUrl     String?
+  createdById String?
+  createdAt   DateTime       @default(now())
+  createdBy   User?          @relation("DesignProjectPaymentCreatedBy", fields: [createdById], references: [id])
+  project     DesignProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, paidAt])
+}
+
+model DesignProjectRender {
+  id             String        @id @default(cuid())
+  projectId      String
+  prompt         String
+  sourceImageUrl String
+  outputImageUrl String
+  createdById    String?
+  createdAt      DateTime      @default(now())
+  createdBy      User?         @relation("DesignProjectRenderCreatedBy", fields: [createdById], references: [id])
+  project        DesignProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+}
+
+model SiteSettings {
+  id                               Int       @id @default(1)
+  brandName                        String    @default("Carpihogar.ai")
+  whatsappPhone                    String
+  contactPhone                     String
+  contactEmail                     String
+  ivaPercent                       Decimal   @default(16) @db.Decimal(5, 2)
+  tasaVES                          Decimal   @default(40) @db.Decimal(10, 2)
+  logoUrl                          String?
+  primaryColor                     String?
+  secondaryColor                   String?
+  lowStockThreshold                Int       @default(5)
+  sellerCommissionPercent          Decimal   @default(5) @db.Decimal(5, 2)
+  deleteSecret                     String?
+  homeHeroUrls                     String[]
+  rootPhone                        String?
+  rootRecoveryHash                 String?
+  rootResetCode                    String?
+  rootResetCodeExpiresAt           DateTime?
+  defaultMarginClientPct           Decimal?  @db.Decimal(5, 2)
+  defaultMarginAllyPct             Decimal?  @db.Decimal(5, 2)
+  defaultMarginWholesalePct        Decimal?  @db.Decimal(5, 2)
+  paymentZelleEmail                String?
+  paymentPmPhone                   String?
+  paymentPmRif                     String?
+  paymentPmBank                    String?
+  paymentBanescoAccount            String?
+  paymentBanescoRif                String?
+  paymentBanescoName               String?
+  paymentMercantilAccount          String?
+  paymentMercantilRif              String?
+  paymentMercantilName             String?
+  legalCompanyName                 String?
+  legalCompanyRif                  String?
+  legalCompanyAddress              String?
+  legalCompanyPhone                String?
+  invoiceNextNumber                Int?      @default(1)
+  receiptNextNumber                Int?      @default(1)
+  heroAutoplayMs                   Int?
+  instagramHandle                  String?
+  tiktokHandle                     String?
+  categoryBannerCarpinteriaUrl     String?
+  categoryBannerHogarUrl           String?
+  supportHours                     String?
+  ecpdHeroUrls                     String[]
+  ecpdColors                       Json?
+  moodboardHeroUrls                String[]
+  deliveryMotoRatePerKmUSD         Decimal?  @db.Decimal(10, 4)
+  deliveryCarRatePerKmUSD          Decimal?  @db.Decimal(10, 4)
+  deliveryVanRatePerKmUSD          Decimal?  @db.Decimal(10, 4)
+  deliveryMotoMinFeeUSD            Decimal?  @db.Decimal(10, 2)
+  deliveryVanMinFeeUSD             Decimal?  @db.Decimal(10, 2)
+  deliveryDriverSharePct           Decimal?  @db.Decimal(5, 2)
+  deliveryCompanySharePct          Decimal?  @db.Decimal(5, 2)
+  globalPriceAdjustmentPercent     Decimal?  @default(0) @db.Decimal(6, 2)
+  globalPriceAdjustmentEnabled     Boolean   @default(false)
+  priceAdjustmentUSDPercent        Decimal?  @default(0) @db.Decimal(6, 2)
+  priceAdjustmentVESPercent        Decimal?  @default(0) @db.Decimal(6, 2)
+  priceAdjustmentByCurrencyEnabled Boolean   @default(false)
+  categoryPriceAdjustments         Json?
+  usdPaymentDiscountPercent        Decimal?  @default(20) @db.Decimal(6, 2)
+  usdPaymentDiscountEnabled        Boolean   @default(true)
+  vesSalesDisabled                 Boolean   @default(false)
+  slaWarningDays                   Decimal?  @default(7) @db.Decimal(6, 2)
+  slaCriticalOverdueDays           Decimal?  @default(3) @db.Decimal(6, 2)
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  createdAt   DateTime   @default(now())
+  parentId    String?
+  description String?
+  bannerUrl   String?
+  parent      Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryChildren")
+  products    Product[]
+}
+
+model Product {
+  id                         String              @id @default(cuid())
+  name                       String
+  slug                       String              @unique
+  description                String?
+  images                     String[]
+  sku                        String?             @unique
+  priceUSD                   Decimal             @db.Decimal(10, 2)
+  priceAllyUSD               Decimal?            @db.Decimal(10, 2)
+  stock                      Int                 @default(0)
+  categoryId                 String?
+  isNew                      Boolean             @default(false)
+  createdAt                  DateTime            @default(now())
+  brand                      String
+  reorderPoint               Int?
+  safetyStock                Int?
+  leadTimeDays               Int?
+  costMethod                 CostMethod          @default(PROMEDIO)
+  avgCost                    Decimal?            @db.Decimal(10, 2)
+  lastCost                   Decimal?            @db.Decimal(10, 2)
+  supplierId                 String?
+  barcode                    String?             @unique
+  code                       String?             @unique
+  priceWholesaleUSD          Decimal?            @db.Decimal(10, 2)
+  costUSD                    Decimal?            @db.Decimal(10, 2)
+  marginClientPct            Decimal?            @db.Decimal(5, 2)
+  marginAllyPct              Decimal?            @db.Decimal(5, 2)
+  marginWholesalePct         Decimal?            @db.Decimal(5, 2)
+  priceClientUSD             Decimal?            @db.Decimal(10, 2)
+  supplierCode               String?
+  keywords                   String[]            @default([])
+  model                      String?
+  guarantee                  String?
+  type                       ProductType         @default(SIMPLE)
+  stockUnits                 Int                 @default(0)
+  stockMinUnits              Int                 @default(0)
+  allowBackorder             Boolean             @default(false)
+  allowUnitSale              Boolean             @default(true)
+  unitsPerPackage            Int?
+  stockPackages              Int?
+  soldBy                     ProductSoldBy       @default(UNIT)
+  weightKg                   Decimal?            @db.Decimal(10, 3)
+  heightCm                   Decimal?            @db.Decimal(10, 2)
+  widthCm                    Decimal?            @db.Decimal(10, 2)
+  depthCm                    Decimal?            @db.Decimal(10, 2)
+  volumeCm3                  Decimal?            @db.Decimal(12, 2)
+  freightType                String?
+  status                     ProductStatus       @default(ACTIVE)
+  videoUrl                   String?
+  showSocialButtons          Boolean             @default(false)
+  isConfigurable             Boolean             @default(false)
+  configSchema               Json?
+  deliveryAllowedVehicles    String[]            @default([])
+  rootNoIvaOnly              Boolean             @default(false)
+  isActive                   Boolean             @default(true)
+  basePriceUsd               Decimal             @default(0) @db.Decimal(10, 2)
+  productFamily              ProductFamily       @default(STANDARD)
+  isParametric               Boolean             @default(false)
+  widthMm                    Int?
+  heightMm                   Int?
+  depthMm                    Int?
+  widthMinMm                 Int?
+  widthMaxMm                 Int?
+  heightMinMm                Int?
+  heightMaxMm                Int?
+  parametricPricingFormula   String?
+  kitchenCategory            KitchenCategory?
+  isVisibleInKitchenDesigner Boolean             @default(false)
+  usableInQuickBudget        Boolean             @default(false)
+  usableInKitchenDesigner    Boolean             @default(false)
+  kitchenPriceLowUsd         Decimal?            @db.Decimal(10, 2)
+  kitchenPriceMidUsd         Decimal?            @db.Decimal(10, 2)
+  kitchenPriceHighUsd        Decimal?            @db.Decimal(10, 2)
+  assistantCartItems         AssistantCartItem[]
+  ecpdDesigns                EcpdDesign[]
+  kitchenModules             KitchenModule[]
+  orderItems                 OrderItem[]
+  category                   Category?           @relation(fields: [categoryId], references: [id])
+  supplier                   Supplier?           @relation(fields: [supplierId], references: [id])
+  purchaseItems              PurchaseItem[]
+  purchaseOrderItems         PurchaseOrderItem[]
+  quoteItems                 QuoteItem[]
+  relatedFrom                RelatedProduct[]    @relation("RelatedFrom")
+  relatedTo                  RelatedProduct[]    @relation("RelatedTo")
+  stockMoves                 StockMovement[]
+  wishlistItems              WishlistItem[]
+}
+
+model RelatedProduct {
+  fromId    String
+  toId      String
+  createdAt DateTime @default(now())
+  from      Product  @relation("RelatedFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to        Product  @relation("RelatedTo", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@id([fromId, toId])
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  fullname  String
+  phone     String
+  state     String
+  city      String
+  zone      String?
+  address1  String
+  address2  String?
+  notes     String?
+  createdAt DateTime @default(now())
+  lat       Decimal? @db.Decimal(10, 7)
+  lng       Decimal? @db.Decimal(10, 7)
+  user      User     @relation(fields: [userId], references: [id])
+  orders    Order[]
+}
+
+model Order {
+  id                    String             @id @default(cuid())
+  userId                String
+  subtotalUSD           Decimal            @db.Decimal(10, 2)
+  ivaPercent            Decimal            @db.Decimal(5, 2)
+  tasaVES               Decimal            @db.Decimal(10, 2)
+  totalUSD              Decimal            @db.Decimal(10, 2)
+  totalVES              Decimal            @db.Decimal(12, 2)
+  createdAt             DateTime           @default(now())
+  status                OrderStatus        @default(PENDIENTE)
+  shippingAddressId     String?
+  sellerId              String?
+  customerTaxId         String?
+  customerFiscalAddress String?
+  saleType              SaleType           @default(CONTADO)
+  creditDueDate         DateTime?
+  originQuoteId         String?
+  reviewedAt            DateTime?
+  reviewedById          String?
+  originChannel         String?            @default("ONLINE")
+  invoiceNumber         Int?
+  receiptNumber         Int?
+  documentType          OrderDocumentType?
+  commission            Commission?
+  reviewedBy            User?              @relation("OrderReviewedBy", fields: [reviewedById], references: [id])
+  seller                User?              @relation("OrderSeller", fields: [sellerId], references: [id])
+  shippingAddress       Address?           @relation(fields: [shippingAddressId], references: [id])
+  user                  User               @relation("OrderCustomer", fields: [userId], references: [id])
+  authTokens            OrderAuthToken[]
+  items                 OrderItem[]
+  payment               Payment?
+  receivable            Receivable?
+  shipping              Shipping?
+
+  @@index([originQuoteId])
+  @@index([reviewedById])
+}
+
+model SaleHold {
+  id                    String   @id @default(cuid())
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  createdById           String?
+  sellerId              String?
+  customerName          String?
+  customerEmail         String?
+  customerPhone         String?
+  customerTaxId         String?
+  customerFiscalAddress String?
+  items                 Json
+  meta                  Json?
+  totalUSD              Decimal? @db.Decimal(12, 2)
+  createdBy             User?    @relation("SaleHoldCreatedBy", fields: [createdById], references: [id])
+
+  @@index([createdById])
+  @@index([sellerId])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id                             String                          @id @default(cuid())
+  orderId                        String
+  productId                      String
+  name                           String
+  priceUSD                       Decimal                         @db.Decimal(10, 2)
+  quantity                       Int
+  CarpentryProjectInventoryEntry CarpentryProjectInventoryEntry?
+  order                          Order                           @relation(fields: [orderId], references: [id])
+  product                        Product                         @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id         String        @id @default(cuid())
+  orderId    String        @unique
+  method     PaymentMethod
+  proofUrl   String?
+  reference  String?
+  status     PaymentStatus @default(SIN_PRUEBA)
+  createdAt  DateTime      @default(now())
+  currency   Currency      @default(USD)
+  payerName  String?
+  payerPhone String?
+  payerBank  String?
+  payerId    String?
+  order      Order         @relation(fields: [orderId], references: [id])
+}
+
+model Commission {
+  id        String           @id @default(cuid())
+  orderId   String           @unique
+  sellerId  String
+  percent   Decimal          @db.Decimal(5, 2)
+  amountUSD Decimal          @db.Decimal(10, 2)
+  status    CommissionStatus @default(PENDIENTE)
+  createdAt DateTime         @default(now())
+  order     Order            @relation(fields: [orderId], references: [id])
+  seller    User             @relation(fields: [sellerId], references: [id])
+}
+
+model CommissionPayment {
+  id          String        @id @default(cuid())
+  sellerId    String
+  amount      Decimal       @db.Decimal(12, 2)
+  currency    Currency      @default(USD)
+  method      PaymentMethod
+  reference   String?
+  bankName    String?
+  paidAt      DateTime
+  paidByName  String?
+  proofUrl    String?
+  createdAt   DateTime      @default(now())
+  createdById String?
+  createdBy   User?         @relation("CommissionPaymentCreatedBy", fields: [createdById], references: [id])
+  seller      User          @relation("CommissionPaymentSeller", fields: [sellerId], references: [id])
+
+  @@index([sellerId, paidAt])
+  @@index([reference])
+}
+
+model Quote {
+  id                    String      @id @default(cuid())
+  userId                String
+  sellerId              String?
+  subtotalUSD           Decimal     @db.Decimal(10, 2)
+  ivaPercent            Decimal     @db.Decimal(5, 2)
+  tasaVES               Decimal     @db.Decimal(10, 2)
+  totalUSD              Decimal     @db.Decimal(10, 2)
+  totalVES              Decimal     @db.Decimal(12, 2)
+  status                QuoteStatus @default(BORRADOR)
+  expiresAt             DateTime?
+  notes                 String?
+  customerTaxId         String?
+  customerFiscalAddress String?
+  createdAt             DateTime    @default(now())
+  seller                User?       @relation("QuoteSeller", fields: [sellerId], references: [id])
+  user                  User        @relation("QuoteCustomer", fields: [userId], references: [id])
+  items                 QuoteItem[]
+}
+
+model QuoteItem {
+  id        String  @id @default(cuid())
+  quoteId   String
+  productId String
+  name      String
+  priceUSD  Decimal @db.Decimal(10, 2)
+  quantity  Int
+  product   Product @relation(fields: [productId], references: [id])
+  quote     Quote   @relation(fields: [quoteId], references: [id])
+}
+
+model StockMovement {
+  id        String        @id @default(cuid())
+  productId String
+  type      StockMoveType
+  quantity  Int
+  reason    String?
+  userId    String?
+  createdAt DateTime      @default(now())
+  product   Product       @relation(fields: [productId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+  projectId String?
+
+  @@index([projectId, createdAt])
+}
+
+model AdminSettingsAuditLog {
+  id              String   @id @default(cuid())
+  settingKey      String
+  oldValue        String?
+  newValue        String?
+  changedByUserId String?
+  changedAt       DateTime @default(now())
+  ipAddress       String?
+  userAgent       String?
+  changedBy       User?    @relation(fields: [changedByUserId], references: [id])
+
+  @@index([changedAt])
+  @@index([settingKey])
+}
+
+model ShipmentPhoto {
+  id         String   @id @default(cuid())
+  shipmentId String
+  type       String
+  url        String
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  shipment   Shipping @relation(fields: [shipmentId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "ShipmentPhoto_shipment_fkey")
+
+  @@index([shipmentId], map: "ShipmentPhoto_shipment_idx")
+}
+
+model DriverLocation {
+  id        String   @id @default(cuid())
+  driverId  String
+  lat       Decimal  @db.Decimal(10, 7)
+  lng       Decimal  @db.Decimal(10, 7)
+  updatedAt DateTime @default(now()) @db.Timestamptz(6)
+  driver    User     @relation(fields: [driverId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "DriverLocation_driver_fkey")
+
+  @@index([driverId], map: "DriverLocation_driver_idx")
+}
+
+model Supplier {
+  id             String          @id @default(cuid())
+  name           String
+  email          String?
+  phone          String?
+  taxId          String?
+  address        String?
+  createdAt      DateTime        @default(now())
+  rifImageUrl    String?
+  contactName    String?
+  contactPhone   String?
+  givesCredit    Boolean         @default(false)
+  creditDays     Int?
+  chargeCurrency Currency        @default(USD)
+  Payable        Payable[]
+  products       Product[]
+  purchases      Purchase[]
+  purchaseOrders PurchaseOrder[]
+}
+
+model PurchaseOrder {
+  id           String              @id @default(cuid())
+  supplierId   String
+  status       POStatus            @default(DRAFT)
+  expectedAt   DateTime?
+  totalUSD     Decimal             @default(0) @db.Decimal(12, 2)
+  notes        String?
+  createdAt    DateTime            @default(now())
+  createdById  String?
+  receivedById String?
+  receivedAt   DateTime?
+  purchaseType PurchaseType        @default(CONTADO)
+  createdBy    User?               @relation("POCreator", fields: [createdById], references: [id])
+  receivedBy   User?               @relation("POReceiver", fields: [receivedById], references: [id])
+  supplier     Supplier            @relation(fields: [supplierId], references: [id])
+  items        PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id        String        @id @default(cuid())
+  poId      String
+  productId String
+  quantity  Int
+  received  Int           @default(0)
+  costUSD   Decimal       @db.Decimal(10, 2)
+  po        PurchaseOrder @relation(fields: [poId], references: [id])
+  product   Product       @relation(fields: [productId], references: [id])
+}
+
+model Purchase {
+  id                String            @id @default(cuid())
+  supplierId        String?
+  currency          Currency          @default(USD)
+  tasaVES           Decimal           @default(0) @db.Decimal(10, 2)
+  subtotalUSD       Decimal           @default(0) @db.Decimal(12, 2)
+  totalUSD          Decimal           @default(0) @db.Decimal(12, 2)
+  notes             String?
+  createdAt         DateTime?         @default(now()) @db.Timestamp(6)
+  createdById       String?
+  invoiceNumber     String?
+  baseAmountUSD     Decimal?          @db.Decimal(12, 2)
+  discountPercent   Decimal?          @db.Decimal(5, 2)
+  discountAmountUSD Decimal?          @db.Decimal(12, 2)
+  ivaPercent        Decimal?          @db.Decimal(5, 2)
+  ivaAmountUSD      Decimal?          @db.Decimal(12, 2)
+  itemsCount        Int?
+  invoiceDate       DateTime?
+  igtfPercent       Decimal?          @db.Decimal(5, 2)
+  igtfAmountUSD     Decimal?          @db.Decimal(12, 2)
+  invoiceImageUrl   String?
+  bankTransactions  BankTransaction[]
+  Payable           Payable?
+  createdBy         User?             @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
+  supplier          Supplier?         @relation(fields: [supplierId], references: [id])
+  items             PurchaseItem[]
+}
+
+model PurchaseItem {
+  id          String   @id @default(cuid())
+  purchaseId  String
+  productId   String
+  name        String
+  quantity    Int
+  costUSD     Decimal  @db.Decimal(10, 2)
+  subtotalUSD Decimal  @db.Decimal(12, 2)
+  product     Product  @relation(fields: [productId], references: [id])
+  purchase    Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+}
+
+model BankAccount {
+  id             String            @id @default(cuid())
+  name           String
+  bankName       String?
+  accountNumber  String?
+  currency       Currency          @default(USD)
+  initialBalance Decimal           @default(0) @db.Decimal(14, 2)
+  isActive       Boolean           @default(true)
+  createdAt      DateTime          @default(now()) @db.Timestamptz(6)
+  transactions   BankTransaction[]
+  PayableEntry   PayableEntry[]
+}
+
+model BankTransaction {
+  id            String              @id @default(cuid())
+  bankAccountId String
+  type          BankTransactionType
+  amount        Decimal             @db.Decimal(14, 2)
+  currency      Currency            @default(USD)
+  description   String?
+  reference     String?
+  purchaseId    String?
+  createdAt     DateTime            @default(now()) @db.Timestamptz(6)
+  bankAccount   BankAccount         @relation(fields: [bankAccountId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  purchase      Purchase?           @relation(fields: [purchaseId], references: [id], onUpdate: NoAction)
+}
+
+model Payable {
+  id         String         @id @default(cuid())
+  purchaseId String         @unique
+  supplierId String?
+  status     PayableStatus  @default(PENDIENTE)
+  totalUSD   Decimal        @db.Decimal(12, 2)
+  balanceUSD Decimal        @db.Decimal(12, 2)
+  dueDate    DateTime?      @db.Timestamptz(6)
+  notes      String?
+  createdAt  DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
+  Purchase   Purchase       @relation(fields: [purchaseId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  Supplier   Supplier?      @relation(fields: [supplierId], references: [id], onUpdate: NoAction)
+  entries    PayableEntry[]
+}
+
+model PayableEntry {
+  id            String         @id @default(cuid())
+  payableId     String
+  amountUSD     Decimal        @db.Decimal(12, 2)
+  currency      Currency       @default(USD)
+  method        PaymentMethod?
+  bankAccountId String?
+  reference     String?
+  notes         String?
+  createdAt     DateTime       @default(now()) @db.Timestamptz(6)
+  BankAccount   BankAccount?   @relation(fields: [bankAccountId], references: [id], onUpdate: NoAction)
+  payable       Payable        @relation(fields: [payableId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model Shipping {
+  id                  String          @id @default(cuid())
+  orderId             String          @unique
+  carrier             ShippingCarrier
+  tracking            String?
+  status              ShippingStatus  @default(PENDIENTE)
+  observations        String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  channel             ShippingChannel @default(TIENDA)
+  assignedToId        String?
+  assignedAt          DateTime?       @db.Timestamp(6)
+  deliveryFeeUSD      Decimal?        @db.Decimal(10, 2)
+  deliveryPaidAt      DateTime?
+  clientConfirmedAt   DateTime?
+  deliveryConfirmedAt DateTime?
+  clientRating        Int?
+  deliveryRating      Int?
+  tipUSD              Decimal?        @db.Decimal(10, 2)
+  branchId            String?
+  photos              ShipmentPhoto[]
+  assignedTo          User?           @relation("DeliveryAssignee", fields: [assignedToId], references: [id])
+  branch              Branch?         @relation(fields: [branchId], references: [id], onUpdate: NoAction, map: "Shipping_branch_fkey")
+  order               Order           @relation(fields: [orderId], references: [id])
+}
+
+model Receivable {
+  id        String            @id @default(cuid())
+  orderId   String            @unique
+  status    ReceivableStatus  @default(PENDIENTE)
+  dueDate   DateTime?
+  notes     String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  order     Order             @relation(fields: [orderId], references: [id])
+  entries   ReceivableEntry[]
+  noteItems ReceivableNote[]
+}
+
+model ReceivableEntry {
+  id           String         @id @default(cuid())
+  receivableId String
+  amountUSD    Decimal        @db.Decimal(12, 2)
+  currency     Currency       @default(USD)
+  method       PaymentMethod?
+  reference    String?
+  notes        String?
+  createdAt    DateTime       @default(now())
+  receivable   Receivable     @relation(fields: [receivableId], references: [id])
+}
+
+model ReceivableNote {
+  id           String             @id @default(cuid())
+  receivableId String
+  type         ReceivableNoteType
+  amountUSD    Decimal            @db.Decimal(12, 2)
+  reason       String?
+  createdAt    DateTime           @default(now())
+  receivable   Receivable         @relation(fields: [receivableId], references: [id], onDelete: Cascade, map: "ReceivableNote_receivable_fkey")
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+}
+
+model Conversation {
+  id             String              @id @default(cuid())
+  userId         String?
+  phone          String
+  channel        Channel             @default(WHATSAPP)
+  assignedToId   String?
+  status         ConversationStatus? @default(OPEN)
+  assignedAt     DateTime?           @db.Timestamp(6)
+  closedAt       DateTime?           @db.Timestamp(6)
+  lastInboundAt  DateTime?           @db.Timestamp(6)
+  lastOutboundAt DateTime?           @db.Timestamp(6)
+  unreadAgent    Int?                @default(0)
+  unreadCustomer Int?                @default(0)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  lastMessageAt  DateTime?
+  assignedTo     User?               @relation("ConversationAssignedTo", fields: [assignedToId], references: [id])
+  user           User?               @relation("ConversationUser", fields: [userId], references: [id])
+  messages       Message[]
+
+  @@index([userId])
+  @@index([phone])
+  @@index([lastMessageAt])
+}
+
+model Message {
+  id             String           @id @default(cuid())
+  conversationId String
+  direction      MessageDirection
+  status         MessageStatus    @default(SENT)
+  type           String           @default("TEXT")
+  text           String?
+  mediaUrl       String?
+  waMessageId    String?
+  createdAt      DateTime         @default(now())
+  conversation   Conversation     @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId, createdAt])
+}
+
+model News {
+  id        String   @id @default(cuid())
+  authorId  String
+  imageUrl  String
+  title     String?
+  excerpt   String?
+  createdAt DateTime @default(now())
+  author    User     @relation("UserNews", fields: [authorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([createdAt])
+  @@index([authorId, createdAt])
+}
+
+model Course {
+  id           String       @id @default(cuid())
+  slug         String       @unique
+  title        String
+  topic        String
+  summary      String?
+  curriculum   Json?
+  priceUSD     Decimal      @db.Decimal(10, 2)
+  status       CourseStatus @default(DRAFT)
+  heroImageUrl String?
+  videoUrl     String?
+  saleStartAt  DateTime?    @db.Timestamp(6)
+  saleEndAt    DateTime?    @db.Timestamp(6)
+  createdAt    DateTime     @default(now()) @db.Timestamp(6)
+
+  @@index([status, createdAt])
+}
+
+model AllyProject {
+  id        String   @id @default(cuid())
+  userId    String
+  images    String[]
+  videoUrl  String?
+  caption   String?
+  createdAt DateTime @default(now())
+  user      User     @relation("UserAllyProjects", fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId, createdAt])
+}
+
+model AssistantCart {
+  id        String              @id @default(cuid())
+  ownerKey  String
+  userId    String?
+  createdAt DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime            @default(now()) @db.Timestamptz(6)
+  user      User?               @relation(fields: [userId], references: [id], onUpdate: NoAction, map: "AssistantCart_user_fkey")
+  items     AssistantCartItem[]
+
+  @@index([ownerKey])
+}
+
+model AssistantCartItem {
+  id        String        @id @default(cuid())
+  cartId    String
+  productId String
+  name      String
+  priceUSD  Decimal       @db.Decimal(10, 2)
+  quantity  Int
+  createdAt DateTime      @default(now()) @db.Timestamptz(6)
+  cart      AssistantCart @relation(fields: [cartId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "AssistantCartItem_cart_fkey")
+  product   Product       @relation(fields: [productId], references: [id], onUpdate: NoAction, map: "AssistantCartItem_product_fkey")
+
+  @@unique([cartId, productId], map: "AssistantCartItem_cart_product_unique")
+}
+
+model Moodboard {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  jsonData  Json
+  thumbnail String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+}
+
+model EcpdDesign {
+  id              String   @id @default(cuid())
+  userId          String
+  productId       String
+  spaceImageUrl   String
+  config          Json
+  overlayX        Float    @default(0.5)
+  overlayY        Float    @default(0.5)
+  overlayScale    Float    @default(1)
+  overlayRotation Float    @default(0)
+  priceUSD        Decimal  @db.Decimal(10, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+  product         Product  @relation(fields: [productId], references: [id])
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model KitchenDesign {
+  id             String              @id @default(cuid())
+  userId         String
+  name           String
+  layoutType     KitchenLayoutType
+  status         KitchenDesignStatus @default(DRAFT)
+  totalPriceUsd  Decimal             @default(0) @db.Decimal(12, 2)
+  planJson       Json?
+  modulesJson    Json?
+  budgetJson     Json?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @default(now()) @updatedAt
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kitchenModules KitchenModule[]
+  spaces         KitchenSpace[]
+
+  @@index([userId, updatedAt])
+  @@index([userId, status])
+}
+
+model KitchenSpace {
+  id        String        @id @default(cuid())
+  kitchenId String
+  wallName  String
+  widthMm   Int
+  heightMm  Int?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @default(now()) @updatedAt
+  kitchen   KitchenDesign @relation(fields: [kitchenId], references: [id], onDelete: Cascade)
+
+  @@unique([kitchenId, wallName])
+  @@index([kitchenId])
+}
+
+model KitchenModule {
+  id                 String        @id @default(cuid())
+  kitchenId          String
+  productId          String
+  positionX          Int
+  positionY          Int
+  widthMm            Int
+  depthMm            Int
+  lockedHeight       Int
+  priceCalculatedUsd Decimal       @db.Decimal(12, 2)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @default(now()) @updatedAt
+  kitchen            KitchenDesign @relation(fields: [kitchenId], references: [id], onDelete: Cascade)
+  product            Product       @relation(fields: [productId], references: [id])
+
+  @@index([kitchenId])
+  @@index([productId])
+}
+
+model PayrollEmployee {
+  id                              String                              @id @default(cuid())
+  name                            String
+  role                            String?
+  phone                           String?
+  email                           String?
+  type                            PayrollEmployeeType                 @default(FIJA)
+  weeklySalaryUSD                 Decimal?                            @db.Decimal(10, 2)
+  active                          Boolean                             @default(true)
+  notes                           String?
+  createdAt                       DateTime                            @default(now())
+  updatedAt                       DateTime                            @default(now()) @updatedAt
+  inventoryDeliveries             CarpentryProjectInventoryDelivery[] @relation("MaterialDeliveryReceiver")
+  materialListDeliveries          CarpentryProjectMaterialList[]      @relation("MaterialListReceiver")
+  carpentryTasks                  CarpentryTask[]
+  payments                        PayrollPayment[]
+  productionOrdersAsCarpentryLead ProductionOrder[]                   @relation("ProductionCarpenter")
+  productionOrdersAsSupervisor    ProductionOrder[]                   @relation("ProductionSupervisor")
+}
+
+model PayrollPayment {
+  id           String                 @id @default(cuid())
+  employeeId   String?
+  category     PayrollPaymentCategory @default(OTRO)
+  amountUSD    Decimal                @db.Decimal(12, 2)
+  paidAt       DateTime               @default(now())
+  description  String?
+  service      String?
+  createdAt    DateTime               @default(now())
+  projectId    String?
+  projectPhase CarpentryProjectPhase?
+  method       String?
+  reference    String?
+  employee     PayrollEmployee?       @relation(fields: [employeeId], references: [id], onUpdate: NoAction)
+  project      CarpentryProject?      @relation(fields: [projectId], references: [id], onUpdate: NoAction)
+
+  @@index([employeeId])
+  @@index([category, paidAt])
+  @@index([projectId])
+}
+
+model CarpentryProject {
+  id                  String                              @id @default(cuid())
+  name                String
+  clientName          String?
+  description         String?
+  totalAmountUSD      Decimal                             @db.Decimal(12, 2)
+  fabricationPct      Decimal                             @default(70) @db.Decimal(5, 2)
+  installationPct     Decimal                             @default(30) @db.Decimal(5, 2)
+  fabricationPaidUSD  Decimal                             @default(0) @db.Decimal(12, 2)
+  installationPaidUSD Decimal                             @default(0) @db.Decimal(12, 2)
+  status              CarpentryProjectStatus              @default(ACTIVO)
+  startDate           DateTime?
+  endDate             DateTime?
+  createdAt           DateTime                            @default(now())
+  updatedAt           DateTime                            @default(now()) @updatedAt
+  clientEmail         String?
+  clientPhone         String?
+  clientAddress       String?
+  clientCity          String?
+  clientState         String?
+  initialPaymentUSD   Decimal?                            @db.Decimal(12, 2)
+  laborCostUSD        Decimal?                            @db.Decimal(12, 2)
+  carpenterId         String?
+  architectId         String?
+  supervisorId        String?
+  clientPayments      CarpentryClientPayment[]
+  expenses            CarpentryProjectExpense[]
+  files               CarpentryProjectFile[]
+  inventoryDeliveries CarpentryProjectInventoryDelivery[]
+  inventoryEntries    CarpentryProjectInventoryEntry[]
+  materialLists       CarpentryProjectMaterialList[]
+  purchaseOrders      CarpentryProjectPurchaseOrder[]
+  tasks               CarpentryTask[]
+  payments            PayrollPayment[]
+  productionOrders    ProductionOrder[]
+
+  @@index([architectId])
+  @@index([carpenterId])
+  @@index([supervisorId])
+}
+
+model CarpentryProjectFile {
+  id          String                   @id @default(cuid())
+  projectId   String
+  url         String
+  filename    String?
+  fileType    CarpentryProjectFileType @default(OTRO)
+  createdAt   DateTime                 @default(now())
+  description String?
+  project     CarpentryProject         @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([projectId])
+}
+
+model CarpentryProjectMaterialList {
+  id            String                     @id @default(dbgenerated("gen_random_uuid()"))
+  projectId     String
+  name          String
+  description   String?
+  fileUrl       String
+  uploadedAt    DateTime                   @default(now()) @db.Timestamptz(6)
+  phase         CarpentryProjectPhase?
+  deliveredAt   DateTime?
+  deliveredById String?
+  items         CarpentryProjectMaterial[]
+  deliveredBy   PayrollEmployee?           @relation("MaterialListReceiver", fields: [deliveredById], references: [id], onUpdate: NoAction)
+  project       CarpentryProject           @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([projectId])
+  @@index([deliveredById], map: "CarpentryProjectMaterialList_deliveredById_index")
+}
+
+model CarpentryProjectMaterial {
+  id           String                       @id @default(dbgenerated("gen_random_uuid()"))
+  listId       String
+  sku          String?
+  name         String
+  category     String?
+  unit         String?
+  quantity     Int                          @default(0)
+  unitPriceUSD Decimal                      @db.Decimal(12, 2)
+  list         CarpentryProjectMaterialList @relation(fields: [listId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([listId])
+}
+
+model CarpentryProjectPurchaseOrder {
+  id                                String                              @id @default(dbgenerated("gen_random_uuid()"))
+  projectId                         String
+  saleId                            String?
+  totalUSD                          Decimal                             @db.Decimal(12, 2)
+  status                            ProjectPurchaseStatus               @default(PENDING)
+  requiresSecret                    Boolean                             @default(false)
+  secretToken                       String?
+  notes                             String?
+  createdAt                         DateTime                            @default(now()) @db.Timestamptz(6)
+  CarpentryProjectInventoryDelivery CarpentryProjectInventoryDelivery[]
+  CarpentryProjectInventoryEntry    CarpentryProjectInventoryEntry[]
+  project                           CarpentryProject                    @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([projectId])
+}
+
+model CarpentryProjectInventoryEntry {
+  id                String                                  @id @default(cuid())
+  projectId         String
+  purchaseOrderId   String
+  orderId           String
+  orderItemId       String                                  @unique
+  itemName          String
+  sku               String?
+  productId         String?
+  quantity          Int                                     @default(0)
+  remainingQuantity Int                                     @default(0)
+  unitPriceUSD      Decimal                                 @default(0) @db.Decimal(12, 2)
+  createdAt         DateTime                                @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime                                @default(now()) @updatedAt @db.Timestamptz(6)
+  deliveryItems     CarpentryProjectInventoryDeliveryItem[]
+  OrderItem         OrderItem                               @relation(fields: [orderItemId], references: [id], onUpdate: NoAction)
+  project           CarpentryProject                        @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  purchaseOrder     CarpentryProjectPurchaseOrder           @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([projectId], map: "CarpentryProjectInventoryEntry_projectId_index")
+  @@index([purchaseOrderId], map: "CarpentryProjectInventoryEntry_purchaseOrderId_index")
+}
+
+model CarpentryProjectInventoryDelivery {
+  id              String                                  @id @default(cuid())
+  projectId       String
+  purchaseOrderId String
+  phase           CarpentryProjectPhase?
+  notes           String?
+  deliveredAt     DateTime                                @default(now()) @db.Timestamptz(6)
+  deliveredById   String?
+  createdAt       DateTime                                @default(now()) @db.Timestamptz(6)
+  deliveredBy     PayrollEmployee?                        @relation("MaterialDeliveryReceiver", fields: [deliveredById], references: [id], onUpdate: NoAction)
+  project         CarpentryProject                        @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  purchaseOrder   CarpentryProjectPurchaseOrder           @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  items           CarpentryProjectInventoryDeliveryItem[]
+
+  @@index([projectId], map: "CarpentryProjectInventoryDelivery_projectId_index")
+  @@index([purchaseOrderId], map: "CarpentryProjectInventoryDelivery_purchaseOrderId_index")
+}
+
+model CarpentryProjectInventoryDeliveryItem {
+  id         String                            @id @default(cuid())
+  deliveryId String
+  entryId    String
+  quantity   Int
+  createdAt  DateTime                          @default(now()) @db.Timestamptz(6)
+  delivery   CarpentryProjectInventoryDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  entry      CarpentryProjectInventoryEntry    @relation(fields: [entryId], references: [id], onUpdate: NoAction)
+
+  @@index([entryId], map: "CarpentryProjectInventoryDeliveryItem_entryId_index")
+}
+
+model CarpentryProjectExpense {
+  id            String           @id @default(dbgenerated("gen_random_uuid()"))
+  projectId     String
+  provider      String
+  invoiceNumber String?
+  description   String
+  expenseType   ExpenseType
+  date          DateTime         @db.Timestamptz(6)
+  quantity      Int              @default(1)
+  unitCostUSD   Decimal          @db.Decimal(12, 2)
+  totalCostUSD  Decimal          @db.Decimal(12, 2)
+  receiptUrl    String?
+  createdById   String?
+  createdAt     DateTime         @default(now()) @db.Timestamptz(6)
+  project       CarpentryProject @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([projectId])
+}
+
+model ProductionOrder {
+  id              String           @id @default(dbgenerated("gen_random_uuid()"))
+  projectId       String
+  number          String           @unique
+  carpentryLeadId String?
+  supervisorId    String?
+  phase           String?
+  scheduledStart  DateTime?        @db.Timestamptz(6)
+  scheduledEnd    DateTime?        @db.Timestamptz(6)
+  installDate     DateTime?        @db.Timestamptz(6)
+  status          ProductionStatus @default(PLANNED)
+  progressPct     Decimal          @default(0) @db.Decimal(5, 2)
+  notes           String?
+  createdAt       DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
+  tasks           CarpentryTask[]  @relation("ProductionTasks")
+  carpentryLead   PayrollEmployee? @relation("ProductionCarpenter", fields: [carpentryLeadId], references: [id], onUpdate: NoAction)
+  project         CarpentryProject @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  supervisor      PayrollEmployee? @relation("ProductionSupervisor", fields: [supervisorId], references: [id], onUpdate: NoAction)
+
+  @@index([projectId])
+}
+
+model CarpentryTask {
+  id                String                 @id @default(cuid())
+  employeeId        String
+  projectId         String?
+  description       String
+  workDate          DateTime               @default(now())
+  amountUSD         Decimal                @db.Decimal(12, 2)
+  phase             CarpentryProjectPhase?
+  createdAt         DateTime               @default(now())
+  status            String?                @default("PENDIENTE")
+  productionOrderId String?
+  employee          PayrollEmployee        @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  productionOrder   ProductionOrder?       @relation("ProductionTasks", fields: [productionOrderId], references: [id], onUpdate: NoAction)
+  project           CarpentryProject?      @relation(fields: [projectId], references: [id], onUpdate: NoAction)
+
+  @@index([employeeId])
+  @@index([projectId])
+  @@index([productionOrderId])
+}
+
+model CarpentryClientPayment {
+  id        String           @id @default(dbgenerated("gen_random_uuid()"))
+  projectId String
+  amountUSD Decimal          @db.Decimal(12, 2)
+  paidAt    DateTime         @default(now()) @db.Timestamptz(6)
+  method    String?
+  reference String?
+  notes     String?
+  proofUrl  String?
+  createdAt DateTime         @default(now()) @db.Timestamptz(6)
+  project   CarpentryProject @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_project")
+
+  @@index([projectId])
+  @@index([paidAt])
+}
+
+model OrderAuthToken {
+  id          String    @id @default(cuid())
+  orderId     String
+  token       String
+  expiresAt   DateTime  @db.Timestamptz(6)
+  usedAt      DateTime? @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  channel     String?
+  destination String?
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "OrderAuthToken_order_fkey")
+
+  @@unique([orderId, token], map: "OrderAuthToken_order_token_unique")
+}
+
+model OrdersTemp {
+  id           String   @id @default(dbgenerated("gen_random_uuid()"))
+  customerId   String
+  items        Json
+  totalUSD     Decimal  @default(0) @db.Decimal(10, 2)
+  shippingData Json?
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model PurchaseToken {
+  id          String   @id @default(dbgenerated("gen_random_uuid()"))
+  customerId  String
+  orderTempId String
+  token       String
+  expiresAt   DateTime @db.Timestamptz(6)
+  used        Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([customerId], map: "PurchaseToken_customer_idx")
+  @@index([orderTempId, token], map: "PurchaseToken_temp_token_idx")
 }
 
 enum Role {
   CLIENTE
   ALIADO
+  ADMIN
   VENDEDOR
+  DELIVERY
   DESPACHO
   ARCHITECTO
   SUPERVISOR_PROYECTOS
-  ADMIN
-  DELIVERY
 }
 
 enum DesignProjectStatus {
@@ -86,9 +1403,9 @@ enum KitchenCategory {
   HIGH
   PANTRY
   TOWER
+  OTHER
   FRIDGE
   CONDIMENT
-  OTHER
 }
 
 enum KitchenLayoutType {
@@ -107,463 +1424,6 @@ enum KitchenDesignStatus {
   ARCHIVED
 }
 
-enum Model3DAssetStatus {
-  PENDING
-  PROCESSING
-  READY
-  ERROR
-}
-
-enum Model3DJobStatus {
-  PENDING
-  PROCESSING
-  DONE
-  ERROR
-}
-
-// Sucursales físicas de la empresa (Barinas, otras ciudades)
-model Branch {
-  id               String   @id @default(cuid())
-  name             String
-  code             String   @unique
-  state            String
-  city             String
-  address          String
-  lat              Decimal? @db.Decimal(10, 7)
-  lng              Decimal? @db.Decimal(10, 7)
-  // Parámetros específicos de delivery para la sucursal (opcional, si no se usan se toman de SiteSettings)
-  motoRatePerKmUSD Decimal? @db.Decimal(10, 4)
-  carRatePerKmUSD  Decimal? @db.Decimal(10, 4)
-  vanRatePerKmUSD  Decimal? @db.Decimal(10, 4)
-  motoMinFeeUSD    Decimal? @db.Decimal(10, 2)
-  vanMinFeeUSD     Decimal? @db.Decimal(10, 2)
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  users     User[]
-  shippings Shipping[]
-}
-
-model User {
-  id                String       @id @default(cuid())
-  email             String       @unique
-  password          String
-  name              String?
-  phone             String?
-  role              Role         @default(CLIENTE)
-  alliedStatus      AlliedStatus @default(NONE)
-  commissionPercent Decimal?     @db.Decimal(5, 2)
-  // Ally profile fields (optional)
-  profileImageUrl   String?
-  bio               String?
-  services          String[]
-  portfolioUrls     String[]
-  portfolioText     String?
-
-  // Ally content relations
-  news                      News[]              @relation("UserNews")
-  allyProjects              AllyProject[]       @relation("UserAllyProjects")
-  createdAt                 DateTime            @default(now())
-  addresses                 Address[]
-  orders                    Order[]             @relation("OrderCustomer")
-  sellerOrders              Order[]             @relation("OrderSeller")
-  reviewedOrders            Order[]             @relation("OrderReviewedBy")
-  commissions               Commission[]
-  commissionPayments        CommissionPayment[] @relation("CommissionPaymentSeller")
-  commissionPaymentsCreated CommissionPayment[] @relation("CommissionPaymentCreatedBy")
-  quotes                    Quote[]             @relation("QuoteCustomer")
-  quotesAsSeller            Quote[]             @relation("QuoteSeller")
-  createdPOs                PurchaseOrder[]     @relation("POCreator")
-  receivedPOs               PurchaseOrder[]     @relation("POReceiver")
-  wishlistItems             WishlistItem[]
-  createdPurchases          Purchase[]          @relation("PurchaseCreatedBy")
-
-  // Delivery assignments (for DELIVERY role)
-  deliveriesAssigned Shipping[] @relation("DeliveryAssignee")
-
-  // Messaging relations
-  conversations         Conversation[] @relation("ConversationUser")
-  assignedConversations Conversation[] @relation("ConversationAssignedTo")
-
-  // Back-relations for drivers and AI assistant cart
-  driverLocations   DriverLocation[]
-  assistantCarts    AssistantCart[]
-  notifications     Notification[]
-  pushSubscriptions PushSubscription[]
-
-  // Moodboards creados por el usuario
-  moodboards             Moodboard[]
-  // Diseños personalizados del configurador ECPD
-  ecpdDesigns            EcpdDesign[]
-  kitchenDesigns         KitchenDesign[]
-  adminSettingsAuditLogs AdminSettingsAuditLog[]
-  designProjectsAssigned DesignProject[]         @relation("DesignProjectArchitect")
-  designProjectsCreated  DesignProject[]         @relation("DesignProjectCreatedBy")
-  designTasksAssigned    DesignProjectTask[]     @relation("DesignTaskAssignee")
-  designTasksCreated     DesignProjectTask[]     @relation("DesignTaskCreatedBy")
-  designUpdatesCreated   DesignProjectUpdate[]   @relation("DesignProjectUpdateAuthor")
-  designPaymentsCreated  DesignProjectPayment[]  @relation("DesignProjectPaymentCreatedBy")
-  designRendersCreated   DesignProjectRender[]   @relation("DesignProjectRenderCreatedBy")
-
-  passwordResetToken          String?   @unique
-  passwordResetTokenExpiresAt DateTime?
-
-  // Email verification
-  emailVerifiedAt                 DateTime?
-  emailVerificationToken          String?   @unique
-  emailVerificationTokenExpiresAt DateTime?
-
-  // Delivery registration fields
-  deliveryStatus              DeliveryStatus @default(NONE)
-  deliveryCedula              String?
-  deliveryAddress             String?
-  deliveryVehicleType         String?
-  deliveryVehicleBrand        String?
-  deliveryVehicleModel        String?
-  deliveryMotoPlate           String?
-  deliveryChassisSerial       String?
-  deliveryIdImageUrl          String?
-  deliverySelfieUrl           String?
-  // Delivery contract acceptance
-  deliveryAgreementAcceptedAt DateTime?
-  deliveryAgreementVersion    Int?
-  deliveryAgreementIp         String?
-  // deliverySignedContractUrl   String?
-
-  // Datos de pago para liquidaciones a delivery (transferencias / pago móvil)
-  payoutBankName            String?
-  payoutBankAccount         String?
-  payoutBankIdNumber        String?
-  payoutPmBank              String?
-  payoutPmPhone             String?
-  payoutPmIdNumber          String?
-  deliverySignedContractUrl String?
-
-  // Sucursal a la que pertenece el usuario (para controlar ventas y entregas por sucursal)
-  branchId          String?
-  branch            Branch?          @relation(fields: [branchId], references: [id])
-  rootSecretSales   RootSecretSale[] @relation("RootSecretSalesCreated")
-  saleHoldsCreated  SaleHold[]       @relation("SaleHoldCreatedBy")
-  saleHoldsAsSeller SaleHold[]       @relation("SaleHoldSeller")
-}
-
-model DesignProject {
-  id                  String                 @id @default(cuid())
-  name                String
-  clientName          String
-  location            String
-  architectId         String?
-  architect           User?                  @relation("DesignProjectArchitect", fields: [architectId], references: [id])
-  priority            Int                    @default(5)
-  startDate           DateTime?
-  dueDate             DateTime?
-  designTotalUSD      Decimal?               @db.Decimal(12, 2)
-  status              DesignProjectStatus    @default(NUEVO)
-  stage               DesignProjectStage     @default(BRIEFING)
-  description         String?
-  initialMeasurements String?
-  referenceImages     String[]               @default([])
-  createdById         String?
-  createdBy           User?                  @relation("DesignProjectCreatedBy", fields: [createdById], references: [id])
-  tasks               DesignProjectTask[]
-  updates             DesignProjectUpdate[]
-  payments            DesignProjectPayment[]
-  renders             DesignProjectRender[]
-  createdAt           DateTime               @default(now())
-  updatedAt           DateTime               @updatedAt
-
-  @@index([architectId, status])
-  @@index([status, dueDate])
-}
-
-model DesignProjectTask {
-  id           String           @id @default(cuid())
-  projectId    String
-  project      DesignProject    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  title        String
-  assignedToId String?
-  assignedTo   User?            @relation("DesignTaskAssignee", fields: [assignedToId], references: [id])
-  dueDate      DateTime?
-  priority     Int              @default(5)
-  status       DesignTaskStatus @default(PENDIENTE)
-  comments     String?
-  createdById  String?
-  createdBy    User?            @relation("DesignTaskCreatedBy", fields: [createdById], references: [id])
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-
-  @@index([projectId, status])
-  @@index([assignedToId, dueDate])
-}
-
-model DesignProjectUpdate {
-  id          String        @id @default(cuid())
-  projectId   String
-  project     DesignProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  note        String?
-  fileUrl     String?
-  createdById String?
-  createdBy   User?         @relation("DesignProjectUpdateAuthor", fields: [createdById], references: [id])
-  createdAt   DateTime      @default(now())
-
-  @@index([projectId, createdAt])
-}
-
-model DesignProjectPayment {
-  id          String         @id @default(cuid())
-  projectId   String
-  project     DesignProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  amountUSD   Decimal        @db.Decimal(12, 2)
-  paidAt      DateTime
-  method      PaymentMethod?
-  reference   String?
-  fileUrl     String?
-  createdById String?
-  createdBy   User?          @relation("DesignProjectPaymentCreatedBy", fields: [createdById], references: [id])
-  createdAt   DateTime       @default(now())
-
-  @@index([projectId, paidAt])
-}
-
-model DesignProjectRender {
-  id             String        @id @default(cuid())
-  projectId      String
-  project        DesignProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  prompt         String
-  sourceImageUrl String
-  outputImageUrl String
-  createdById    String?
-  createdBy      User?         @relation("DesignProjectRenderCreatedBy", fields: [createdById], references: [id])
-  createdAt      DateTime      @default(now())
-
-  @@index([projectId, createdAt])
-}
-
-model SiteSettings {
-  id                               Int       @id @default(1)
-  brandName                        String    @default("Carpihogar.ai")
-  whatsappPhone                    String
-  contactPhone                     String
-  contactEmail                     String
-  ivaPercent                       Decimal   @default(16) @db.Decimal(5, 2)
-  tasaVES                          Decimal   @default(40) @db.Decimal(10, 2)
-  primaryColor                     String?
-  secondaryColor                   String?
-  logoUrl                          String?
-  homeHeroUrls                     String[]
-  // Hero específico para la experiencia de moodboard
-  moodboardHeroUrls                String[]
-  // Mini hero para el personalizador de muebles (ECPD)
-  ecpdHeroUrls                     String[]
-  // Paleta de colores para el personalizador (JSON con nombre, imagen, descripcion)
-  ecpdColors                       Json?
-  heroAutoplayMs                   Int?
-  lowStockThreshold                Int       @default(5)
-  slaWarningDays                   Decimal?  @default(7) @db.Decimal(6, 2)
-  slaCriticalOverdueDays           Decimal?  @default(3) @db.Decimal(6, 2)
-  sellerCommissionPercent          Decimal   @default(5) @db.Decimal(5, 2)
-  deleteSecret                     String?
-  // Social handles for product buttons
-  instagramHandle                  String?
-  tiktokHandle                     String?
-  // Background images for Featured Categories (Home)
-  categoryBannerCarpinteriaUrl     String?
-  categoryBannerHogarUrl           String?
-  // Root recovery and security settings (root-only)
-  rootPhone                        String?
-  rootRecoveryHash                 String?
-  rootResetCode                    String?
-  rootResetCodeExpiresAt           DateTime?
-  // Defaults for product margins (root configurable)
-  defaultMarginClientPct           Decimal?  @db.Decimal(5, 2)
-  defaultMarginAllyPct             Decimal?  @db.Decimal(5, 2)
-  defaultMarginWholesalePct        Decimal?  @db.Decimal(5, 2)
-  // Motor de ajustes de precio (root-only)
-  globalPriceAdjustmentPercent     Decimal?  @default(0) @db.Decimal(6, 2)
-  globalPriceAdjustmentEnabled     Boolean   @default(false)
-  priceAdjustmentUSDPercent        Decimal?  @default(0) @db.Decimal(6, 2)
-  priceAdjustmentVESPercent        Decimal?  @default(0) @db.Decimal(6, 2)
-  priceAdjustmentByCurrencyEnabled Boolean   @default(false)
-  categoryPriceAdjustments         Json?
-  usdPaymentDiscountPercent        Decimal?  @default(20) @db.Decimal(6, 2)
-  usdPaymentDiscountEnabled        Boolean   @default(true)
-  // Bloqueo global de ventas en bolivares (root-only)
-  vesSalesDisabled                 Boolean   @default(false)
-
-  // Payment instructions (root-configurable)
-  paymentZelleEmail       String?
-  paymentPmPhone          String?
-  paymentPmRif            String?
-  paymentPmBank           String?
-  paymentBanescoAccount   String?
-  paymentBanescoRif       String?
-  paymentBanescoName      String?
-  paymentMercantilAccount String?
-  paymentMercantilRif     String?
-  paymentMercantilName    String?
-  // Legal / billing data for invoices (root-only)
-  legalCompanyName        String?
-  legalCompanyRif         String?
-  legalCompanyAddress     String?
-  legalCompanyPhone       String?
-
-  // Parámetros globales para delivery local (pueden servir como defaults por sucursal)
-  deliveryMotoRatePerKmUSD Decimal? @db.Decimal(10, 4) // ej: 0.5 USD/km
-  deliveryCarRatePerKmUSD  Decimal? @db.Decimal(10, 4) // ej: 0.75 USD/km
-  deliveryVanRatePerKmUSD  Decimal? @db.Decimal(10, 4) // ej: 1 USD/km
-  deliveryMotoMinFeeUSD    Decimal? @db.Decimal(10, 2) // ej: mínimo 4 USD
-  deliveryVanMinFeeUSD     Decimal? @db.Decimal(10, 2) // ej: mínimo 10 USD
-  deliveryDriverSharePct   Decimal? @db.Decimal(5, 2) // ej: 70
-  deliveryCompanySharePct  Decimal? @db.Decimal(5, 2) // ej: 30
-  invoiceNextNumber        Int?     @default(1)
-  receiptNextNumber        Int?     @default(1)
-}
-
-model Category {
-  id        String     @id @default(cuid())
-  name      String
-  slug      String     @unique
-  createdAt DateTime   @default(now())
-  parentId  String?
-  parent    Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
-  children  Category[] @relation("CategoryChildren")
-  products  Product[]
-}
-
-model Product {
-  id                         String           @id @default(cuid())
-  name                       String
-  slug                       String           @unique
-  brand                      String
-  description                String?
-  images                     String[]
-  // Optional product video (rendered last in gallery)
-  videoUrl                   String?
-  // Show Instagram/TikTok buttons in PDP
-  showSocialButtons          Boolean          @default(false)
-  // Base catalog activation
-  isActive                   Boolean          @default(true)
-  basePriceUsd               Decimal          @default(0) @db.Decimal(10, 2)
-  productFamily              ProductFamily    @default(STANDARD)
-  kitchenCategory            KitchenCategory?
-  isVisibleInKitchenDesigner Boolean          @default(false)
-  usableInQuickBudget        Boolean          @default(false)
-  usableInKitchenDesigner    Boolean          @default(false)
-  isParametric               Boolean          @default(false)
-  widthMm                    Int?
-  heightMm                   Int?
-  depthMm                    Int?
-  widthMinMm                 Int?
-  widthMaxMm                 Int?
-  heightMinMm                Int?
-  heightMaxMm                Int?
-  parametricPricingFormula   String?
-  // ECPD: marca si el producto tiene configurador de muebles asociado
-  isConfigurable             Boolean          @default(false)
-  // ECPD: esquema JSON del configurador (dimensiones, componentes, etc.)
-  configSchema               Json?
-  sku                        String?          @unique
-  // Câ”œâ”‚digo interno opcional (puede venir de proveedor)
-  code                       String?          @unique
-  supplierCode               String?
-  // Palabras clave SEO / búsqueda
-  keywords                   String[]         @default([])
-  // Modelo y garantía
-  model                      String?
-  guarantee                  String?
-
-  // Tipo de producto (simple / agrupado / combo)
-  type                ProductType   @default(SIMPLE)
-  priceUSD            Decimal       @db.Decimal(10, 2)
-  priceAllyUSD        Decimal?      @db.Decimal(10, 2)
-  // Nuevo: Precio mayorista (calculado)
-  priceWholesaleUSD   Decimal?      @db.Decimal(10, 2)
-  // Kitchen designer price tiers (optional, only for kitchen modules)
-  kitchenPriceLowUsd  Decimal?      @db.Decimal(10, 2)
-  kitchenPriceMidUsd  Decimal?      @db.Decimal(10, 2)
-  kitchenPriceHighUsd Decimal?      @db.Decimal(10, 2)
-  // Nuevo: costos y mâ”œÃ­rgenes de referencia
-  costUSD             Decimal?      @db.Decimal(10, 2)
-  marginClientPct     Decimal?      @db.Decimal(5, 2)
-  marginAllyPct       Decimal?      @db.Decimal(5, 2)
-  marginWholesalePct  Decimal?      @db.Decimal(5, 2)
-  // Nuevo: precios calculados explâ”œÂ¡citos (el priceUSD existente se usa como Cliente)
-  priceClientUSD      Decimal?      @db.Decimal(10, 2)
-  // Inventario principal
-  stock               Int           @default(0)
-  // Stock en unidades (alias más explícito para stock)
-  stockUnits          Int           @default(0)
-  // Stock mínimo recomendado
-  stockMinUnits       Int           @default(0)
-  // Permitir venta por pedido / backorder (solo ERP)
-  allowBackorder      Boolean       @default(false)
-  // Permitir venta por unidad cuando es agrupado
-  allowUnitSale       Boolean       @default(true)
-  // Configuración para productos agrupados (cajas/paquetes)
-  unitsPerPackage     Int?
-  stockPackages       Int?
-  soldBy              ProductSoldBy @default(UNIT)
-
-  // Datos de envío / flete
-  weightKg                Decimal? @db.Decimal(10, 3)
-  heightCm                Decimal? @db.Decimal(10, 2)
-  widthCm                 Decimal? @db.Decimal(10, 2)
-  depthCm                 Decimal? @db.Decimal(10, 2)
-  volumeCm3               Decimal? @db.Decimal(12, 2)
-  freightType             String?
-  // Tipos de delivery que pueden transportar este producto (MOTO, CARRO, CAMIONETA)
-  deliveryAllowedVehicles String[] @default([])
-
-  // Estado del producto
-  status ProductStatus @default(ACTIVE)
-
-  supplierId         String?
-  supplier           Supplier?           @relation(fields: [supplierId], references: [id])
-  reorderPoint       Int?
-  safetyStock        Int?
-  leadTimeDays       Int?
-  costMethod         CostMethod          @default(PROMEDIO)
-  avgCost            Decimal?            @db.Decimal(10, 2)
-  lastCost           Decimal?            @db.Decimal(10, 2)
-  categoryId         String?
-  category           Category?           @relation(fields: [categoryId], references: [id])
-  isNew              Boolean             @default(false)
-  // Marcador interno: solo root puede vender sin IVA
-  rootNoIvaOnly      Boolean             @default(false)
-  createdAt          DateTime            @default(now())
-  barcode            String?             @unique
-  orderItems         OrderItem[]
-  stockMoves         StockMovement[]
-  purchaseOrderItems PurchaseOrderItem[]
-  quoteItems         QuoteItem[]
-  wishlistItems      WishlistItem[]
-  purchaseItems      PurchaseItem[]
-  // Self-referencing many-to-many for related products
-  relatedFrom        RelatedProduct[]    @relation("RelatedFrom")
-  relatedTo          RelatedProduct[]    @relation("RelatedTo")
-
-  // Back-relation to assistant cart items
-  assistantCartItems  AssistantCartItem[]
-  // Diseños personalizados vinculados a este producto
-  ecpdDesigns         EcpdDesign[]
-  kitchenModules      KitchenModule[]
-  // Ventas secretas de root asociadas
-  rootSecretSaleItems RootSecretSaleItem[]
-  model3dAssets       Model3DAsset[]
-}
-
-// Join table for Product <-> Product related items
-model RelatedProduct {
-  fromId    String
-  toId      String
-  from      Product  @relation("RelatedFrom", fields: [fromId], references: [id], onDelete: Cascade)
-  to        Product  @relation("RelatedTo", fields: [toId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@id([fromId, toId])
-}
-
 enum OrderStatus {
   PENDIENTE
   CONFIRMACION
@@ -573,7 +1433,6 @@ enum OrderStatus {
   CANCELADO
 }
 
-// Tipo de venta
 enum SaleType {
   CONTADO
   CREDITO
@@ -604,182 +1463,9 @@ enum Currency {
   USDT
 }
 
-model Address {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  fullname  String
-  phone     String
-  state     String
-  city      String
-  zone      String?
-  address1  String
-  address2  String?
-  lat       Decimal? @db.Decimal(10, 7)
-  lng       Decimal? @db.Decimal(10, 7)
-  notes     String?
-  createdAt DateTime @default(now())
-  orders    Order[]
-}
-
-model Order {
-  id                    String             @id @default(cuid())
-  userId                String
-  user                  User               @relation("OrderCustomer", fields: [userId], references: [id])
-  sellerId              String?
-  seller                User?              @relation("OrderSeller", fields: [sellerId], references: [id])
-  items                 OrderItem[]
-  subtotalUSD           Decimal            @db.Decimal(10, 2)
-  ivaPercent            Decimal            @db.Decimal(5, 2)
-  tasaVES               Decimal            @db.Decimal(10, 2)
-  totalUSD              Decimal            @db.Decimal(10, 2)
-  totalVES              Decimal            @db.Decimal(12, 2)
-  payment               Payment?
-  createdAt             DateTime           @default(now())
-  status                OrderStatus        @default(PENDIENTE)
-  saleType              SaleType           @default(CONTADO)
-  // Legal correlatives for receipts/invoices (assigned at first PDF generation)
-  invoiceNumber         Int?
-  receiptNumber         Int?
-  // Origen de la venta (ONLINE = web, ERP = cargada por admin/aliado)
-  originChannel         String?            @default("ONLINE")
-  // Control interno de revisión administrativa
-  reviewedAt            DateTime?
-  reviewedById          String?
-  reviewedBy            User?              @relation("OrderReviewedBy", fields: [reviewedById], references: [id])
-  creditDueDate         DateTime?
-  shippingAddressId     String?
-  shippingAddress       Address?           @relation(fields: [shippingAddressId], references: [id])
-  shipping              Shipping?
-  commission            Commission?
-  receivable            Receivable?
-  customerTaxId         String?
-  customerFiscalAddress String?
-  // Vincula la orden con un presupuesto origen (si aplica)
-  originQuoteId         String?
-  // Tipo de documento generado para esta venta (recibo o factura)
-  documentType          OrderDocumentType?
-
-  // Back-relation to order auth tokens (WhatsApp confirmation)
-  authTokens OrderAuthToken[]
-}
-
-model SaleHold {
-  id                    String   @id @default(cuid())
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  createdById           String?
-  createdBy             User?    @relation("SaleHoldCreatedBy", fields: [createdById], references: [id])
-  sellerId              String?
-  seller                User?    @relation("SaleHoldSeller", fields: [sellerId], references: [id])
-  customerName          String?
-  customerEmail         String?
-  customerPhone         String?
-  customerTaxId         String?
-  customerFiscalAddress String?
-  items                 Json
-  meta                  Json?
-  totalUSD              Decimal? @db.Decimal(12, 2)
-
-  @@index([createdById])
-  @@index([sellerId])
-  @@index([createdAt])
-}
-
-// Ventas internas del usuario root (sin IVA, no afectan registro normal)
-model RootSecretSale {
-  id                    String               @id @default(cuid())
-  noteNumber            Int                  @unique @default(autoincrement())
-  createdAt             DateTime             @default(now())
-  createdById           String?
-  createdBy             User?                @relation("RootSecretSalesCreated", fields: [createdById], references: [id])
-  customerName          String?
-  customerPhone         String?
-  customerTaxId         String?
-  customerFiscalAddress String?
-  observations          String?
-  subtotalUSD           Decimal              @db.Decimal(10, 2)
-  totalUSD              Decimal              @db.Decimal(10, 2)
-  tasaVES               Decimal?             @db.Decimal(10, 2)
-  currency              Currency             @default(USD)
-  withoutIva            Boolean              @default(true)
-  items                 RootSecretSaleItem[]
-}
-
-model RootSecretSaleItem {
-  id         String         @id @default(cuid())
-  saleId     String
-  sale       RootSecretSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  productId  String
-  product    Product        @relation(fields: [productId], references: [id])
-  name       String
-  quantity   Int
-  priceUSD   Decimal        @db.Decimal(10, 2)
-  withoutIva Boolean        @default(true)
-}
-
-model OrderItem {
-  id        String  @id @default(cuid())
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id])
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-  name      String
-  priceUSD  Decimal @db.Decimal(10, 2)
-  quantity  Int
-}
-
-model Payment {
-  id         String        @id @default(cuid())
-  orderId    String        @unique
-  order      Order         @relation(fields: [orderId], references: [id])
-  method     PaymentMethod
-  proofUrl   String?
-  reference  String?
-  status     PaymentStatus @default(SIN_PRUEBA)
-  currency   Currency      @default(USD)
-  payerName  String?
-  payerPhone String?
-  payerBank  String?
-  payerId    String?
-  createdAt  DateTime      @default(now())
-}
-
 enum CommissionStatus {
   PENDIENTE
   PAGADA
-}
-
-model Commission {
-  id        String           @id @default(cuid())
-  orderId   String           @unique
-  order     Order            @relation(fields: [orderId], references: [id])
-  sellerId  String
-  seller    User             @relation(fields: [sellerId], references: [id])
-  percent   Decimal          @db.Decimal(5, 2)
-  amountUSD Decimal          @db.Decimal(10, 2)
-  status    CommissionStatus @default(PENDIENTE)
-  createdAt DateTime         @default(now())
-}
-
-model CommissionPayment {
-  id          String        @id @default(cuid())
-  sellerId    String
-  seller      User          @relation("CommissionPaymentSeller", fields: [sellerId], references: [id])
-  amount      Decimal       @db.Decimal(12, 2)
-  currency    Currency      @default(USD)
-  method      PaymentMethod
-  reference   String?
-  bankName    String?
-  paidAt      DateTime
-  paidByName  String?
-  proofUrl    String?
-  createdAt   DateTime      @default(now())
-  createdById String?
-  createdBy   User?         @relation("CommissionPaymentCreatedBy", fields: [createdById], references: [id])
-
-  @@index([sellerId, paidAt])
-  @@index([reference])
 }
 
 enum QuoteStatus {
@@ -788,37 +1474,6 @@ enum QuoteStatus {
   APROBADO
   RECHAZADO
   VENCIDO
-}
-
-model Quote {
-  id                    String      @id @default(cuid())
-  userId                String
-  user                  User        @relation("QuoteCustomer", fields: [userId], references: [id])
-  sellerId              String?
-  seller                User?       @relation("QuoteSeller", fields: [sellerId], references: [id])
-  items                 QuoteItem[]
-  subtotalUSD           Decimal     @db.Decimal(10, 2)
-  ivaPercent            Decimal     @db.Decimal(5, 2)
-  tasaVES               Decimal     @db.Decimal(10, 2)
-  totalUSD              Decimal     @db.Decimal(10, 2)
-  totalVES              Decimal     @db.Decimal(12, 2)
-  status                QuoteStatus @default(BORRADOR)
-  expiresAt             DateTime?
-  notes                 String?
-  customerTaxId         String?
-  customerFiscalAddress String?
-  createdAt             DateTime    @default(now())
-}
-
-model QuoteItem {
-  id        String  @id @default(cuid())
-  quoteId   String
-  quote     Quote   @relation(fields: [quoteId], references: [id])
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-  name      String
-  priceUSD  Decimal @db.Decimal(10, 2)
-  quantity  Int
 }
 
 enum StockMoveType {
@@ -830,91 +1485,6 @@ enum StockMoveType {
 enum CostMethod {
   PROMEDIO
   FIFO
-}
-
-model StockMovement {
-  id        String        @id @default(cuid())
-  productId String
-  product   Product       @relation(fields: [productId], references: [id])
-  type      StockMoveType
-  quantity  Int
-  reason    String?
-  userId    String?
-  createdAt DateTime      @default(now())
-}
-
-model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  action    String
-  details   String?
-  projectId String?
-  createdAt DateTime @default(now())
-
-  @@index([projectId, createdAt])
-}
-
-model AdminSettingsAuditLog {
-  id              String   @id @default(cuid())
-  settingKey      String
-  oldValue        String?
-  newValue        String?
-  changedByUserId String?
-  changedBy       User?    @relation(fields: [changedByUserId], references: [id])
-  changedAt       DateTime @default(now())
-  ipAddress       String?
-  userAgent       String?
-
-  @@index([changedAt])
-  @@index([settingKey])
-}
-
-// Evidencias de envíos (fotos y firma)
-model ShipmentPhoto {
-  id         String   @id @default(cuid())
-  shipmentId String
-  shipment   Shipping @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
-  // package | delivered | signature
-  type       String
-  url        String
-  createdAt  DateTime @default(now())
-
-  @@index([shipmentId])
-}
-
-// Ubicaciones de repartidores (última posición conocida)
-model DriverLocation {
-  id        String   @id @default(cuid())
-  driverId  String
-  driver    User     @relation(fields: [driverId], references: [id], onDelete: Cascade)
-  lat       Decimal  @db.Decimal(10, 7)
-  lng       Decimal  @db.Decimal(10, 7)
-  updatedAt DateTime @default(now())
-
-  @@index([driverId])
-}
-
-model Supplier {
-  id             String          @id @default(cuid())
-  name           String
-  email          String?
-  phone          String?
-  taxId          String?
-  address        String?
-  // URL pública a la imagen/scan del RIF
-  rifImageUrl    String?
-  // Persona de contacto principal
-  contactName    String?
-  contactPhone   String?
-  // Moneda de cobro del proveedor (USD/VES)
-  chargeCurrency Currency        @default(USD)
-  // Condiciones de crédito
-  givesCredit    Boolean         @default(false)
-  creditDays     Int?
-  createdAt      DateTime        @default(now())
-  purchaseOrders PurchaseOrder[]
-  purchases      Purchase[]
-  products       Product[]
 }
 
 enum POStatus {
@@ -930,111 +1500,11 @@ enum PurchaseType {
   CREDITO
 }
 
-model PurchaseOrder {
-  id           String              @id @default(cuid())
-  supplierId   String
-  supplier     Supplier            @relation(fields: [supplierId], references: [id])
-  status       POStatus            @default(DRAFT)
-  expectedAt   DateTime?
-  purchaseType PurchaseType        @default(CONTADO)
-  totalUSD     Decimal             @default(0) @db.Decimal(12, 2)
-  notes        String?
-  createdAt    DateTime            @default(now())
-  items        PurchaseOrderItem[]
-  createdById  String?
-  createdBy    User?               @relation("POCreator", fields: [createdById], references: [id])
-  receivedById String?
-  receivedBy   User?               @relation("POReceiver", fields: [receivedById], references: [id])
-  receivedAt   DateTime?
-}
-
-model PurchaseOrderItem {
-  id        String        @id @default(cuid())
-  poId      String
-  po        PurchaseOrder @relation(fields: [poId], references: [id])
-  productId String
-  product   Product       @relation(fields: [productId], references: [id])
-  quantity  Int
-  received  Int           @default(0)
-  costUSD   Decimal       @db.Decimal(10, 2)
-}
-
-// Compras (factura recibida)
-model Purchase {
-  id                String            @id @default(cuid())
-  supplierId        String?
-  supplier          Supplier?         @relation(fields: [supplierId], references: [id])
-  currency          Currency          @default(USD)
-  tasaVES           Decimal           @default(0) @db.Decimal(10, 2)
-  subtotalUSD       Decimal           @default(0) @db.Decimal(12, 2)
-  totalUSD          Decimal           @default(0) @db.Decimal(12, 2)
-  // Datos legales de la factura del proveedor
-  invoiceNumber     String?
-  invoiceDate       DateTime?
-  baseAmountUSD     Decimal?          @db.Decimal(12, 2)
-  discountPercent   Decimal?          @db.Decimal(5, 2)
-  discountAmountUSD Decimal?          @db.Decimal(12, 2)
-  ivaPercent        Decimal?          @db.Decimal(5, 2)
-  ivaAmountUSD      Decimal?          @db.Decimal(12, 2)
-  // IGTF sobre pagos en divisas
-  igtfPercent       Decimal?          @db.Decimal(5, 2)
-  igtfAmountUSD     Decimal?          @db.Decimal(12, 2)
-  itemsCount        Int?
-  // Soporte de la factura (imagen/PDF subida)
-  invoiceImageUrl   String?
-  notes             String?
-  createdAt         DateTime          @default(now())
-  createdById       String?
-  createdBy         User?             @relation("PurchaseCreatedBy", fields: [createdById], references: [id])
-  items             PurchaseItem[]
-  bankTransactions  BankTransaction[]
-}
-
-model PurchaseItem {
-  id          String   @id @default(cuid())
-  purchaseId  String
-  purchase    Purchase @relation(fields: [purchaseId], references: [id])
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id])
-  name        String
-  quantity    Int
-  costUSD     Decimal  @db.Decimal(10, 2)
-  subtotalUSD Decimal  @db.Decimal(12, 2)
-}
-
-// Bancos y movimientos para conciliación básica de pagos
 enum BankTransactionType {
   DEBITO
   CREDITO
 }
 
-model BankAccount {
-  id             String            @id @default(cuid())
-  name           String
-  bankName       String?
-  accountNumber  String?
-  currency       Currency          @default(USD)
-  initialBalance Decimal           @default(0) @db.Decimal(14, 2)
-  isActive       Boolean           @default(true)
-  createdAt      DateTime          @default(now())
-  transactions   BankTransaction[]
-}
-
-model BankTransaction {
-  id            String              @id @default(cuid())
-  bankAccountId String
-  bankAccount   BankAccount         @relation(fields: [bankAccountId], references: [id])
-  type          BankTransactionType
-  amount        Decimal             @db.Decimal(14, 2)
-  currency      Currency            @default(USD)
-  description   String?
-  reference     String?
-  purchaseId    String?
-  purchase      Purchase?           @relation(fields: [purchaseId], references: [id])
-  createdAt     DateTime            @default(now())
-}
-
-// Cuentas por pagar a proveedores
 enum PayableStatus {
   PENDIENTE
   PARCIAL
@@ -1042,40 +1512,13 @@ enum PayableStatus {
   CANCELADO
 }
 
-model Payable {
-  id         String         @id @default(cuid())
-  purchaseId String         @unique
-  supplierId String?
-  status     PayableStatus  @default(PENDIENTE)
-  totalUSD   Decimal        @db.Decimal(12, 2)
-  balanceUSD Decimal        @db.Decimal(12, 2)
-  dueDate    DateTime?
-  notes      String?
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
-  entries    PayableEntry[]
-}
-
-model PayableEntry {
-  id            String         @id @default(cuid())
-  payableId     String
-  payable       Payable        @relation(fields: [payableId], references: [id])
-  amountUSD     Decimal        @db.Decimal(12, 2)
-  currency      Currency       @default(USD)
-  method        PaymentMethod?
-  bankAccountId String?
-  reference     String?
-  notes         String?
-  createdAt     DateTime       @default(now())
-}
-
 enum ShippingCarrier {
   TEALCA
   MRW
+  OTRO
   FLETE_PRIVADO
   RETIRO_TIENDA
   DELIVERY
-  OTRO
 }
 
 enum ShippingStatus {
@@ -1113,11 +1556,10 @@ enum CarpentryProjectStatus {
 enum CarpentryProjectFileType {
   PLANO
   IMAGEN
-  CONTRATO
+  OTRO
   PRESUPUESTO
   AVANCE
   SOPORTE
-  OTRO
 }
 
 enum CarpentryProjectPhase {
@@ -1137,37 +1579,6 @@ enum CarpentryTaskStatus {
   COMPLETADA
 }
 
-model Shipping {
-  id                  String          @id @default(cuid())
-  orderId             String          @unique
-  order               Order           @relation(fields: [orderId], references: [id])
-  carrier             ShippingCarrier
-  tracking            String?
-  status              ShippingStatus  @default(PENDIENTE)
-  channel             ShippingChannel @default(TIENDA)
-  observations        String?
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
-  assignedToId        String?
-  assignedTo          User?           @relation("DeliveryAssignee", fields: [assignedToId], references: [id])
-  assignedAt          DateTime?
-  // Sucursal desde la que se gestiona este envío (origen logístico)
-  branchId            String?
-  branch              Branch?         @relation(fields: [branchId], references: [id])
-  deliveryFeeUSD      Decimal?        @db.Decimal(10, 2)
-  deliveryPaidAt      DateTime?
-  // Delivery local (moto): confirmaciones, valoraciones y propinas
-  clientConfirmedAt   DateTime?
-  deliveryConfirmedAt DateTime?
-  clientRating        Int?
-  deliveryRating      Int?
-  tipUSD              Decimal?        @db.Decimal(10, 2)
-
-  // Back-relation to shipment evidences (photos/signature)
-  photos ShipmentPhoto[]
-}
-
-// Estado de cuentas por cobrar
 enum ReceivableStatus {
   PENDIENTE
   PARCIAL
@@ -1180,53 +1591,6 @@ enum ReceivableNoteType {
   DEBITO
 }
 
-model Receivable {
-  id        String            @id @default(cuid())
-  orderId   String            @unique
-  order     Order             @relation(fields: [orderId], references: [id])
-  status    ReceivableStatus  @default(PENDIENTE)
-  dueDate   DateTime?
-  notes     String?
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  entries   ReceivableEntry[]
-  noteItems ReceivableNote[]
-}
-
-model ReceivableEntry {
-  id           String         @id @default(cuid())
-  receivableId String
-  receivable   Receivable     @relation(fields: [receivableId], references: [id])
-  amountUSD    Decimal        @db.Decimal(12, 2)
-  currency     Currency       @default(USD)
-  method       PaymentMethod?
-  reference    String?
-  notes        String?
-  createdAt    DateTime       @default(now())
-}
-
-model ReceivableNote {
-  id           String             @id @default(cuid())
-  receivableId String
-  receivable   Receivable         @relation(fields: [receivableId], references: [id])
-  type         ReceivableNoteType
-  amountUSD    Decimal            @db.Decimal(12, 2)
-  reason       String?
-  createdAt    DateTime           @default(now())
-}
-
-model WishlistItem {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@unique([userId, productId])
-}
-
-// Messaging (WhatsApp)
 enum Channel {
   WHATSAPP
 }
@@ -1251,533 +1615,10 @@ enum ConversationStatus {
   CLOSED
 }
 
-model Conversation {
-  id             String             @id @default(cuid())
-  userId         String?
-  user           User?              @relation("ConversationUser", fields: [userId], references: [id])
-  phone          String
-  channel        Channel            @default(WHATSAPP)
-  assignedToId   String?
-  assignedTo     User?              @relation("ConversationAssignedTo", fields: [assignedToId], references: [id])
-  status         ConversationStatus @default(OPEN)
-  assignedAt     DateTime?
-  closedAt       DateTime?
-  lastInboundAt  DateTime?
-  lastOutboundAt DateTime?
-  unreadAgent    Int                @default(0)
-  unreadCustomer Int                @default(0)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
-  lastMessageAt  DateTime?
-  messages       Message[]
-  aiHandled      Boolean            @default(false)
-
-  @@index([userId])
-  @@index([phone])
-  @@index([lastMessageAt])
-}
-
-model Message {
-  id             String           @id @default(cuid())
-  conversationId String
-  conversation   Conversation     @relation(fields: [conversationId], references: [id])
-  direction      MessageDirection
-  status         MessageStatus    @default(SENT)
-  type           String           @default("TEXT")
-  text           String?
-  mediaUrl       String?
-  waMessageId    String?
-  actor          MessageActor?
-  metadata       Json?
-  createdAt      DateTime         @default(now())
-
-  @@index([conversationId, createdAt])
-}
-
-enum MessageActor {
-  CUSTOMER
-  AGENT
-  AI
-}
-
-// Noticias generadas a partir de proyectos de aliados
-model News {
-  id        String   @id @default(cuid())
-  authorId  String
-  author    User     @relation("UserNews", fields: [authorId], references: [id])
-  imageUrl  String
-  title     String?
-  excerpt   String?
-  createdAt DateTime @default(now())
-
-  @@index([createdAt])
-  @@index([authorId, createdAt])
-}
-
-// Cursos (creaciÃ³n y monetizaciÃ³n)
 enum CourseStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
-}
-
-model Course {
-  id           String       @id @default(cuid())
-  slug         String       @unique
-  title        String
-  topic        String
-  summary      String?
-  curriculum   Json?
-  priceUSD     Decimal      @db.Decimal(10, 2)
-  status       CourseStatus @default(DRAFT)
-  heroImageUrl String?
-  videoUrl     String?
-  saleStartAt  DateTime?
-  saleEndAt    DateTime?
-  createdAt    DateTime     @default(now())
-
-  @@index([status, createdAt])
-}
-
-// Proyectos de aliados: se guardan solo los 2 mâ”œÃ­s recientes
-model AllyProject {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation("UserAllyProjects", fields: [userId], references: [id], onDelete: Cascade)
-  images    String[]
-  videoUrl  String?
-  caption   String?
-  createdAt DateTime @default(now())
-
-  @@index([userId, createdAt])
-}
-
-// Assistant cart (AI concierge controlled)
-model AssistantCart {
-  id        String              @id @default(cuid())
-  ownerKey  String // sessionId or customerId
-  userId    String?
-  user      User?               @relation(fields: [userId], references: [id])
-  items     AssistantCartItem[]
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @default(now())
-
-  @@index([ownerKey])
-}
-
-model AssistantCartItem {
-  id        String        @id @default(cuid())
-  cartId    String
-  cart      AssistantCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product       @relation(fields: [productId], references: [id])
-  name      String
-  priceUSD  Decimal       @db.Decimal(10, 2)
-  quantity  Int
-  createdAt DateTime      @default(now())
-
-  @@unique([cartId, productId])
-}
-
-model Moodboard {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String
-  jsonData  Json
-  thumbnail String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId, updatedAt])
-}
-
-// Diseños de muebles personalizados (ECPD) guardados por el cliente
-model EcpdDesign {
-  id              String   @id @default(cuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId       String
-  product         Product  @relation(fields: [productId], references: [id])
-  // Imagen del espacio subida por el cliente
-  spaceImageUrl   String
-  // Configuración completa del mueble (dimensiones, componentes, estética)
-  config          Json
-  // Posición relativa del mueble sobre la foto (0-1, centro)
-  overlayX        Float    @default(0.5)
-  overlayY        Float    @default(0.5)
-  // Escala visual adicional aplicada sobre la escala derivada de las dimensiones reales
-  overlayScale    Float    @default(1)
-  // Rotación visual en grados
-  overlayRotation Float    @default(0)
-  // Precio en el momento de guardar
-  priceUSD        Decimal  @db.Decimal(10, 2)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@index([userId, createdAt])
-}
-
-// Diseños guardados del creador de cocinas
-model KitchenDesign {
-  id             String              @id @default(cuid())
-  userId         String
-  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name           String
-  layoutType     KitchenLayoutType
-  status         KitchenDesignStatus @default(DRAFT)
-  totalPriceUsd  Decimal             @default(0) @db.Decimal(12, 2)
-  planJson       Json?
-  modulesJson    Json?
-  budgetJson     Json?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  spaces         KitchenSpace[]
-  kitchenModules KitchenModule[]
-
-  @@index([userId, updatedAt])
-  @@index([userId, status])
-}
-
-model KitchenSpace {
-  id        String        @id @default(cuid())
-  kitchenId String
-  kitchen   KitchenDesign @relation(fields: [kitchenId], references: [id], onDelete: Cascade)
-  wallName  String
-  widthMm   Int
-  heightMm  Int?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-
-  @@unique([kitchenId, wallName])
-  @@index([kitchenId])
-}
-
-model KitchenModule {
-  id                 String        @id @default(cuid())
-  kitchenId          String
-  kitchen            KitchenDesign @relation(fields: [kitchenId], references: [id], onDelete: Cascade)
-  productId          String
-  product            Product       @relation(fields: [productId], references: [id])
-  positionX          Int
-  positionY          Int
-  widthMm            Int
-  depthMm            Int
-  lockedHeight       Int
-  priceCalculatedUsd Decimal       @db.Decimal(12, 2)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-
-  @@index([kitchenId])
-  @@index([productId])
-}
-
-// 3D model assets for products
-model Model3DAsset {
-  id                   String             @id @default(cuid())
-  productId            String
-  product              Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
-  status               Model3DAssetStatus @default(PENDING)
-  originalFileName     String
-  originalFileMime     String
-  originalFileTempPath String?
-  glbPath              String?
-  previewImagePath     String?
-  processingError      String?
-  archived             Boolean            @default(false)
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-  jobs                 Model3DJob[]
-
-  @@index([productId])
-}
-
-// 3D conversion job queue
-model Model3DJob {
-  id             String           @id @default(cuid())
-  model3dAssetId String
-  model3dAsset   Model3DAsset     @relation(fields: [model3dAssetId], references: [id], onDelete: Cascade)
-  status         Model3DJobStatus @default(PENDING)
-  attempts       Int              @default(0)
-  lastError      String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-
-  @@index([model3dAssetId])
-}
-
-// Notificaciones internas (drivers, clientes, etc.)
-model Notification {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      String
-  title     String
-  body      String
-  data      Json?
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
-
-  @@index([userId, createdAt])
-}
-
-// Suscripciones Web Push por dispositivo
-model PushSubscription {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  endpoint  String   @unique
-  data      Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-}
-
-// Nomina y pagos
-model PayrollEmployee {
-  id              String              @id @default(cuid())
-  name            String
-  role            String?
-  phone           String?
-  email           String?
-  type            PayrollEmployeeType @default(FIJA)
-  weeklySalaryUSD Decimal?            @db.Decimal(10, 2)
-  active          Boolean             @default(true)
-  notes           String?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-
-  payments                        PayrollPayment[]
-  carpentryTasks                  CarpentryTask[]
-  carpentryProjectsAsCarpenter    CarpentryProject[]                  @relation("ProjectCarpenter")
-  carpentryProjectsAsArchitect    CarpentryProject[]                  @relation("ProjectArchitect")
-  carpentryProjectsAsSupervisor   CarpentryProject[]                  @relation("ProjectSupervisor")
-  productionOrdersAsCarpentryLead ProductionOrder[]                   @relation("ProductionCarpenter")
-  productionOrdersAsSupervisor    ProductionOrder[]                   @relation("ProductionSupervisor")
-  materialListDeliveries          CarpentryProjectMaterialList[]      @relation("MaterialListReceiver")
-  inventoryDeliveries             CarpentryProjectInventoryDelivery[] @relation("MaterialDeliveryReceiver")
-}
-
-model PayrollPayment {
-  id          String                 @id @default(cuid())
-  employeeId  String?
-  employee    PayrollEmployee?       @relation(fields: [employeeId], references: [id], onDelete: SetNull)
-  category    PayrollPaymentCategory @default(OTRO)
-  amountUSD   Decimal                @db.Decimal(12, 2)
-  paidAt      DateTime               @default(now())
-  method      PaymentMethod?
-  reference   String?
-  description String?
-  service     String?
-  createdAt   DateTime               @default(now())
-
-  projectId    String?
-  project      CarpentryProject?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  projectPhase CarpentryProjectPhase?
-
-  @@index([employeeId])
-  @@index([category, paidAt])
-  @@index([projectId])
-}
-
-// Proyectos de carpinteria
-model CarpentryProject {
-  id                  String                 @id @default(cuid())
-  name                String
-  clientName          String?
-  clientEmail         String?
-  clientPhone         String?
-  clientAddress       String?
-  clientCity          String?
-  clientState         String?
-  description         String?
-  totalAmountUSD      Decimal                @db.Decimal(12, 2)
-  initialPaymentUSD   Decimal?               @db.Decimal(12, 2)
-  laborCostUSD        Decimal?               @db.Decimal(12, 2)
-  fabricationPct      Decimal                @default(70) @db.Decimal(5, 2)
-  installationPct     Decimal                @default(30) @db.Decimal(5, 2)
-  fabricationPaidUSD  Decimal                @default(0) @db.Decimal(12, 2)
-  installationPaidUSD Decimal                @default(0) @db.Decimal(12, 2)
-  status              CarpentryProjectStatus @default(ACTIVO)
-  startDate           DateTime?
-  endDate             DateTime?
-  createdAt           DateTime               @default(now())
-  updatedAt           DateTime               @updatedAt
-
-  carpenterId  String?
-  carpenter    PayrollEmployee? @relation("ProjectCarpenter", fields: [carpenterId], references: [id], onDelete: SetNull)
-  architectId  String?
-  architect    PayrollEmployee? @relation("ProjectArchitect", fields: [architectId], references: [id], onDelete: SetNull)
-  supervisorId String?
-  supervisor   PayrollEmployee? @relation("ProjectSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
-
-  files               CarpentryProjectFile[]
-  tasks               CarpentryTask[]
-  payments            PayrollPayment[]
-  clientPayments      CarpentryClientPayment[]
-  materialLists       CarpentryProjectMaterialList[]
-  purchaseOrders      CarpentryProjectPurchaseOrder[]
-  expenses            CarpentryProjectExpense[]
-  productionOrders    ProductionOrder[]
-  inventoryEntries    CarpentryProjectInventoryEntry[]
-  inventoryDeliveries CarpentryProjectInventoryDelivery[]
-}
-
-model CarpentryProjectFile {
-  id          String                   @id @default(cuid())
-  projectId   String
-  project     CarpentryProject         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  url         String
-  filename    String?
-  description String?
-  fileType    CarpentryProjectFileType @default(OTRO)
-  createdAt   DateTime                 @default(now())
-
-  @@index([projectId])
-}
-
-model CarpentryProjectMaterialList {
-  id            String                     @id @default(cuid())
-  projectId     String
-  project       CarpentryProject           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name          String
-  description   String?
-  fileUrl       String
-  uploadedAt    DateTime                   @default(now())
-  phase         CarpentryProjectPhase?
-  deliveredAt   DateTime?
-  deliveredById String?
-  deliveredBy   PayrollEmployee?           @relation("MaterialListReceiver", fields: [deliveredById], references: [id], onDelete: SetNull)
-  items         CarpentryProjectMaterial[]
-
-  @@index([projectId])
-}
-
-model CarpentryProjectMaterial {
-  id           String                       @id @default(cuid())
-  listId       String
-  list         CarpentryProjectMaterialList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  sku          String?
-  name         String
-  category     String?
-  unit         String?
-  quantity     Int                          @default(0)
-  unitPriceUSD Decimal                      @db.Decimal(12, 2)
-
-  @@index([listId])
-}
-
-model CarpentryProjectPurchaseOrder {
-  id                                String                              @id @default(cuid())
-  projectId                         String
-  project                           CarpentryProject                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  saleId                            String?
-  totalUSD                          Decimal                             @db.Decimal(12, 2)
-  status                            ProjectPurchaseStatus               @default(PENDING)
-  requiresSecret                    Boolean                             @default(false)
-  secretToken                       String?
-  notes                             String?
-  createdAt                         DateTime                            @default(now())
-  CarpentryProjectInventoryEntry    CarpentryProjectInventoryEntry[]
-  CarpentryProjectInventoryDelivery CarpentryProjectInventoryDelivery[]
-
-  @@index([projectId])
-}
-
-model CarpentryProjectInventoryEntry {
-  id                String                        @id @default(cuid())
-  projectId         String
-  project           CarpentryProject              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  purchaseOrderId   String
-  purchaseOrder     CarpentryProjectPurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  orderId           String
-  orderItemId       String                        @unique
-  itemName          String
-  sku               String?
-  productId         String?
-  quantity          Int                           @default(0)
-  remainingQuantity Int                           @default(0)
-  unitPriceUSD      Decimal                       @db.Decimal(12, 2)
-  createdAt         DateTime                      @default(now())
-  updatedAt         DateTime                      @updatedAt
-
-  deliveryItems CarpentryProjectInventoryDeliveryItem[]
-
-  @@index([projectId])
-  @@index([purchaseOrderId])
-}
-
-model CarpentryProjectInventoryDelivery {
-  id              String                                  @id @default(cuid())
-  projectId       String
-  project         CarpentryProject                        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  purchaseOrderId String
-  purchaseOrder   CarpentryProjectPurchaseOrder           @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  phase           CarpentryProjectPhase?
-  notes           String?
-  deliveredAt     DateTime                                @default(now())
-  deliveredById   String?
-  deliveredBy     PayrollEmployee?                        @relation("MaterialDeliveryReceiver", fields: [deliveredById], references: [id], onDelete: SetNull)
-  items           CarpentryProjectInventoryDeliveryItem[]
-  createdAt       DateTime                                @default(now())
-
-  @@index([projectId])
-  @@index([purchaseOrderId])
-}
-
-model CarpentryProjectInventoryDeliveryItem {
-  id         String                            @id @default(cuid())
-  deliveryId String
-  delivery   CarpentryProjectInventoryDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
-  entryId    String
-  entry      CarpentryProjectInventoryEntry    @relation(fields: [entryId], references: [id], onDelete: Restrict)
-  quantity   Int
-  createdAt  DateTime                          @default(now())
-
-  @@index([entryId])
-}
-
-model CarpentryProjectExpense {
-  id            String           @id @default(cuid())
-  projectId     String
-  project       CarpentryProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  provider      String
-  invoiceNumber String?
-  description   String
-  expenseType   ExpenseType
-  date          DateTime
-  quantity      Int              @default(1)
-  unitCostUSD   Decimal          @db.Decimal(12, 2)
-  totalCostUSD  Decimal          @db.Decimal(12, 2)
-  receiptUrl    String?
-  createdById   String?
-  createdAt     DateTime         @default(now())
-
-  @@index([projectId])
-}
-
-model ProductionOrder {
-  id              String                 @id @default(cuid())
-  projectId       String
-  project         CarpentryProject       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  number          String                 @unique
-  carpentryLeadId String?
-  carpentryLead   PayrollEmployee?       @relation("ProductionCarpenter", fields: [carpentryLeadId], references: [id], onDelete: SetNull)
-  supervisorId    String?
-  supervisor      PayrollEmployee?       @relation("ProductionSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
-  phase           CarpentryProjectPhase?
-  scheduledStart  DateTime?
-  scheduledEnd    DateTime?
-  installDate     DateTime?
-  status          ProductionStatus       @default(PLANNED)
-  progressPct     Decimal                @default(0) @db.Decimal(5, 2)
-  notes           String?
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
-  tasks           CarpentryTask[]        @relation("ProductionTasks")
-
-  @@index([projectId])
 }
 
 enum ProjectPurchaseStatus {
@@ -1799,76 +1640,4 @@ enum ProductionStatus {
   IN_PROGRESS
   COMPLETED
   ON_HOLD
-}
-
-model CarpentryTask {
-  id                String                 @id @default(cuid())
-  employeeId        String
-  employee          PayrollEmployee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  projectId         String?
-  project           CarpentryProject?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  description       String
-  workDate          DateTime               @default(now())
-  amountUSD         Decimal                @default(0) @db.Decimal(12, 2)
-  phase             CarpentryProjectPhase?
-  status            CarpentryTaskStatus    @default(PENDIENTE)
-  createdAt         DateTime               @default(now())
-  productionOrderId String?
-  productionOrder   ProductionOrder?       @relation("ProductionTasks", fields: [productionOrderId], references: [id], onDelete: SetNull)
-
-  @@index([employeeId])
-  @@index([projectId])
-}
-
-model CarpentryClientPayment {
-  id        String           @id @default(cuid())
-  projectId String
-  project   CarpentryProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  amountUSD Decimal          @db.Decimal(12, 2)
-  paidAt    DateTime         @default(now())
-  method    PaymentMethod?
-  reference String?
-  notes     String?
-  proofUrl  String?
-  createdAt DateTime         @default(now())
-
-  @@index([projectId])
-  @@index([paidAt])
-}
-
-// Token para confirmar órdenes por WhatsApp
-model OrderAuthToken {
-  id          String    @id @default(cuid())
-  orderId     String
-  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  token       String
-  expiresAt   DateTime
-  usedAt      DateTime?
-  createdAt   DateTime  @default(now())
-  channel     String?
-  destination String?
-
-  @@unique([orderId, token])
-}
-
-model OrdersTemp {
-  id           String   @id @default(cuid())
-  customerId   String
-  items        Json
-  totalUSD     Decimal  @db.Decimal(10, 2)
-  shippingData Json?
-  createdAt    DateTime @default(now())
-}
-
-model PurchaseToken {
-  id          String   @id @default(cuid())
-  customerId  String
-  orderTempId String
-  token       String
-  expiresAt   DateTime
-  used        Boolean  @default(false)
-  createdAt   DateTime @default(now())
-
-  @@index([customerId])
-  @@index([orderTempId, token])
 }
