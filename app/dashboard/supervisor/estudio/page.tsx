@@ -1,5 +1,5 @@
 import { getDesignProjectsForSession, getArchitectUsers, createDesignProjectAction, updateDesignProjectAction, deleteDesignProjectAction } from "@/server/actions/design-projects";
-import PendingButton from "@/components/pending-button";
+import { PendingButton } from "@/components/pending-button";
 import { DesignProjectStatus, DesignProjectStage } from "@prisma/client";
 
 function toDateInput(value?: Date | null) {
@@ -25,7 +25,7 @@ export default async function SupervisorDesignPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Estudio de Diseño Interior</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Estudio de DiseÃ±o Interior</h1>
           <p className="text-sm text-gray-600">Administra los proyectos del estudio con acceso directo a cada registro.</p>
         </div>
         <div className="space-y-1 text-sm text-gray-500">
@@ -40,7 +40,7 @@ export default async function SupervisorDesignPage() {
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <input name="name" placeholder="Nombre del proyecto" className="border rounded px-3 py-2" required />
             <input name="clientName" placeholder="Cliente" className="border rounded px-3 py-2" required />
-            <input name="location" placeholder="Ubicación" className="border rounded px-3 py-2" required />
+            <input name="location" placeholder="UbicaciÃ³n" className="border rounded px-3 py-2" required />
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <input name="priority" type="number" min="1" max="9" step="1" defaultValue={5} placeholder="Prioridad" className="border rounded px-3 py-2" required />
@@ -74,7 +74,7 @@ export default async function SupervisorDesignPage() {
               ))}
             </select>
             <input name="initialMeasurements" placeholder="Medidas iniciales" className="border rounded px-3 py-2" />
-            <input name="description" placeholder="Descripción breve" className="border rounded px-3 py-2" />
+            <input name="description" placeholder="DescripciÃ³n breve" className="border rounded px-3 py-2" />
           </div>
           <PendingButton className="bg-emerald-600 text-white px-4 py-2 rounded" pendingText="Creando...">
             Crear proyecto
@@ -142,7 +142,7 @@ export default async function SupervisorDesignPage() {
                         ))}
                       </select>
                       <input name="initialMeasurements" defaultValue={project.initialMeasurements || ''} placeholder="Medidas" className="border rounded px-3 py-2" />
-                      <input name="description" defaultValue={project.description || ''} placeholder="Descripción" className="border rounded px-3 py-2" />
+                      <input name="description" defaultValue={project.description || ''} placeholder="DescripciÃ³n" className="border rounded px-3 py-2" />
                     </div>
                     <PendingButton className="bg-emerald-600 text-white px-4 py-2 rounded" pendingText="Guardando...">
                       Guardar cambios
@@ -162,4 +162,4 @@ export default async function SupervisorDesignPage() {
       </section>
     </div>
   );
-}
+}

@@ -6,8 +6,8 @@ import { signOut } from "next-auth/react";
 
 const navItems = [
   { name: "Resumen", href: "/dashboard/supervisor", icon: "Home" },
-  { name: "Carpintería", href: "/dashboard/supervisor/carpinteria", icon: "Hammer" },
-  { name: "Estudio de Diseño", href: "/dashboard/supervisor/estudio", icon: "Briefcase" },
+  { name: "CarpinterÃ­a", href: "/dashboard/supervisor/carpinteria", icon: "Hammer" },
+  { name: "Estudio de DiseÃ±o", href: "/dashboard/supervisor/estudio", icon: "Briefcase" },
 ];
 
 const icons: Record<string, React.ReactNode> = {
@@ -39,7 +39,7 @@ export default function SupervisorSidebar() {
     <aside className="w-64 flex-shrink-0 border-r border-gray-200 bg-white p-4">
       <div className="mb-4">
         <div className="text-xs uppercase tracking-[0.2em] text-amber-600 font-semibold">Supervisor</div>
-        <div className="text-sm text-gray-600">Proyectos Carpintería + Diseño</div>
+        <div className="text-sm text-gray-600">Proyectos CarpinterÃ­a + DiseÃ±o</div>
       </div>
       <nav className="flex flex-col gap-2">
         {navItems.map((item) => {
@@ -65,9 +65,9 @@ export default function SupervisorSidebar() {
           className="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
         >
           {icons.LogOut}
-          <span>Cerrar Sesión</span>
+          <span>Cerrar SesiÃ³n</span>
         </button>
       </nav>
     </aside>
   );
-}
+}

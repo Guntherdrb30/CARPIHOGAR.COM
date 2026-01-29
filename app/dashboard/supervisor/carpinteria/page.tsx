@@ -1,5 +1,5 @@
 import { getCarpentryProjects, createCarpentryProject, updateCarpentryProject, deleteCarpentryProject } from "@/server/actions/carpentry";
-import PendingButton from "@/components/pending-button";
+import { PendingButton } from "@/components/pending-button";
 
 const STATUS_OPTIONS = ["ACTIVO", "EN_PROCESO", "CERRADO"];
 
@@ -20,8 +20,8 @@ export default async function SupervisorCarpentryPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Proyectos de Carpintería</h1>
-          <p className="text-sm text-gray-600">Crea, edita o elimina proyectos desde aquí.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Proyectos de CarpinterÃ­a</h1>
+          <p className="text-sm text-gray-600">Crea, edita o elimina proyectos desde aquÃ­.</p>
         </div>
         <div className="space-y-1 text-sm text-gray-500">
           <p>Total proyectos: <strong className="text-gray-900">{projects.length}</strong></p>
@@ -38,7 +38,7 @@ export default async function SupervisorCarpentryPage() {
             <input name="totalAmountUSD" type="number" step="0.01" min="0.01" placeholder="Monto total USD" className="border rounded px-3 py-2" required />
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <input name="clientPhone" placeholder="Teléfono" className="border rounded px-3 py-2" />
+            <input name="clientPhone" placeholder="TelÃ©fono" className="border rounded px-3 py-2" />
             <input name="status" list="status-options" defaultValue="ACTIVO" className="border rounded px-3 py-2" />
             <datalist id="status-options">
               {STATUS_OPTIONS.map((status) => (
@@ -49,7 +49,7 @@ export default async function SupervisorCarpentryPage() {
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <input name="endDate" type="date" className="border rounded px-3 py-2" />
-            <textarea name="description" placeholder="Descripción" rows={2} className="col-span-1 md:col-span-3 border rounded px-3 py-2" />
+            <textarea name="description" placeholder="DescripciÃ³n" rows={2} className="col-span-1 md:col-span-3 border rounded px-3 py-2" />
           </div>
           <PendingButton className="bg-amber-600 text-white px-4 py-2 rounded" pendingText="Creando...">
             Crear proyecto
@@ -60,7 +60,7 @@ export default async function SupervisorCarpentryPage() {
       <section className="space-y-4">
         {projects.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-300 bg-white/70 p-6 text-center text-sm text-gray-500">
-            Todavía no se han creado proyectos.
+            TodavÃ­a no se han creado proyectos.
           </div>
         ) : (
           projects.map((project) => (
@@ -109,4 +109,4 @@ export default async function SupervisorCarpentryPage() {
       </section>
     </div>
   );
-}
+}

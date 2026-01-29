@@ -27,14 +27,14 @@ export default async function SupervisorDashboardPage() {
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Panel de Supervisor de Proyectos</h1>
-          <p className="text-sm text-gray-600">Controla el avance de los proyectos de carpintería y diseño interior desde un solo lugar.</p>
+          <p className="text-sm text-gray-600">Controla el avance de los proyectos de carpinterÃ­a y diseÃ±o interior desde un solo lugar.</p>
         </div>
         <div className="flex gap-2">
           <Link
             href="/dashboard/supervisor/carpinteria"
             className="rounded-full border border-amber-500 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-600 transition hover:bg-amber-100"
           >
-            Carpintería
+            CarpinterÃ­a
           </Link>
           <Link
             href="/dashboard/supervisor/estudio"
@@ -47,33 +47,33 @@ export default async function SupervisorDashboardPage() {
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Carpintería</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-gray-500">CarpinterÃ­a</p>
           <p className="mt-2 text-3xl font-semibold text-gray-900">{totalCarpProjects}</p>
           <p className="text-sm text-gray-500">Proyectos totales</p>
-          <p className="mt-2 text-sm text-gray-500">{inProgressCarp} activos · {formatCurrency(totalCarpAmount)} USD</p>
+          <p className="mt-2 text-sm text-gray-500">{inProgressCarp} activos Â· {formatCurrency(totalCarpAmount)} USD</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Diseño</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-gray-500">DiseÃ±o</p>
           <p className="mt-2 text-3xl font-semibold text-gray-900">{totalDesignProjects}</p>
           <p className="text-sm text-gray-500">Proyectos totales</p>
-          <p className="mt-2 text-sm text-gray-500">{activeDesign} activos · {deliveredDesign} entregados</p>
+          <p className="mt-2 text-sm text-gray-500">{activeDesign} activos Â· {deliveredDesign} entregados</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Foco</p>
           <p className="mt-2 text-lg font-semibold text-gray-900">{latestCarp.length + latestDesign.length} proyectos recientes</p>
-          <p className="text-sm text-gray-500">Revisa los proyectos más recientes y actúa rápido.</p>
+          <p className="text-sm text-gray-500">Revisa los proyectos mÃ¡s recientes y actÃºa rÃ¡pido.</p>
         </div>
       </section>
 
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Carpintería reciente</h2>
+            <h2 className="text-lg font-semibold text-gray-900">CarpinterÃ­a reciente</h2>
             <span className="text-xs uppercase tracking-[0.3em] text-gray-500">{carpProjects.length} en total</span>
           </div>
           <div className="mt-4 space-y-3">
             {latestCarp.length === 0 ? (
-              <p className="text-sm text-gray-500">No hay proyectos aún.</p>
+              <p className="text-sm text-gray-500">No hay proyectos aÃºn.</p>
             ) : (
               latestCarp.map((project) => (
                 <div key={project.id} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
@@ -90,12 +90,12 @@ export default async function SupervisorDashboardPage() {
         </div>
         <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Diseño reciente</h2>
+            <h2 className="text-lg font-semibold text-gray-900">DiseÃ±o reciente</h2>
             <span className="text-xs uppercase tracking-[0.3em] text-gray-500">{designProjects.length} en total</span>
           </div>
           <div className="mt-4 space-y-3">
             {latestDesign.length === 0 ? (
-              <p className="text-sm text-gray-500">Sin proyectos aún.</p>
+              <p className="text-sm text-gray-500">Sin proyectos aÃºn.</p>
             ) : (
               latestDesign.map((project) => (
                 <div key={project.id} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
@@ -113,4 +113,4 @@ export default async function SupervisorDashboardPage() {
       </section>
     </div>
   );
-}
+}
