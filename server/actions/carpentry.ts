@@ -1,6 +1,7 @@
 "use server";
 
 import { Prisma } from "@prisma/client";
+import type { CarpentryProjectPhase } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -104,7 +105,7 @@ export async function getCarpentryProjectById(id: string) {
       architect: true,
       supervisor: true,
       materialLists: {
-        include: { items: true },
+        include: { items: true, deliveredBy: true },
         orderBy: { uploadedAt: "desc" },
       },
       purchaseOrders: { orderBy: { createdAt: "desc" } },
@@ -544,6 +545,17 @@ const productionStatusMap: Record<string, string> = {
   ON_HOLD: "ON_HOLD",
 };
 
+const phaseLabelMap: Record<string, CarpentryProjectPhase> = {
+  FABRICACION: "FABRICACION",
+  INSTALACION: "INSTALACION",
+  CORTE_CANTEADO: "CORTE_CANTEADO",
+  ARMADO_ESTRUCTURA: "ARMADO_ESTRUCTURA",
+  ARMADO_PUERTAS: "ARMADO_PUERTAS",
+  INSTALACION_HERRAJES: "INSTALACION_HERRAJES",
+  EMBALAJE: "EMBALAJE",
+  ALMACEN: "ALMACEN",
+};
+
 function normalizeEnum<T extends Record<string, string>>(map: T, value: string, fallback: T[keyof T]) {
   const key = value.toUpperCase();
   return (map[key] as T[keyof T]) || fallback;
@@ -557,6 +569,9 @@ export async function createCarpentryProjectMaterialList(formData: FormData) {
   const description = String(formData.get("description") || "").trim() || null;
   const fileUrl = String(formData.get("fileUrl") || "").trim();
   const itemsRaw = String(formData.get("items") || "[]");
+  const phaseRaw = String(formData.get("phase") || "").toUpperCase();
+  const deliveredAtRaw = String(formData.get("deliveredAt") || "").trim();
+  const deliveredByIdRaw = String(formData.get("deliveredById") || "").trim();
   if (!projectId || !name || !fileUrl) {
     redirect("/dashboard/admin/carpinteria?error=Lista%20invalida");
   }
@@ -567,12 +582,18 @@ export async function createCarpentryProjectMaterialList(formData: FormData) {
   } catch {
     items = [];
   }
+  const normalizedPhase = phaseRaw && phaseLabelMap[phaseRaw] ? phaseLabelMap[phaseRaw] : null;
+  const deliveredAt = deliveredAtRaw ? parseDate(deliveredAtRaw) : null;
+  const deliveredById = deliveredByIdRaw || null;
   await prisma.carpentryProjectMaterialList.create({
     data: {
       projectId,
       name,
       description,
       fileUrl,
+      phase: normalizedPhase as any,
+      deliveredAt: deliveredAt as any,
+      deliveredById,
       items: {
         create: items.map((item) => ({
           sku: item?.sku || null,

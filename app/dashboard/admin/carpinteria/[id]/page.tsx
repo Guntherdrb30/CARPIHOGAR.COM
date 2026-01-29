@@ -3,11 +3,9 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import {
   createCarpentryClientPayment,
-  createCarpentryTask,
   deleteCarpentryClientPayment,
   getCarpentryProjectById,
   updateCarpentryProject,
-  updateCarpentryTaskStatus,
 } from "@/server/actions/carpentry";
 import { getPayrollEmployees } from "@/server/actions/payroll";
 import CarpentryFileUploader from "@/components/admin/carpentry-file-uploader";
@@ -177,110 +175,6 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
               ))}
               {!project.clientPayments.length && (
                 <tr><td colSpan={6} className="border px-2 py-2 text-center text-gray-500">Sin abonos</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="bg-white p-4 rounded-lg shadow space-y-4">
-        <h2 className="text-lg font-semibold">Mano de obra / tareas</h2>
-        <form action={createCarpentryTask} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
-          <input type="hidden" name="projectId" value={project.id} />
-          <input type="hidden" name="backTo" value={`/dashboard/admin/carpinteria/${project.id}`} />
-          <div className="md:col-span-2">
-            <label className="block text-sm text-gray-700">Carpintero</label>
-            <select name="employeeId" className="border rounded px-2 py-1 w-full" required>
-              <option value="">Seleccionar</option>
-              {employees.map((e: any) => (
-                <option key={e.id} value={e.id}>{e.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Fase</label>
-            <select name="phase" className="border rounded px-2 py-1 w-full">
-              <option value="">Sin fase</option>
-              <option value="FABRICACION">Fabricacion (70%)</option>
-              <option value="INSTALACION">Instalacion (30%)</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Monto USD</label>
-            <input name="amountUSD" type="number" step="0.01" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Fecha</label>
-            <input name="workDate" type="date" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Metodo</label>
-            <select name="method" className="border rounded px-2 py-1 w-full">
-              <option value="">Sin metodo</option>
-              <option value="PAGO_MOVIL">Pago movil</option>
-              <option value="TRANSFERENCIA">Transferencia</option>
-              <option value="ZELLE">Zelle</option>
-              <option value="EFECTIVO">Efectivo</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Estado</label>
-            <select name="status" className="border rounded px-2 py-1 w-full">
-              <option value="PENDIENTE">Pendiente</option>
-              <option value="EN_PROGRESO">En progreso</option>
-              <option value="COMPLETADA">Completada</option>
-            </select>
-          </div>
-          <div className="md:col-span-6">
-            <label className="block text-sm text-gray-700">Descripcion</label>
-            <input name="description" className="border rounded px-2 py-1 w-full" required />
-            <div className="text-xs text-gray-500 mt-1">Monto en 0 solo crea tarea sin pago.</div>
-          </div>
-          <div className="md:col-span-6">
-            <label className="block text-sm text-gray-700">Referencia</label>
-            <input name="reference" className="border rounded px-2 py-1 w-full" />
-          </div>
-          <div className="md:col-span-6">
-            <button className="px-3 py-1 rounded bg-amber-600 text-white">Agregar tarea</button>
-          </div>
-        </form>
-
-        <div className="overflow-x-auto">
-          <table className="w-full table-auto text-sm">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="px-2 py-1 text-left">Fecha</th>
-                <th className="px-2 py-1">Carpintero</th>
-                <th className="px-2 py-1">Fase</th>
-                <th className="px-2 py-1">Monto</th>
-                <th className="px-2 py-1">Estado</th>
-                <th className="px-2 py-1">Descripcion</th>
-              </tr>
-            </thead>
-            <tbody>
-              {project.tasks.map((t: any) => (
-                <tr key={t.id}>
-                  <td className="border px-2 py-1">{new Date(t.workDate).toLocaleDateString()}</td>
-                  <td className="border px-2 py-1">{t.employee?.name || "-"}</td>
-                  <td className="border px-2 py-1 text-center">{t.phase || "-"}</td>
-                  <td className="border px-2 py-1 text-right">${Number(t.amountUSD || 0).toFixed(2)}</td>
-                  <td className="border px-2 py-1">
-                    <form action={updateCarpentryTaskStatus} className="flex items-center gap-2">
-                      <input type="hidden" name="id" value={t.id} />
-                      <input type="hidden" name="backTo" value={`/dashboard/admin/carpinteria/${project.id}`} />
-                      <select name="status" defaultValue={t.status} className="border rounded px-2 py-1 text-xs">
-                        <option value="PENDIENTE">Pendiente</option>
-                        <option value="EN_PROGRESO">En progreso</option>
-                        <option value="COMPLETADA">Completada</option>
-                      </select>
-                      <button className="text-xs text-blue-600" type="submit">Guardar</button>
-                    </form>
-                  </td>
-                  <td className="border px-2 py-1">{t.description}</td>
-                </tr>
-              ))}
-              {!project.tasks.length && (
-                <tr><td colSpan={6} className="border px-2 py-2 text-center text-gray-500">Sin tareas</td></tr>
               )}
             </tbody>
           </table>

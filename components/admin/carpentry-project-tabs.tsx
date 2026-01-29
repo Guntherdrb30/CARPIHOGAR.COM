@@ -6,13 +6,17 @@ import {
   createCarpentryProjectExpense,
   createCarpentryProjectMaterialList,
   createCarpentryProjectPurchaseOrder,
+  createCarpentryTask,
   createProductionOrder,
+  updateCarpentryTaskStatus,
 } from "@/server/actions/carpentry";
 import type {
   CarpentryProject,
   CarpentryProjectExpense,
   CarpentryProjectMaterialList,
+  CarpentryProjectPhase,
   CarpentryProjectPurchaseOrder,
+  CarpentryTask,
   Order,
   PayrollEmployee,
   ProductionOrder,
@@ -21,10 +25,14 @@ import type {
 type ProjectWithExtras = CarpentryProject & {
   files: { id: string; url: string; fileType: string; filename?: string }[];
   clientPayments: { amountUSD: number }[];
-  materialLists: (CarpentryProjectMaterialList & { items: { name: string; unitPriceUSD: number; quantity: number }[] })[];
+  materialLists: (CarpentryProjectMaterialList & {
+    items: { name: string; unitPriceUSD: number; quantity: number }[];
+    deliveredBy?: PayrollEmployee | null;
+  })[];
   purchaseOrders: (CarpentryProjectPurchaseOrder & { sale?: Order | null })[];
   expenses: CarpentryProjectExpense[];
   productionOrders: (ProductionOrder & { tasks?: { id: string; description: string; status: string }[] })[];
+  tasks: (CarpentryTask & { employee: PayrollEmployee })[];
 };
 
 type Props = {
@@ -38,7 +46,17 @@ const tabOrder = [
   { key: "purchases", label: "Compras" },
   { key: "expenses", label: "Gastos" },
   { key: "production", label: "Producción" },
+  { key: "progress", label: "Avances" },
   { key: "finance", label: "Finanzas" },
+];
+
+const stageDefinitions: { key: CarpentryProjectPhase; label: string; description: string }[] = [
+  { key: "CORTE_CANTEADO", label: "Corte y canteado", description: "Preparación y protección de chapas y cantos." },
+  { key: "ARMADO_ESTRUCTURA", label: "Armado de estructura", description: "Montaje de bastidores y soportes principales." },
+  { key: "ARMADO_PUERTAS", label: "Armado de puertas y frente", description: "Fabricación y ajuste de puertas y paneles." },
+  { key: "INSTALACION_HERRAJES", label: "Instalación de herrajes", description: "Colocación de bisagras, correderas y tiradores." },
+  { key: "EMBALAJE", label: "Embalaje", description: "Empaque final y etiquetado para transporte." },
+  { key: "ALMACEN", label: "Almacén", description: "Almacenamiento y control previo al despacho." },
 ];
 
 export default function CarpentryProjectTabs({ project, employees }: Props) {
@@ -73,6 +91,41 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
     params.set("backTo", `/dashboard/admin/carpinteria/${project.id}`);
     return `/dashboard/admin/ventas/nueva?${params.toString()}`;
   })();
+
+  const formatDateShort = (value?: string | Date) => {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) return "—";
+    return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  };
+
+  const stageProgress = stageDefinitions.map((stage) => {
+    const stageTasks = (project.tasks || []).filter((task) => task.phase === stage.key);
+    const completed = stageTasks.filter((task) => task.status === "COMPLETADA").length;
+    const inProgress = stageTasks.filter((task) => task.status === "EN_PROGRESO").length;
+    const pending = stageTasks.filter((task) => task.status === "PENDIENTE").length;
+    const progress = stageTasks.length ? Math.round((completed / stageTasks.length) * 100) : 0;
+    const latestTask = [...stageTasks].sort(
+      (a, b) => Number(new Date(String(b.workDate))) - Number(new Date(String(a.workDate))),
+    )[0];
+    const responsible =
+      latestTask?.employee?.name || stageTasks[0]?.employee?.name || "Sin responsable";
+    return { stage, tasks: stageTasks, completed, inProgress, pending, progress, latestTask, responsible };
+  });
+
+  const stageLabelMap = stageDefinitions.reduce<Record<string, string>>((acc, stage) => {
+    acc[stage.key] = stage.label;
+    return acc;
+  }, {});
+  stageLabelMap["FABRICACION"] = stageLabelMap["FABRICACION"] || "Fabricación";
+  stageLabelMap["INSTALACION"] = stageLabelMap["INSTALACION"] || "Instalación";
+
+  const materialDeliveries = [...(project.materialLists || [])].sort((a, b) => {
+    const aTime = a.deliveredAt ? new Date(a.deliveredAt).getTime() : new Date(a.uploadedAt).getTime();
+    const bTime = b.deliveredAt ? new Date(b.deliveredAt).getTime() : new Date(b.uploadedAt).getTime();
+    return bTime - aTime;
+  });
+  const purchaseOrders = project.purchaseOrders || [];
+  const totalPurchaseUSD = purchaseOrders.reduce((acc, order) => acc + Number(order.totalUSD || 0), 0);
 
   const summaryContent = (
     <div className="space-y-6">
@@ -402,13 +455,13 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
                   </ul>
                 ) : null}
               </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-2 text-xs text-gray-400">Sin órdenes de producción aún.</p>
-        )}
-      </div>
-      <form action={createProductionOrder} className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3 text-sm">
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-xs text-gray-400">Sin órdenes de producción aún.</p>
+      )}
+    </div>
+    <form action={createProductionOrder} className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3 text-sm">
         <input type="hidden" name="projectId" value={project.id} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <input name="number" placeholder="Número de orden" className="w-full border rounded px-3 py-2" required />
@@ -454,6 +507,223 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
     </div>
   );
 
+  const advancesContent = (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+        {stageProgress.map((info) => (
+          <div key={info.stage.key} className="rounded-2xl border border-gray-200 bg-white p-4 space-y-2 text-sm">
+            <div className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">
+              {info.stage.label}
+            </div>
+            <div className="h-1.5 rounded-full bg-gray-200">
+              <div
+                className="h-1.5 rounded-full bg-emerald-500"
+                style={{ width: `${Math.min(100, info.progress)}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-gray-500">
+              <span>{info.tasks.length} tareas</span>
+              <span>{info.progress}% completado</span>
+            </div>
+            <div className="text-[11px] text-gray-600">
+              Responsable: {info.responsible}
+            </div>
+            <div className="text-[11px] text-gray-500">
+              Última actualización: {formatDateShort(info.latestTask?.workDate || info.latestTask?.createdAt)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[2fr,1fr] gap-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold">Tareas y responsables</div>
+              <div className="text-xs text-gray-500">
+                Asigna tareas por fase y controla su estado.
+              </div>
+            </div>
+          </div>
+          <form action={createCarpentryTask} className="grid grid-cols-1 md:grid-cols-6 gap-3">
+            <input type="hidden" name="projectId" value={project.id} />
+            <input type="hidden" name="backTo" value={`/dashboard/admin/carpinteria/${project.id}`} />
+            <div>
+              <label className="text-xs text-gray-500">Descripción</label>
+              <input name="description" className="form-input" required />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">Prespuesto USD</label>
+              <input name="amountUSD" type="number" step="0.01" className="form-input" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">Fecha</label>
+              <input name="workDate" type="date" className="form-input" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">Fase</label>
+              <select name="phase" className="form-input">
+                <option value="">Fase</option>
+                {[
+                  { key: "FABRICACION", label: "Fabricación" },
+                  { key: "INSTALACION", label: "Instalación" },
+                  ...stageDefinitions,
+                ].map((phase) => (
+                  <option key={phase.key} value={phase.key}>
+                    {phase.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">Responsable</label>
+              <select name="employeeId" className="form-input">
+                <option value="">Selecciona</option>
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button className="w-full bg-blue-600 text-white px-3 py-1 rounded" type="submit">
+                Agregar tarea
+              </button>
+            </div>
+          </form>
+          <div className="overflow-x-auto rounded border border-gray-200">
+            <table className="w-full table-auto text-sm">
+              <thead>
+                <tr className="bg-gray-100 text-gray-600">
+                  <th className="px-2 py-1 text-left">Fecha</th>
+                  <th className="px-2 py-1 text-left">Responsable</th>
+                  <th className="px-2 py-1 text-left">Fase</th>
+                  <th className="px-2 py-1 text-left">Descripción</th>
+                  <th className="px-2 py-1 text-left">Estado</th>
+                  <th className="px-2 py-1 text-left">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...(project.tasks || [])]
+                  .sort((a, b) => Number(new Date(String(b.workDate))) - Number(new Date(String(a.workDate))))
+                  .map((task) => (
+                    <tr key={task.id} className="border-t">
+                      <td className="px-2 py-1">
+                        {formatDateShort(task.workDate)}
+                      </td>
+                      <td className="px-2 py-1">
+                        {task.employee?.name || "Sin asignar"}
+                      </td>
+                      <td className="px-2 py-1">
+                        {stageLabelMap[task.phase || "FABRICACION"] || "General"}
+                      </td>
+                      <td className="px-2 py-1">{task.description}</td>
+                      <td className="px-2 py-1">
+                        <form action={updateCarpentryTaskStatus} className="inline-flex items-center gap-2">
+                          <input type="hidden" name="id" value={task.id} />
+                          <select
+                            name="status"
+                            defaultValue={task.status}
+                            className="border rounded px-2 py-0.5 text-xs"
+                          >
+                            <option value="PENDIENTE">Pendiente</option>
+                            <option value="EN_PROGRESO">En progreso</option>
+                            <option value="COMPLETADA">Completada</option>
+                          </select>
+                          <button className="text-xs text-blue-600" type="submit">
+                            Guardar
+                          </button>
+                        </form>
+                      </td>
+                      <td className="px-2 py-1 text-xs text-gray-500">
+                        {task.amountUSD ? `$${Number(task.amountUSD).toFixed(2)}` : "Sin monto"}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3">
+            <div className="text-sm font-semibold">Entregas por fase</div>
+            {materialDeliveries.length ? (
+              <div className="space-y-3 text-sm text-gray-600">
+                {materialDeliveries.map((list) => (
+                  <div key={list.id} className="rounded border border-gray-100 p-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="font-semibold">{list.name}</div>
+                      <span className="text-[11px] text-gray-500 uppercase tracking-[0.2em]">
+                        {stageLabelMap[list.phase || "FABRICACION"] || "Inventario"}
+                      </span>
+                    </div>
+                    {list.description && (
+                      <div className="text-xs text-gray-500">{list.description}</div>
+                    )}
+                    <div className="text-[11px] text-gray-500">
+                      Entregado: {formatDateShort(list.deliveredAt || list.uploadedAt)}
+                      {list.deliveredBy?.name ? ` · ${list.deliveredBy.name}` : ""}
+                    </div>
+                    <div className="text-xs text-gray-600">
+                      {list.items?.map((item) => `${item.name} (${item.quantity})`).join(", ")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500">Aún no hay entregas registradas.</div>
+            )}
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3 text-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-semibold">Inventario de compras</div>
+                <div className="text-xs text-gray-500">
+                  Total adquirido: ${totalPurchaseUSD.toFixed(2)}
+                </div>
+              </div>
+              <a
+                href="/dashboard/admin/compras"
+                className="text-xs text-blue-600 hover:underline"
+              >
+                Ver compras
+              </a>
+            </div>
+            {purchaseOrders.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full table-auto text-xs text-gray-600">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-2 py-1 text-left">OC</th>
+                      <th className="px-2 py-1 text-left">Total USD</th>
+                      <th className="px-2 py-1 text-left">Estado</th>
+                      <th className="px-2 py-1 text-left">Fecha</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {purchaseOrders.map((order) => (
+                      <tr key={order.id} className="border-t">
+                        <td className="px-2 py-1 text-xs">{order.id.slice(-6)}</td>
+                        <td className="px-2 py-1">${Number(order.totalUSD).toFixed(2)}</td>
+                        <td className="px-2 py-1">{order.status}</td>
+                        <td className="px-2 py-1 text-xs">
+                          {formatDateShort(order.createdAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500">Sin compras registradas.</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const financeContent = (
     <div className="space-y-4">
       <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -494,6 +764,8 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
         return expensesContent;
       case "production":
         return productionContent;
+      case "progress":
+        return advancesContent;
       case "finance":
         return financeContent;
       default:

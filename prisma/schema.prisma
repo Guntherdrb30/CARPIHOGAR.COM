@@ -1122,6 +1122,12 @@ enum CarpentryProjectFileType {
 enum CarpentryProjectPhase {
   FABRICACION
   INSTALACION
+  CORTE_CANTEADO
+  ARMADO_ESTRUCTURA
+  ARMADO_PUERTAS
+  INSTALACION_HERRAJES
+  EMBALAJE
+  ALMACEN
 }
 
 enum CarpentryTaskStatus {
@@ -1627,14 +1633,18 @@ model CarpentryProjectFile {
 }
 
 model CarpentryProjectMaterialList {
-  id          String        @id @default(cuid())
-  projectId   String
-  project     CarpentryProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name        String
-  description String?
-  fileUrl     String
-  uploadedAt  DateTime      @default(now())
-  items       CarpentryProjectMaterial[]
+  id           String                 @id @default(cuid())
+  projectId    String
+  project      CarpentryProject       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?
+  fileUrl      String
+  uploadedAt   DateTime               @default(now())
+  phase        CarpentryProjectPhase?
+  deliveredAt  DateTime?
+  deliveredById String?
+  deliveredBy  PayrollEmployee?       @relation("MaterialListReceiver", fields: [deliveredById], references: [id], onDelete: SetNull)
+  items        CarpentryProjectMaterial[]
 
   @@index([projectId])
 }
