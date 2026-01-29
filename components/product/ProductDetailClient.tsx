@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type WheelEvent } from 'react';
 import type { Product } from '@prisma/client';
 import Head from 'next/head';
 import Price from '@/components/price';
@@ -149,19 +149,71 @@ function ProductImageGallery({
   }
 
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const selectedUrl = media[selectedIdx] || 'https://via.placeholder.com/400';
   const selectedIsVideo =
     isVideo(selectedUrl) ||
     (!!videoUrl &&
       selectedIdx === media.length - 1 &&
       selectedUrl === videoUrl);
+  const isLightboxOpen = lightboxIndex !== null;
+  const currentLightboxUrl =
+    isLightboxOpen && lightboxIndex !== null && media[lightboxIndex]
+      ? media[lightboxIndex]
+      : null;
+
+  const moveLightbox = useCallback(
+    (direction: 1 | -1) => {
+      setLightboxIndex((prev) => {
+        if (media.length === 0) return null;
+        const startIndex = prev ?? selectedIdx;
+        const nextIndex =
+          (startIndex + direction + media.length) % media.length;
+        return nextIndex;
+      });
+    },
+    [media.length, selectedIdx],
+  );
+  const handleLightboxClose = () => setLightboxIndex(null);
+  const handleOpenLightbox = () =>
+    !selectedIsVideo && setLightboxIndex(selectedIdx);
+  const isLightboxVideo =
+    currentLightboxUrl !== null && isVideo(currentLightboxUrl);
+  const handleLightboxWheel = (event: WheelEvent<HTMLDivElement>) => {
+    if (!currentLightboxUrl) return;
+    event.preventDefault();
+    const delta =
+      Math.abs(event.deltaX) > Math.abs(event.deltaY)
+        ? event.deltaX
+        : event.deltaY;
+    if (Math.abs(delta) < 10) return;
+    moveLightbox(delta > 0 ? 1 : -1);
+  };
+
+  useEffect(() => {
+    if (!isLightboxOpen) return undefined;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        handleLightboxClose();
+        return;
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        moveLightbox(1);
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        moveLightbox(-1);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isLightboxOpen, moveLightbox]);
 
   return (
     <div>
       <div
         className="overflow-hidden rounded-lg shadow-md mb-4 cursor-pointer"
-        onClick={() => !selectedIsVideo && setLightboxImage(selectedUrl)}
+        onClick={handleOpenLightbox}
       >
         {selectedIsVideo ? (
           <video controls className="w-full h-96 bg-black" src={selectedUrl} />
@@ -203,20 +255,65 @@ function ProductImageGallery({
         })}
       </div>
 
-      {lightboxImage && (
+      {currentLightboxUrl && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
-          onClick={() => setLightboxImage(null)}
+          className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50"
+          onClick={handleLightboxClose}
+          onWheel={handleLightboxWheel}
         >
-          <button className="absolute top-4 right-4 text-white text-3xl font-bold">
+          <button
+            type="button"
+            className="absolute top-4 right-4 text-white text-3xl font-bold"
+            onClick={(event) => {
+              event.stopPropagation();
+              handleLightboxClose();
+            }}
+            aria-label="Cerrar"
+          >
             &times;
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={lightboxImage}
-            alt="Product image"
-            className="max-w-full max-h-full p-4"
-          />
+          <button
+            type="button"
+            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full border border-white/60 bg-black/40 px-3 py-2 text-white text-2xl"
+            onClick={(event) => {
+              event.stopPropagation();
+              moveLightbox(-1);
+            }}
+            aria-label="Imagen anterior"
+          >
+            ‹
+          </button>
+          <div
+            className="flex items-center justify-center max-w-[90vw] max-h-[90vh]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {isLightboxVideo ? (
+              <video
+                controls
+                autoPlay={false}
+                className="max-w-full max-h-full rounded-md shadow-xl"
+                src={currentLightboxUrl}
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={currentLightboxUrl}
+                alt="Product image"
+                className="max-w-full max-h-full rounded-md shadow-xl"
+              />
+            )}
+          </div>
+          <button
+            type="button"
+            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full border border-white/60 bg-black/40 px-3 py-2 text-white text-2xl"
+            onClick={(event) => {
+              event.stopPropagation();
+              moveLightbox(1);
+            }}
+            aria-label="Imagen siguiente"
+          >
+            ›
+          </button>
         </div>
       )}
     </div>
