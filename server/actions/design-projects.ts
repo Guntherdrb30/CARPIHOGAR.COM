@@ -89,7 +89,8 @@ function listAdded(prev: string[] | null | undefined, next: string[]) {
 
 export async function getArchitectUsers() {
   const session = await getServerSession(authOptions);
-  if ((session?.user as any)?.role !== "ADMIN") throw new Error("Not authorized");
+  const role = String((session?.user as any)?.role || "");
+  if (role !== "ADMIN" && role !== "SUPERVISOR_PROYECTOS") throw new Error("Not authorized");
   return prisma.user.findMany({
     where: { role: "ARCHITECTO" as any },
     select: { id: true, name: true, email: true },
@@ -102,7 +103,7 @@ export async function getDesignProjectsForSession() {
   const role = String((session?.user as any)?.role || "");
   const userId = String((session?.user as any)?.id || "");
   if (!userId || !role) throw new Error("Not authorized");
-  if (role !== "ADMIN" && role !== "ARCHITECTO") throw new Error("Not authorized");
+  if (role !== "ADMIN" && role !== "ARCHITECTO" && role !== "SUPERVISOR_PROYECTOS") throw new Error("Not authorized");
   const where =
     role === "ARCHITECTO"
       ? { architectId: userId }
@@ -121,7 +122,7 @@ export async function getDesignProjectByIdForSession(id: string) {
   const role = String((session?.user as any)?.role || "");
   const userId = String((session?.user as any)?.id || "");
   if (!userId || !role) throw new Error("Not authorized");
-  if (role !== "ADMIN" && role !== "ARCHITECTO") throw new Error("Not authorized");
+  if (role !== "ADMIN" && role !== "ARCHITECTO" && role !== "SUPERVISOR_PROYECTOS") throw new Error("Not authorized");
   const include: any = {
     architect: { select: { id: true, name: true, email: true } },
     tasks: {
@@ -156,7 +157,9 @@ export async function getDesignProjectByIdForSession(id: string) {
 
 export async function createDesignProjectAction(formData: FormData) {
   const session = await getServerSession(authOptions);
-  if ((session?.user as any)?.role !== "ADMIN") throw new Error("Not authorized");
+  const role = String((session?.user as any)?.role || "");
+  if (role !== "ADMIN" && role !== "SUPERVISOR_PROYECTOS") throw new Error("Not authorized");
+  const basePath = role === "SUPERVISOR_PROYECTOS" ? "supervisor" : "admin";
   const name = String(formData.get("name") || "").trim();
   const clientName = String(formData.get("clientName") || "").trim();
   const location = String(formData.get("location") || "").trim();
@@ -164,7 +167,7 @@ export async function createDesignProjectAction(formData: FormData) {
   const status = normalizeStatus(formData.get("status"));
   const stage = normalizeStage(formData.get("stage"));
   if (!name || !clientName || !location || priority == null || !status) {
-    redirect("/dashboard/admin/estudio?error=Completa%20los%20campos%20requeridos");
+    redirect(`/dashboard/${basePath}/estudio?error=Completa%20los%20campos%20requeridos`);
   }
   const startDate = parseDate(formData.get("startDate"));
   const dueDate = parseDate(formData.get("dueDate"));
@@ -194,18 +197,21 @@ export async function createDesignProjectAction(formData: FormData) {
       },
     });
     revalidatePath("/dashboard/admin/estudio");
-    redirect("/dashboard/admin/estudio?message=Proyecto%20creado");
+    revalidatePath("/dashboard/supervisor/estudio");
+    redirect(`/dashboard/${basePath}/estudio?message=Proyecto%20creado`);
   } catch {
-    redirect("/dashboard/admin/estudio?error=No%20se%20pudo%20crear%20el%20proyecto");
+    redirect(`/dashboard/${basePath}/estudio?error=No%20se%20pudo%20crear%20el%20proyecto`);
   }
 }
 
 export async function updateDesignProjectAction(formData: FormData) {
   const session = await getServerSession(authOptions);
-  if ((session?.user as any)?.role !== "ADMIN") throw new Error("Not authorized");
+  const role = String((session?.user as any)?.role || "");
+  if (role !== "ADMIN" && role !== "SUPERVISOR_PROYECTOS") throw new Error("Not authorized");
+  const basePath = role === "SUPERVISOR_PROYECTOS" ? "supervisor" : "admin";
   const auditUserId = String((session?.user as any)?.id || "") || null;
   const id = String(formData.get("id") || "").trim();
-  if (!id) redirect("/dashboard/admin/estudio?error=Proyecto%20no%20encontrado");
+  if (!id) redirect(`/dashboard/${basePath}/estudio?error=Proyecto%20no%20encontrado`);
   const previous = await prisma.designProject.findUnique({
     where: { id },
     select: {
@@ -308,9 +314,29 @@ export async function updateDesignProjectAction(formData: FormData) {
       }
     }
     revalidatePath("/dashboard/admin/estudio");
-    redirect(`/dashboard/admin/estudio/${id}?message=Proyecto%20actualizado`);
+    revalidatePath("/dashboard/supervisor/estudio");
+    redirect(`/dashboard/${basePath}/estudio/${id}?message=Proyecto%20actualizado`);
   } catch {
-    redirect(`/dashboard/admin/estudio/${id}?error=No%20se%20pudo%20actualizar`);
+    redirect(`/dashboard/${basePath}/estudio/${id}?error=No%20se%20pudo%20actualizar`);
+  }
+}
+
+export async function deleteDesignProjectAction(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  const role = String((session?.user as any)?.role || "");
+  if (role !== "ADMIN" && role !== "SUPERVISOR_PROYECTOS") throw new Error("Not authorized");
+  const basePath = role === "SUPERVISOR_PROYECTOS" ? "supervisor" : "admin";
+  const id = String(formData.get("id") || "").trim();
+  if (!id) {
+    redirect(`/dashboard/${basePath}/estudio?error=Proyecto%20no%20especificado`);
+  }
+  try {
+    await prisma.designProject.delete({ where: { id } });
+    revalidatePath("/dashboard/admin/estudio");
+    revalidatePath("/dashboard/supervisor/estudio");
+    redirect(`/dashboard/${basePath}/estudio?message=Proyecto%20eliminado`);
+  } catch {
+    redirect(`/dashboard/${basePath}/estudio?error=No%20se%20pudo%20eliminar%20el%20proyecto`);
   }
 }
 
@@ -318,7 +344,7 @@ export async function updateDesignProjectStatusAction(formData: FormData) {
   const session = await getServerSession(authOptions);
   const role = String((session?.user as any)?.role || "");
   const userId = String((session?.user as any)?.id || "");
-  if (!userId || (role !== "ADMIN" && role !== "ARCHITECTO")) {
+  if (!userId || (role !== "ADMIN" && role !== "ARCHITECTO" && role !== "SUPERVISOR_PROYECTOS")) {
     throw new Error("Not authorized");
   }
   const id = String(formData.get("id") || "").trim();
@@ -345,15 +371,22 @@ export async function updateDesignProjectStatusAction(formData: FormData) {
     });
   }
   revalidatePath("/dashboard/admin/estudio");
+  revalidatePath("/dashboard/supervisor/estudio");
   revalidatePath("/dashboard/arquitecto/estudio");
-  redirect(`/dashboard/${role === "ADMIN" ? "admin" : "arquitecto"}/estudio/${id}`);
+  const redirectBase =
+    role === "ADMIN"
+      ? "admin"
+      : role === "SUPERVISOR_PROYECTOS"
+        ? "supervisor"
+        : "arquitecto";
+  redirect(`/dashboard/${redirectBase}/estudio/${id}`);
 }
 
 export async function updateDesignProjectStageAction(formData: FormData) {
   const session = await getServerSession(authOptions);
   const role = String((session?.user as any)?.role || "");
   const userId = String((session?.user as any)?.id || "");
-  if (!userId || (role !== "ADMIN" && role !== "ARCHITECTO")) {
+  if (!userId || (role !== "ADMIN" && role !== "ARCHITECTO" && role !== "SUPERVISOR_PROYECTOS")) {
     throw new Error("Not authorized");
   }
   const id = String(formData.get("id") || "").trim();
@@ -380,6 +413,13 @@ export async function updateDesignProjectStageAction(formData: FormData) {
     });
   }
   revalidatePath("/dashboard/admin/estudio");
+  revalidatePath("/dashboard/supervisor/estudio");
   revalidatePath("/dashboard/arquitecto/estudio");
-  redirect(`/dashboard/${role === "ADMIN" ? "admin" : "arquitecto"}/estudio/${id}`);
+  const redirectBase =
+    role === "ADMIN"
+      ? "admin"
+      : role === "SUPERVISOR_PROYECTOS"
+        ? "supervisor"
+        : "arquitecto";
+  redirect(`/dashboard/${redirectBase}/estudio/${id}`);
 }

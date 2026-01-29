@@ -95,6 +95,8 @@ export default function Header({ logoUrl, brandName }: HeaderProps) {
   const dashboardHref =
     role === 'ADMIN'
       ? '/dashboard/admin'
+      : role === 'SUPERVISOR_PROYECTOS'
+      ? '/dashboard/supervisor'
       : role === 'ALIADO'
       ? '/dashboard/aliado'
       : role === 'DELIVERY'
@@ -103,6 +105,8 @@ export default function Header({ logoUrl, brandName }: HeaderProps) {
   const dashboardLabel =
     role === 'ADMIN'
       ? 'Admin'
+      : role === 'SUPERVISOR_PROYECTOS'
+      ? 'Supervisor'
       : role === 'ALIADO'
       ? 'Mi Panel'
       : role === 'DELIVERY'

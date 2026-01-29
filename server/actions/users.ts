@@ -197,6 +197,50 @@ export async function createArchitectUser(name: string, email: string, password:
   return user;
 }
 
+export async function createSupervisorUser(name: string, email: string, password: string) {
+  const session = await getServerSession(authOptions);
+  if ((session?.user as any)?.role !== 'ADMIN') throw new Error('Not authorized');
+  const emailLc = String(email || '').trim().toLowerCase();
+  const bcrypt = (await import('bcrypt')).default;
+  const hashed = await bcrypt.hash(password, 10);
+  const user = await prisma.user.upsert({
+    where: { email: emailLc },
+    update: { name, password: hashed, role: 'SUPERVISOR_PROYECTOS', alliedStatus: 'NONE' },
+    create: { name, email: emailLc, password: hashed, role: 'SUPERVISOR_PROYECTOS', alliedStatus: 'NONE' },
+  });
+  revalidatePath('/dashboard/admin/usuarios');
+  try {
+    if (isEmailEnabled()) {
+      const { sendAdminUserCreatedEmail } = await import('@/server/actions/email');
+      await sendAdminUserCreatedEmail(email, 'SUPERVISOR_PROYECTOS');
+    }
+  } catch {}
+  try {
+    const crypto = await import('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 1000 * 60 * 60 * 24);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerificationToken: token,
+        emailVerificationTokenExpiresAt: expires as any,
+        emailVerifiedAt: null,
+      },
+    });
+    if (isEmailEnabled()) {
+      const { sendMail, basicTemplate } = await import('@/lib/mailer');
+      const base = process.env.NEXT_PUBLIC_URL || '';
+      const verifyUrl = `${base}/api/auth/verify-email?token=${token}`;
+      const html = basicTemplate(
+        'Verifica tu correo',
+        `<p>Se ha creado tu usuario SUPERVISOR_PROYECTOS. Verifica tu correo para activarlo:</p><p>${verifyUrl}</p>`,
+      );
+      await sendMail({ to: email, subject: 'Verifica tu correo', html });
+    }
+  } catch {}
+  return user;
+}
+
 export async function createDispatcherUser(name: string, email: string, password: string) {
   const session = await getServerSession(authOptions);
   if ((session?.user as any)?.role !== 'ADMIN') throw new Error('Not authorized');
@@ -249,7 +293,7 @@ export async function updateUser(formData: FormData) {
   if (name !== null) data.name = String(name);
   if (role !== null) {
     const r = String(role);
-    if (['CLIENTE','ALIADO','VENDEDOR','DESPACHO','ARCHITECTO','ADMIN'].includes(r)) data.role = r as any;
+    if (['CLIENTE','ALIADO','VENDEDOR','DESPACHO','ARCHITECTO','SUPERVISOR_PROYECTOS','ADMIN'].includes(r)) data.role = r as any;
   }
   let commissionLogNeeded = false; let oldCommission = current.commissionPercent as any; let newCommission: number | null | undefined = undefined; const effectiveRole = (data.role ?? current.role) as string;
   if (commission !== null && effectiveRole === 'VENDEDOR') { const num = String(commission).length ? parseFloat(String(commission)) : null; data.commissionPercent = (num === null ? null : (num as any)); newCommission = num; commissionLogNeeded = true; }

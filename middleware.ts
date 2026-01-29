@@ -56,6 +56,12 @@ export default withAuth(
       } else {
         return NextResponse.rewrite(new URL("/auth/login?message=You Are Not Authorized!", req.url));
       }
+    } else if (req.nextUrl.pathname.startsWith("/dashboard/supervisor")) {
+      if (role === "SUPERVISOR_PROYECTOS") {
+        // permitido
+      } else {
+        return NextResponse.rewrite(new URL("/auth/login?message=You Are Not Authorized!", req.url));
+      }
     } else if (
       req.nextUrl.pathname.startsWith("/dashboard/admin") &&
       role !== "ADMIN"
@@ -91,4 +97,4 @@ export default withAuth(
   }
 );
 
-export const config = { matcher: ["/dashboard/admin/:path*", "/checkout/:path*", "/dashboard/cliente/:path*", "/dashboard/aliado/:path*", "/dashboard/delivery/:path*", "/dashboard/arquitecto/:path*"] };
+export const config = { matcher: ["/dashboard/admin/:path*", "/dashboard/supervisor/:path*", "/checkout/:path*", "/dashboard/cliente/:path*", "/dashboard/aliado/:path*", "/dashboard/delivery/:path*", "/dashboard/arquitecto/:path*"] };

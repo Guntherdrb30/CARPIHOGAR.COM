@@ -12,6 +12,11 @@ function requireAdmin(session: any) {
   if (role !== "ADMIN") throw new Error("Not authorized");
 }
 
+function requireProjectManager(session: any) {
+  const role = String(session?.user?.role || "");
+  if (role !== "ADMIN" && role !== "SUPERVISOR_PROYECTOS") throw new Error("Not authorized");
+}
+
 const toDecimal = (value: FormDataEntryValue | null, fallback = 0) => {
   const n = Number(String(value || "").trim());
   return Number.isFinite(n) ? n : fallback;
@@ -123,7 +128,7 @@ async function ensureInventoryEntriesForProject(projectId: string, purchaseOrder
 
 export async function getCarpentryProjects() {
   const session = await getServerSession(authOptions);
-  requireAdmin(session);
+  requireProjectManager(session);
   return prisma.carpentryProject.findMany({
     include: {
       files: true,
@@ -137,7 +142,7 @@ export async function getCarpentryProjects() {
 
 export async function getCarpentryProjectById(id: string) {
   const session = await getServerSession(authOptions);
-  requireAdmin(session);
+  requireProjectManager(session);
   const project = await prisma.carpentryProject.findUnique({
     where: { id },
     include: {
@@ -208,7 +213,7 @@ export async function getCarpentryTasks() {
 
 export async function createCarpentryProject(formData: FormData) {
   const session = await getServerSession(authOptions);
-  requireAdmin(session);
+  requireProjectManager(session);
   const name = String(formData.get("name") || "").trim();
   const clientName = String(formData.get("clientName") || "").trim() || null;
   const clientEmail = String(formData.get("clientEmail") || "").trim() || null;
@@ -309,7 +314,7 @@ export async function createCarpentryProject(formData: FormData) {
 
 export async function updateCarpentryProject(formData: FormData) {
   const session = await getServerSession(authOptions);
-  requireAdmin(session);
+  requireProjectManager(session);
   const id = String(formData.get("id") || "").trim();
   if (!id) throw new Error("Missing id");
   const name = String(formData.get("name") || "").trim();
@@ -365,7 +370,7 @@ export async function updateCarpentryProject(formData: FormData) {
 
 export async function deleteCarpentryProject(formData: FormData) {
   const session = await getServerSession(authOptions);
-  requireAdmin(session);
+  requireProjectManager(session);
   const id = String(formData.get("id") || "").trim();
   if (!id) throw new Error("Missing id");
   await prisma.carpentryProject.delete({ where: { id } });
