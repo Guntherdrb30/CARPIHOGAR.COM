@@ -1,4 +1,3 @@
-
 "use client";
 
 import { FormEvent, useState } from "react";
@@ -97,3 +96,5 @@ export default function SupportFileUploader({ projectId }: { projectId: string }
     </form>
   );
 }
+
+

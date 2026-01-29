@@ -1554,6 +1554,7 @@ model PayrollEmployee {
   carpentryProjectsAsSupervisor CarpentryProject[] @relation("ProjectSupervisor")
   productionOrdersAsCarpentryLead ProductionOrder[] @relation("ProductionCarpenter")
   productionOrdersAsSupervisor ProductionOrder[] @relation("ProductionSupervisor")
+  materialListDeliveries CarpentryProjectMaterialList[] @relation("MaterialListReceiver")
 }
 
 model PayrollPayment {
