@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import ProofUploader from "@/components/admin/proof-uploader";
 import {
   createCarpentryProjectExpense,
+  createCarpentryProjectInventoryDelivery,
   createCarpentryProjectMaterialList,
   createCarpentryProjectPurchaseOrder,
   createCarpentryTask,
@@ -13,6 +14,9 @@ import {
 import type {
   CarpentryProject,
   CarpentryProjectExpense,
+  CarpentryProjectInventoryDelivery,
+  CarpentryProjectInventoryDeliveryItem,
+  CarpentryProjectInventoryEntry,
   CarpentryProjectMaterialList,
   CarpentryProjectPhase,
   CarpentryProjectPurchaseOrder,
@@ -30,6 +34,15 @@ type ProjectWithExtras = CarpentryProject & {
     deliveredBy?: PayrollEmployee | null;
   })[];
   purchaseOrders: (CarpentryProjectPurchaseOrder & { sale?: Order | null })[];
+  inventoryEntries: (CarpentryProjectInventoryEntry & {
+    purchaseOrder?: CarpentryProjectPurchaseOrder | null;
+  })[];
+  inventoryDeliveries: (CarpentryProjectInventoryDelivery & {
+    deliveredBy?: PayrollEmployee | null;
+    items: (CarpentryProjectInventoryDeliveryItem & {
+      entry?: CarpentryProjectInventoryEntry | null;
+    })[];
+  })[];
   expenses: CarpentryProjectExpense[];
   productionOrders: (ProductionOrder & { tasks?: { id: string; description: string; status: string }[] })[];
   tasks: (CarpentryTask & { employee: PayrollEmployee })[];
@@ -119,14 +132,21 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
   stageLabelMap["FABRICACION"] = stageLabelMap["FABRICACION"] || "Fabricación";
   stageLabelMap["INSTALACION"] = stageLabelMap["INSTALACION"] || "Instalación";
 
-  const materialDeliveries = [...(project.materialLists || [])].sort((a, b) => {
-    const aTime = a.deliveredAt ? new Date(a.deliveredAt).getTime() : new Date(a.uploadedAt).getTime();
-    const bTime = b.deliveredAt ? new Date(b.deliveredAt).getTime() : new Date(b.uploadedAt).getTime();
+  const inventoryEntries = project.inventoryEntries || [];
+  const inventoryDeliveries = [...(project.inventoryDeliveries || [])].sort((a, b) => {
+    const aTime = new Date(a.deliveredAt || a.createdAt).getTime();
+    const bTime = new Date(b.deliveredAt || b.createdAt).getTime();
     return bTime - aTime;
   });
   const purchaseOrders = project.purchaseOrders || [];
-  const totalPurchaseUSD = purchaseOrders.reduce((acc, order) => acc + Number(order.totalUSD || 0), 0);
-
+  const totalInventoryAcquired = inventoryEntries.reduce(
+    (acc, entry) => acc + Number(entry.unitPriceUSD || 0) * Number(entry.quantity || 0),
+    0,
+  );
+  const remainingInventoryValue = inventoryEntries.reduce(
+    (acc, entry) => acc + Number(entry.unitPriceUSD || 0) * Number(entry.remainingQuantity || 0),
+    0,
+  );
   const summaryContent = (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-[300px,1fr] gap-4">
@@ -646,27 +666,29 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
           </div>
         </div>
         <div className="space-y-4">
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3 text-sm">
             <div className="text-sm font-semibold">Entregas por fase</div>
-            {materialDeliveries.length ? (
+            {inventoryDeliveries.length ? (
               <div className="space-y-3 text-sm text-gray-600">
-                {materialDeliveries.map((list) => (
-                  <div key={list.id} className="rounded border border-gray-100 p-3 space-y-1">
+                {inventoryDeliveries.map((delivery) => (
+                  <div key={delivery.id} className="rounded border border-gray-100 p-3 space-y-1">
                     <div className="flex items-center justify-between">
-                      <div className="font-semibold">{list.name}</div>
+                      <div className="font-semibold">Entrega #{delivery.id.slice(0, 6)}</div>
                       <span className="text-[11px] text-gray-500 uppercase tracking-[0.2em]">
-                        {stageLabelMap[list.phase || "FABRICACION"] || "Inventario"}
+                        {stageLabelMap[delivery.phase || "FABRICACION"] || "Inventario"}
                       </span>
                     </div>
-                    {list.description && (
-                      <div className="text-xs text-gray-500">{list.description}</div>
+                    {delivery.notes && (
+                      <div className="text-xs text-gray-500">{delivery.notes}</div>
                     )}
                     <div className="text-[11px] text-gray-500">
-                      Entregado: {formatDateShort(list.deliveredAt || list.uploadedAt)}
-                      {list.deliveredBy?.name ? ` · ${list.deliveredBy.name}` : ""}
+                      {formatDateShort(delivery.deliveredAt)}
+                      {delivery.deliveredBy?.name ? ` · ${delivery.deliveredBy.name}` : ""}
                     </div>
                     <div className="text-xs text-gray-600">
-                      {list.items?.map((item) => `${item.name} (${item.quantity})`).join(", ")}
+                      {delivery.items?.map(
+                        (item) => `${item.entry?.itemName || "Material"} (${item.quantity})`,
+                      ).join(", ")}
                     </div>
                   </div>
                 ))}
@@ -675,13 +697,12 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
               <div className="text-xs text-gray-500">Aún no hay entregas registradas.</div>
             )}
           </div>
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3 text-sm">
+          <div className="rounded-2xl border border-gray-200 bg-white p-3 space-y-3 text-xs">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm font-semibold">Inventario de compras</div>
-                <div className="text-xs text-gray-500">
-                  Total adquirido: ${totalPurchaseUSD.toFixed(2)}
-                </div>
+                <div className="text-xs text-gray-500">Total comprado: ${totalInventoryAcquired.toFixed(2)}</div>
+                <div className="text-xs text-gray-500">Valor restante: ${remainingInventoryValue.toFixed(2)}</div>
               </div>
               <a
                 href="/dashboard/admin/compras"
@@ -690,34 +711,111 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
                 Ver compras
               </a>
             </div>
-            {purchaseOrders.length ? (
-              <div className="overflow-x-auto">
-                <table className="w-full table-auto text-xs text-gray-600">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="px-2 py-1 text-left">OC</th>
-                      <th className="px-2 py-1 text-left">Total USD</th>
-                      <th className="px-2 py-1 text-left">Estado</th>
-                      <th className="px-2 py-1 text-left">Fecha</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {purchaseOrders.map((order) => (
-                      <tr key={order.id} className="border-t">
-                        <td className="px-2 py-1 text-xs">{order.id.slice(-6)}</td>
-                        <td className="px-2 py-1">${Number(order.totalUSD).toFixed(2)}</td>
-                        <td className="px-2 py-1">{order.status}</td>
-                        <td className="px-2 py-1 text-xs">
-                          {formatDateShort(order.createdAt)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {inventoryEntries.length ? (
+              <div className="space-y-2">
+                {inventoryEntries.map((entry) => (
+                  <div key={entry.id} className="flex items-center justify-between border-b pb-2 last:border-0">
+                    <div>
+                      <div className="font-semibold text-gray-800">{entry.itemName}</div>
+                      <div className="text-[11px] text-gray-500">
+                        OC {entry.purchaseOrder?.id ? entry.purchaseOrder.id.slice(-6) : "------"} · {Number(entry.remainingQuantity || 0)}/
+                        {Number(entry.quantity || 0)} disponibles
+                      </div>
+                    </div>
+                    <div className="text-right text-xs text-gray-500">
+                      ${Number(entry.unitPriceUSD || 0).toFixed(2)}
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
-              <div className="text-xs text-gray-500">Sin compras registradas.</div>
+              <div className="text-xs text-gray-500">No hay inventario sincronizado.</div>
             )}
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-3 space-y-3 text-sm">
+            <div className="text-sm font-semibold">Registrar entrega</div>
+            <form action={createCarpentryProjectInventoryDelivery} className="space-y-3 text-sm">
+              <input type="hidden" name="projectId" value={project.id} />
+              <div className="space-y-2">
+                <label className="text-xs text-gray-500">Orden vinculada</label>
+                <select name="purchaseOrderId" className="w-full border rounded px-3 py-2 text-sm" required>
+                  <option value="">Selecciona una orden con inventario</option>
+                  {purchaseOrders
+                    .filter((order) => inventoryEntries.some((entry) => entry.purchaseOrderId === order.id))
+                    .map((order) => (
+                      <option key={order.id} value={order.id}>
+                        OC {order.id.slice(-6)} · ${Number(order.totalUSD || 0).toFixed(2)}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500">Fase</label>
+                  <select name="phase" className="w-full border rounded px-3 py-2 text-sm">
+                    <option value="">Fase (opcional)</option>
+                    {stageDefinitions.map((stage) => (
+                      <option key={stage.key} value={stage.key}>
+                        {stage.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">Responsable</label>
+                  <select name="deliveredById" className="w-full border rounded px-3 py-2 text-sm">
+                    <option value="">Responsable (opcional)</option>
+                    {employees.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-2 text-xs text-gray-600">
+                <div className="font-semibold text-gray-800">Materiales disponibles</div>
+                {inventoryEntries.length ? (
+                  inventoryEntries.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="flex flex-wrap items-center justify-between gap-2 border-b pb-2 last:border-0"
+                    >
+                      <div className="flex-1 min-w-0 text-xs">
+                        <div className="font-semibold text-gray-800">{entry.itemName}</div>
+                        <div className="text-[11px] text-gray-500">
+                          OC {entry.purchaseOrder?.id ? entry.purchaseOrder.id.slice(-6) : "------"} · {Number(entry.remainingQuantity || 0)}/
+                          {Number(entry.quantity || 0)} disponibles
+                        </div>
+                      </div>
+                      <input
+                        type="number"
+                        name={`entry_${entry.id}`}
+                        min="0"
+                        max={Number(entry.remainingQuantity || 0)}
+                        placeholder="Cant."
+                        className="w-20 border rounded px-2 py-1 text-xs"
+                        disabled={!Number(entry.remainingQuantity || 0)}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-xs text-gray-500">Sin inventario sincronizado.</div>
+                )}
+              </div>
+              <textarea
+                name="notes"
+                rows={3}
+                className="w-full rounded border px-3 py-2 text-sm"
+                placeholder="Notas adicionales (fase, comprobante, etc.)"
+              />
+              <button
+                type="submit"
+                className="w-full rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                Registrar entrega
+              </button>
+            </form>
           </div>
         </div>
       </div>
@@ -771,7 +869,16 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
       default:
         return summaryContent;
     }
-  }, [activeTab, summaryContent, documentContent, purchaseContent, expensesContent, productionContent, financeContent]);
+  }, [
+    activeTab,
+    summaryContent,
+    documentContent,
+    purchaseContent,
+    expensesContent,
+    productionContent,
+    advancesContent,
+    financeContent,
+  ]);
 
   return (
     <div className="mt-6 space-y-4">

@@ -161,22 +161,22 @@ model User {
   portfolioText     String?
 
   // Ally content relations
-  news             News[]          @relation("UserNews")
-  allyProjects     AllyProject[]   @relation("UserAllyProjects")
-  createdAt        DateTime        @default(now())
-  addresses        Address[]
-  orders           Order[]         @relation("OrderCustomer")
-  sellerOrders     Order[]         @relation("OrderSeller")
-  reviewedOrders   Order[]         @relation("OrderReviewedBy")
-  commissions      Commission[]
-  commissionPayments CommissionPayment[] @relation("CommissionPaymentSeller")
+  news                      News[]              @relation("UserNews")
+  allyProjects              AllyProject[]       @relation("UserAllyProjects")
+  createdAt                 DateTime            @default(now())
+  addresses                 Address[]
+  orders                    Order[]             @relation("OrderCustomer")
+  sellerOrders              Order[]             @relation("OrderSeller")
+  reviewedOrders            Order[]             @relation("OrderReviewedBy")
+  commissions               Commission[]
+  commissionPayments        CommissionPayment[] @relation("CommissionPaymentSeller")
   commissionPaymentsCreated CommissionPayment[] @relation("CommissionPaymentCreatedBy")
-  quotes           Quote[]         @relation("QuoteCustomer")
-  quotesAsSeller   Quote[]         @relation("QuoteSeller")
-  createdPOs       PurchaseOrder[] @relation("POCreator")
-  receivedPOs      PurchaseOrder[] @relation("POReceiver")
-  wishlistItems    WishlistItem[]
-  createdPurchases Purchase[]      @relation("PurchaseCreatedBy")
+  quotes                    Quote[]             @relation("QuoteCustomer")
+  quotesAsSeller            Quote[]             @relation("QuoteSeller")
+  createdPOs                PurchaseOrder[]     @relation("POCreator")
+  receivedPOs               PurchaseOrder[]     @relation("POReceiver")
+  wishlistItems             WishlistItem[]
+  createdPurchases          Purchase[]          @relation("PurchaseCreatedBy")
 
   // Delivery assignments (for DELIVERY role)
   deliveriesAssigned Shipping[] @relation("DeliveryAssignee")
@@ -192,18 +192,18 @@ model User {
   pushSubscriptions PushSubscription[]
 
   // Moodboards creados por el usuario
-  moodboards  Moodboard[]
+  moodboards             Moodboard[]
   // Diseños personalizados del configurador ECPD
-  ecpdDesigns EcpdDesign[]
-  kitchenDesigns KitchenDesign[]
+  ecpdDesigns            EcpdDesign[]
+  kitchenDesigns         KitchenDesign[]
   adminSettingsAuditLogs AdminSettingsAuditLog[]
-  designProjectsAssigned DesignProject[] @relation("DesignProjectArchitect")
-  designProjectsCreated  DesignProject[] @relation("DesignProjectCreatedBy")
-  designTasksAssigned    DesignProjectTask[] @relation("DesignTaskAssignee")
-  designTasksCreated     DesignProjectTask[] @relation("DesignTaskCreatedBy")
-  designUpdatesCreated   DesignProjectUpdate[] @relation("DesignProjectUpdateAuthor")
-  designPaymentsCreated  DesignProjectPayment[] @relation("DesignProjectPaymentCreatedBy")
-  designRendersCreated   DesignProjectRender[] @relation("DesignProjectRenderCreatedBy")
+  designProjectsAssigned DesignProject[]         @relation("DesignProjectArchitect")
+  designProjectsCreated  DesignProject[]         @relation("DesignProjectCreatedBy")
+  designTasksAssigned    DesignProjectTask[]     @relation("DesignTaskAssignee")
+  designTasksCreated     DesignProjectTask[]     @relation("DesignTaskCreatedBy")
+  designUpdatesCreated   DesignProjectUpdate[]   @relation("DesignProjectUpdateAuthor")
+  designPaymentsCreated  DesignProjectPayment[]  @relation("DesignProjectPaymentCreatedBy")
+  designRendersCreated   DesignProjectRender[]   @relation("DesignProjectRenderCreatedBy")
 
   passwordResetToken          String?   @unique
   passwordResetTokenExpiresAt DateTime?
@@ -240,57 +240,57 @@ model User {
   deliverySignedContractUrl String?
 
   // Sucursal a la que pertenece el usuario (para controlar ventas y entregas por sucursal)
-  branchId        String?
-  branch          Branch?          @relation(fields: [branchId], references: [id])
-  rootSecretSales RootSecretSale[] @relation("RootSecretSalesCreated")
-  saleHoldsCreated SaleHold[] @relation("SaleHoldCreatedBy")
-  saleHoldsAsSeller SaleHold[] @relation("SaleHoldSeller")
+  branchId          String?
+  branch            Branch?          @relation(fields: [branchId], references: [id])
+  rootSecretSales   RootSecretSale[] @relation("RootSecretSalesCreated")
+  saleHoldsCreated  SaleHold[]       @relation("SaleHoldCreatedBy")
+  saleHoldsAsSeller SaleHold[]       @relation("SaleHoldSeller")
 }
 
 model DesignProject {
-  id           String              @id @default(cuid())
-  name         String
-  clientName   String
-  location     String
-  architectId  String?
-  architect    User?               @relation("DesignProjectArchitect", fields: [architectId], references: [id])
-  priority     Int                 @default(5)
-  startDate    DateTime?
-  dueDate      DateTime?
-  designTotalUSD Decimal?          @db.Decimal(12, 2)
-  status       DesignProjectStatus @default(NUEVO)
-  stage        DesignProjectStage  @default(BRIEFING)
-  description  String?
+  id                  String                 @id @default(cuid())
+  name                String
+  clientName          String
+  location            String
+  architectId         String?
+  architect           User?                  @relation("DesignProjectArchitect", fields: [architectId], references: [id])
+  priority            Int                    @default(5)
+  startDate           DateTime?
+  dueDate             DateTime?
+  designTotalUSD      Decimal?               @db.Decimal(12, 2)
+  status              DesignProjectStatus    @default(NUEVO)
+  stage               DesignProjectStage     @default(BRIEFING)
+  description         String?
   initialMeasurements String?
-  referenceImages String[]         @default([])
-  createdById  String?
-  createdBy    User?               @relation("DesignProjectCreatedBy", fields: [createdById], references: [id])
-  tasks        DesignProjectTask[]
-  updates      DesignProjectUpdate[]
-  payments     DesignProjectPayment[]
-  renders      DesignProjectRender[]
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  referenceImages     String[]               @default([])
+  createdById         String?
+  createdBy           User?                  @relation("DesignProjectCreatedBy", fields: [createdById], references: [id])
+  tasks               DesignProjectTask[]
+  updates             DesignProjectUpdate[]
+  payments            DesignProjectPayment[]
+  renders             DesignProjectRender[]
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
 
   @@index([architectId, status])
   @@index([status, dueDate])
 }
 
 model DesignProjectTask {
-  id            String            @id @default(cuid())
-  projectId     String
-  project       DesignProject     @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  title         String
-  assignedToId  String?
-  assignedTo    User?             @relation("DesignTaskAssignee", fields: [assignedToId], references: [id])
-  dueDate       DateTime?
-  priority      Int               @default(5)
-  status        DesignTaskStatus  @default(PENDIENTE)
-  comments      String?
-  createdById   String?
-  createdBy     User?             @relation("DesignTaskCreatedBy", fields: [createdById], references: [id])
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id           String           @id @default(cuid())
+  projectId    String
+  project      DesignProject    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title        String
+  assignedToId String?
+  assignedTo   User?            @relation("DesignTaskAssignee", fields: [assignedToId], references: [id])
+  dueDate      DateTime?
+  priority     Int              @default(5)
+  status       DesignTaskStatus @default(PENDIENTE)
+  comments     String?
+  createdById  String?
+  createdBy    User?            @relation("DesignTaskCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
   @@index([projectId, status])
   @@index([assignedToId, dueDate])
@@ -310,17 +310,17 @@ model DesignProjectUpdate {
 }
 
 model DesignProjectPayment {
-  id          String        @id @default(cuid())
+  id          String         @id @default(cuid())
   projectId   String
-  project     DesignProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  amountUSD   Decimal       @db.Decimal(12, 2)
+  project     DesignProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  amountUSD   Decimal        @db.Decimal(12, 2)
   paidAt      DateTime
   method      PaymentMethod?
   reference   String?
   fileUrl     String?
   createdById String?
-  createdBy   User?         @relation("DesignProjectPaymentCreatedBy", fields: [createdById], references: [id])
-  createdAt   DateTime      @default(now())
+  createdBy   User?          @relation("DesignProjectPaymentCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime       @default(now())
 
   @@index([projectId, paidAt])
 }
@@ -340,55 +340,55 @@ model DesignProjectRender {
 }
 
 model SiteSettings {
-  id                           Int       @id @default(1)
-  brandName                    String    @default("Carpihogar.ai")
-  whatsappPhone                String
-  contactPhone                 String
-  contactEmail                 String
-  ivaPercent                   Decimal   @default(16) @db.Decimal(5, 2)
-  tasaVES                      Decimal   @default(40) @db.Decimal(10, 2)
-  primaryColor                 String?
-  secondaryColor               String?
-  logoUrl                      String?
-  homeHeroUrls                 String[]
+  id                               Int       @id @default(1)
+  brandName                        String    @default("Carpihogar.ai")
+  whatsappPhone                    String
+  contactPhone                     String
+  contactEmail                     String
+  ivaPercent                       Decimal   @default(16) @db.Decimal(5, 2)
+  tasaVES                          Decimal   @default(40) @db.Decimal(10, 2)
+  primaryColor                     String?
+  secondaryColor                   String?
+  logoUrl                          String?
+  homeHeroUrls                     String[]
   // Hero específico para la experiencia de moodboard
-  moodboardHeroUrls            String[]
+  moodboardHeroUrls                String[]
   // Mini hero para el personalizador de muebles (ECPD)
-  ecpdHeroUrls                 String[]
+  ecpdHeroUrls                     String[]
   // Paleta de colores para el personalizador (JSON con nombre, imagen, descripcion)
-  ecpdColors                   Json?
-  heroAutoplayMs               Int?
-  lowStockThreshold            Int       @default(5)
-  slaWarningDays               Decimal?  @default(7) @db.Decimal(6, 2)
-  slaCriticalOverdueDays       Decimal?  @default(3) @db.Decimal(6, 2)
-  sellerCommissionPercent      Decimal   @default(5) @db.Decimal(5, 2)
-  deleteSecret                 String?
+  ecpdColors                       Json?
+  heroAutoplayMs                   Int?
+  lowStockThreshold                Int       @default(5)
+  slaWarningDays                   Decimal?  @default(7) @db.Decimal(6, 2)
+  slaCriticalOverdueDays           Decimal?  @default(3) @db.Decimal(6, 2)
+  sellerCommissionPercent          Decimal   @default(5) @db.Decimal(5, 2)
+  deleteSecret                     String?
   // Social handles for product buttons
-  instagramHandle              String?
-  tiktokHandle                 String?
+  instagramHandle                  String?
+  tiktokHandle                     String?
   // Background images for Featured Categories (Home)
-  categoryBannerCarpinteriaUrl String?
-  categoryBannerHogarUrl       String?
+  categoryBannerCarpinteriaUrl     String?
+  categoryBannerHogarUrl           String?
   // Root recovery and security settings (root-only)
-  rootPhone                    String?
-  rootRecoveryHash             String?
-  rootResetCode                String?
-  rootResetCodeExpiresAt       DateTime?
+  rootPhone                        String?
+  rootRecoveryHash                 String?
+  rootResetCode                    String?
+  rootResetCodeExpiresAt           DateTime?
   // Defaults for product margins (root configurable)
-  defaultMarginClientPct       Decimal?  @db.Decimal(5, 2)
-  defaultMarginAllyPct         Decimal?  @db.Decimal(5, 2)
-  defaultMarginWholesalePct    Decimal?  @db.Decimal(5, 2)
+  defaultMarginClientPct           Decimal?  @db.Decimal(5, 2)
+  defaultMarginAllyPct             Decimal?  @db.Decimal(5, 2)
+  defaultMarginWholesalePct        Decimal?  @db.Decimal(5, 2)
   // Motor de ajustes de precio (root-only)
-  globalPriceAdjustmentPercent   Decimal? @default(0) @db.Decimal(6, 2)
-  globalPriceAdjustmentEnabled   Boolean  @default(false)
-  priceAdjustmentUSDPercent      Decimal? @default(0) @db.Decimal(6, 2)
-  priceAdjustmentVESPercent      Decimal? @default(0) @db.Decimal(6, 2)
-  priceAdjustmentByCurrencyEnabled Boolean @default(false)
-  categoryPriceAdjustments        Json?
-  usdPaymentDiscountPercent       Decimal? @default(20) @db.Decimal(6, 2)
-  usdPaymentDiscountEnabled       Boolean  @default(true)
+  globalPriceAdjustmentPercent     Decimal?  @default(0) @db.Decimal(6, 2)
+  globalPriceAdjustmentEnabled     Boolean   @default(false)
+  priceAdjustmentUSDPercent        Decimal?  @default(0) @db.Decimal(6, 2)
+  priceAdjustmentVESPercent        Decimal?  @default(0) @db.Decimal(6, 2)
+  priceAdjustmentByCurrencyEnabled Boolean   @default(false)
+  categoryPriceAdjustments         Json?
+  usdPaymentDiscountPercent        Decimal?  @default(20) @db.Decimal(6, 2)
+  usdPaymentDiscountEnabled        Boolean   @default(true)
   // Bloqueo global de ventas en bolivares (root-only)
-  vesSalesDisabled                Boolean  @default(false)
+  vesSalesDisabled                 Boolean   @default(false)
 
   // Payment instructions (root-configurable)
   paymentZelleEmail       String?
@@ -431,78 +431,78 @@ model Category {
 }
 
 model Product {
-  id                String   @id @default(cuid())
-  name              String
-  slug              String   @unique
-  brand             String
-  description       String?
-  images            String[]
+  id                         String           @id @default(cuid())
+  name                       String
+  slug                       String           @unique
+  brand                      String
+  description                String?
+  images                     String[]
   // Optional product video (rendered last in gallery)
-  videoUrl          String?
+  videoUrl                   String?
   // Show Instagram/TikTok buttons in PDP
-  showSocialButtons Boolean  @default(false)
+  showSocialButtons          Boolean          @default(false)
   // Base catalog activation
-  isActive          Boolean  @default(true)
-  basePriceUsd      Decimal  @default(0) @db.Decimal(10, 2)
-  productFamily     ProductFamily @default(STANDARD)
-  kitchenCategory   KitchenCategory?
-  isVisibleInKitchenDesigner Boolean @default(false)
-  usableInQuickBudget Boolean @default(false)
-  usableInKitchenDesigner Boolean @default(false)
-  isParametric      Boolean  @default(false)
-  widthMm           Int?
-  heightMm          Int?
-  depthMm           Int?
-  widthMinMm        Int?
-  widthMaxMm        Int?
-  heightMinMm       Int?
-  heightMaxMm       Int?
-  parametricPricingFormula String?
+  isActive                   Boolean          @default(true)
+  basePriceUsd               Decimal          @default(0) @db.Decimal(10, 2)
+  productFamily              ProductFamily    @default(STANDARD)
+  kitchenCategory            KitchenCategory?
+  isVisibleInKitchenDesigner Boolean          @default(false)
+  usableInQuickBudget        Boolean          @default(false)
+  usableInKitchenDesigner    Boolean          @default(false)
+  isParametric               Boolean          @default(false)
+  widthMm                    Int?
+  heightMm                   Int?
+  depthMm                    Int?
+  widthMinMm                 Int?
+  widthMaxMm                 Int?
+  heightMinMm                Int?
+  heightMaxMm                Int?
+  parametricPricingFormula   String?
   // ECPD: marca si el producto tiene configurador de muebles asociado
-  isConfigurable    Boolean  @default(false)
+  isConfigurable             Boolean          @default(false)
   // ECPD: esquema JSON del configurador (dimensiones, componentes, etc.)
-  configSchema      Json?
-  sku               String?  @unique
+  configSchema               Json?
+  sku                        String?          @unique
   // Câ”œâ”‚digo interno opcional (puede venir de proveedor)
-  code              String?  @unique
-  supplierCode      String?
+  code                       String?          @unique
+  supplierCode               String?
   // Palabras clave SEO / búsqueda
-  keywords          String[] @default([])
+  keywords                   String[]         @default([])
   // Modelo y garantía
-  model             String?
-  guarantee         String?
+  model                      String?
+  guarantee                  String?
 
   // Tipo de producto (simple / agrupado / combo)
-  type               ProductType   @default(SIMPLE)
-  priceUSD           Decimal       @db.Decimal(10, 2)
-  priceAllyUSD       Decimal?      @db.Decimal(10, 2)
+  type                ProductType   @default(SIMPLE)
+  priceUSD            Decimal       @db.Decimal(10, 2)
+  priceAllyUSD        Decimal?      @db.Decimal(10, 2)
   // Nuevo: Precio mayorista (calculado)
-  priceWholesaleUSD  Decimal?      @db.Decimal(10, 2)
+  priceWholesaleUSD   Decimal?      @db.Decimal(10, 2)
   // Kitchen designer price tiers (optional, only for kitchen modules)
-  kitchenPriceLowUsd  Decimal?     @db.Decimal(10, 2)
-  kitchenPriceMidUsd  Decimal?     @db.Decimal(10, 2)
-  kitchenPriceHighUsd Decimal?     @db.Decimal(10, 2)
+  kitchenPriceLowUsd  Decimal?      @db.Decimal(10, 2)
+  kitchenPriceMidUsd  Decimal?      @db.Decimal(10, 2)
+  kitchenPriceHighUsd Decimal?      @db.Decimal(10, 2)
   // Nuevo: costos y mâ”œÃ­rgenes de referencia
-  costUSD            Decimal?      @db.Decimal(10, 2)
-  marginClientPct    Decimal?      @db.Decimal(5, 2)
-  marginAllyPct      Decimal?      @db.Decimal(5, 2)
-  marginWholesalePct Decimal?      @db.Decimal(5, 2)
+  costUSD             Decimal?      @db.Decimal(10, 2)
+  marginClientPct     Decimal?      @db.Decimal(5, 2)
+  marginAllyPct       Decimal?      @db.Decimal(5, 2)
+  marginWholesalePct  Decimal?      @db.Decimal(5, 2)
   // Nuevo: precios calculados explâ”œÂ¡citos (el priceUSD existente se usa como Cliente)
-  priceClientUSD     Decimal?      @db.Decimal(10, 2)
+  priceClientUSD      Decimal?      @db.Decimal(10, 2)
   // Inventario principal
-  stock              Int           @default(0)
+  stock               Int           @default(0)
   // Stock en unidades (alias más explícito para stock)
-  stockUnits         Int           @default(0)
+  stockUnits          Int           @default(0)
   // Stock mínimo recomendado
-  stockMinUnits      Int           @default(0)
+  stockMinUnits       Int           @default(0)
   // Permitir venta por pedido / backorder (solo ERP)
-  allowBackorder     Boolean       @default(false)
+  allowBackorder      Boolean       @default(false)
   // Permitir venta por unidad cuando es agrupado
-  allowUnitSale      Boolean       @default(true)
+  allowUnitSale       Boolean       @default(true)
   // Configuración para productos agrupados (cajas/paquetes)
-  unitsPerPackage    Int?
-  stockPackages      Int?
-  soldBy             ProductSoldBy @default(UNIT)
+  unitsPerPackage     Int?
+  stockPackages       Int?
+  soldBy              ProductSoldBy @default(UNIT)
 
   // Datos de envío / flete
   weightKg                Decimal? @db.Decimal(10, 3)
@@ -622,33 +622,33 @@ model Address {
 }
 
 model Order {
-  id                    String      @id @default(cuid())
+  id                    String             @id @default(cuid())
   userId                String
-  user                  User        @relation("OrderCustomer", fields: [userId], references: [id])
+  user                  User               @relation("OrderCustomer", fields: [userId], references: [id])
   sellerId              String?
-  seller                User?       @relation("OrderSeller", fields: [sellerId], references: [id])
+  seller                User?              @relation("OrderSeller", fields: [sellerId], references: [id])
   items                 OrderItem[]
-  subtotalUSD           Decimal     @db.Decimal(10, 2)
-  ivaPercent            Decimal     @db.Decimal(5, 2)
-  tasaVES               Decimal     @db.Decimal(10, 2)
-  totalUSD              Decimal     @db.Decimal(10, 2)
-  totalVES              Decimal     @db.Decimal(12, 2)
+  subtotalUSD           Decimal            @db.Decimal(10, 2)
+  ivaPercent            Decimal            @db.Decimal(5, 2)
+  tasaVES               Decimal            @db.Decimal(10, 2)
+  totalUSD              Decimal            @db.Decimal(10, 2)
+  totalVES              Decimal            @db.Decimal(12, 2)
   payment               Payment?
-  createdAt             DateTime    @default(now())
-  status                OrderStatus @default(PENDIENTE)
-  saleType              SaleType    @default(CONTADO)
+  createdAt             DateTime           @default(now())
+  status                OrderStatus        @default(PENDIENTE)
+  saleType              SaleType           @default(CONTADO)
   // Legal correlatives for receipts/invoices (assigned at first PDF generation)
   invoiceNumber         Int?
   receiptNumber         Int?
   // Origen de la venta (ONLINE = web, ERP = cargada por admin/aliado)
-  originChannel         String?     @default("ONLINE")
+  originChannel         String?            @default("ONLINE")
   // Control interno de revisión administrativa
   reviewedAt            DateTime?
   reviewedById          String?
-  reviewedBy            User?       @relation("OrderReviewedBy", fields: [reviewedById], references: [id])
+  reviewedBy            User?              @relation("OrderReviewedBy", fields: [reviewedById], references: [id])
   creditDueDate         DateTime?
   shippingAddressId     String?
-  shippingAddress       Address?    @relation(fields: [shippingAddressId], references: [id])
+  shippingAddress       Address?           @relation(fields: [shippingAddressId], references: [id])
   shipping              Shipping?
   commission            Commission?
   receivable            Receivable?
@@ -664,21 +664,21 @@ model Order {
 }
 
 model SaleHold {
-  id                     String   @id @default(cuid())
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-  createdById            String?
-  createdBy              User?    @relation("SaleHoldCreatedBy", fields: [createdById], references: [id])
-  sellerId               String?
-  seller                 User?    @relation("SaleHoldSeller", fields: [sellerId], references: [id])
-  customerName           String?
-  customerEmail          String?
-  customerPhone          String?
-  customerTaxId          String?
-  customerFiscalAddress  String?
-  items                  Json
-  meta                   Json?
-  totalUSD               Decimal? @db.Decimal(12, 2)
+  id                    String   @id @default(cuid())
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  createdById           String?
+  createdBy             User?    @relation("SaleHoldCreatedBy", fields: [createdById], references: [id])
+  sellerId              String?
+  seller                User?    @relation("SaleHoldSeller", fields: [sellerId], references: [id])
+  customerName          String?
+  customerEmail         String?
+  customerPhone         String?
+  customerTaxId         String?
+  customerFiscalAddress String?
+  items                 Json
+  meta                  Json?
+  totalUSD              Decimal? @db.Decimal(12, 2)
 
   @@index([createdById])
   @@index([sellerId])
@@ -762,20 +762,20 @@ model Commission {
 }
 
 model CommissionPayment {
-  id           String        @id @default(cuid())
-  sellerId     String
-  seller       User          @relation("CommissionPaymentSeller", fields: [sellerId], references: [id])
-  amount       Decimal       @db.Decimal(12, 2)
-  currency     Currency      @default(USD)
-  method       PaymentMethod
-  reference    String?
-  bankName     String?
-  paidAt       DateTime
-  paidByName   String?
-  proofUrl     String?
-  createdAt    DateTime      @default(now())
-  createdById  String?
-  createdBy    User?         @relation("CommissionPaymentCreatedBy", fields: [createdById], references: [id])
+  id          String        @id @default(cuid())
+  sellerId    String
+  seller      User          @relation("CommissionPaymentSeller", fields: [sellerId], references: [id])
+  amount      Decimal       @db.Decimal(12, 2)
+  currency    Currency      @default(USD)
+  method      PaymentMethod
+  reference   String?
+  bankName    String?
+  paidAt      DateTime
+  paidByName  String?
+  proofUrl    String?
+  createdAt   DateTime      @default(now())
+  createdById String?
+  createdBy   User?         @relation("CommissionPaymentCreatedBy", fields: [createdById], references: [id])
 
   @@index([sellerId, paidAt])
   @@index([reference])
@@ -854,15 +854,15 @@ model AuditLog {
 }
 
 model AdminSettingsAuditLog {
-  id               String   @id @default(cuid())
-  settingKey       String
-  oldValue         String?
-  newValue         String?
-  changedByUserId  String?
-  changedBy        User?    @relation(fields: [changedByUserId], references: [id])
-  changedAt        DateTime @default(now())
-  ipAddress        String?
-  userAgent        String?
+  id              String   @id @default(cuid())
+  settingKey      String
+  oldValue        String?
+  newValue        String?
+  changedByUserId String?
+  changedBy       User?    @relation(fields: [changedByUserId], references: [id])
+  changedAt       DateTime @default(now())
+  ipAddress       String?
+  userAgent       String?
 
   @@index([changedAt])
   @@index([settingKey])
@@ -1419,19 +1419,19 @@ model EcpdDesign {
 
 // Diseños guardados del creador de cocinas
 model KitchenDesign {
-  id            String              @id @default(cuid())
-  userId        String
-  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name          String
-  layoutType    KitchenLayoutType
-  status        KitchenDesignStatus @default(DRAFT)
-  totalPriceUsd Decimal             @default(0) @db.Decimal(12, 2)
-  planJson      Json?
-  modulesJson   Json?
-  budgetJson    Json?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  spaces        KitchenSpace[]
+  id             String              @id @default(cuid())
+  userId         String
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  layoutType     KitchenLayoutType
+  status         KitchenDesignStatus @default(DRAFT)
+  totalPriceUsd  Decimal             @default(0) @db.Decimal(12, 2)
+  planJson       Json?
+  modulesJson    Json?
+  budgetJson     Json?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  spaces         KitchenSpace[]
   kitchenModules KitchenModule[]
 
   @@index([userId, updatedAt])
@@ -1535,44 +1535,45 @@ model PushSubscription {
 
 // Nomina y pagos
 model PayrollEmployee {
-  id          String              @id @default(cuid())
-  name        String
-  role        String?
-  phone       String?
-  email       String?
-  type        PayrollEmployeeType @default(FIJA)
-  weeklySalaryUSD Decimal?        @db.Decimal(10, 2)
-  active      Boolean             @default(true)
-  notes       String?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  id              String              @id @default(cuid())
+  name            String
+  role            String?
+  phone           String?
+  email           String?
+  type            PayrollEmployeeType @default(FIJA)
+  weeklySalaryUSD Decimal?            @db.Decimal(10, 2)
+  active          Boolean             @default(true)
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
-  payments    PayrollPayment[]
-  carpentryTasks CarpentryTask[]
-  carpentryProjectsAsCarpenter CarpentryProject[] @relation("ProjectCarpenter")
-  carpentryProjectsAsArchitect CarpentryProject[] @relation("ProjectArchitect")
-  carpentryProjectsAsSupervisor CarpentryProject[] @relation("ProjectSupervisor")
-  productionOrdersAsCarpentryLead ProductionOrder[] @relation("ProductionCarpenter")
-  productionOrdersAsSupervisor ProductionOrder[] @relation("ProductionSupervisor")
-  materialListDeliveries CarpentryProjectMaterialList[] @relation("MaterialListReceiver")
+  payments                        PayrollPayment[]
+  carpentryTasks                  CarpentryTask[]
+  carpentryProjectsAsCarpenter    CarpentryProject[]                  @relation("ProjectCarpenter")
+  carpentryProjectsAsArchitect    CarpentryProject[]                  @relation("ProjectArchitect")
+  carpentryProjectsAsSupervisor   CarpentryProject[]                  @relation("ProjectSupervisor")
+  productionOrdersAsCarpentryLead ProductionOrder[]                   @relation("ProductionCarpenter")
+  productionOrdersAsSupervisor    ProductionOrder[]                   @relation("ProductionSupervisor")
+  materialListDeliveries          CarpentryProjectMaterialList[]      @relation("MaterialListReceiver")
+  inventoryDeliveries             CarpentryProjectInventoryDelivery[] @relation("MaterialDeliveryReceiver")
 }
 
 model PayrollPayment {
-  id            String               @id @default(cuid())
-  employeeId    String?
-  employee      PayrollEmployee?     @relation(fields: [employeeId], references: [id], onDelete: SetNull)
-  category      PayrollPaymentCategory @default(OTRO)
-  amountUSD     Decimal              @db.Decimal(12, 2)
-  paidAt        DateTime             @default(now())
-  method        PaymentMethod?
-  reference     String?
-  description   String?
-  service       String?
-  createdAt     DateTime             @default(now())
+  id          String                 @id @default(cuid())
+  employeeId  String?
+  employee    PayrollEmployee?       @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  category    PayrollPaymentCategory @default(OTRO)
+  amountUSD   Decimal                @db.Decimal(12, 2)
+  paidAt      DateTime               @default(now())
+  method      PaymentMethod?
+  reference   String?
+  description String?
+  service     String?
+  createdAt   DateTime               @default(now())
 
-  projectId     String?
-  project       CarpentryProject?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  projectPhase  CarpentryProjectPhase?
+  projectId    String?
+  project      CarpentryProject?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  projectPhase CarpentryProjectPhase?
 
   @@index([employeeId])
   @@index([category, paidAt])
@@ -1581,43 +1582,45 @@ model PayrollPayment {
 
 // Proyectos de carpinteria
 model CarpentryProject {
-  id                 String                 @id @default(cuid())
-  name               String
-  clientName         String?
-  clientEmail        String?
-  clientPhone        String?
-  clientAddress      String?
-  clientCity         String?
-  clientState        String?
-  description        String?
-  totalAmountUSD     Decimal                @db.Decimal(12, 2)
-  initialPaymentUSD  Decimal?               @db.Decimal(12, 2)
-  laborCostUSD       Decimal?               @db.Decimal(12, 2)
-  fabricationPct     Decimal                @default(70) @db.Decimal(5, 2)
-  installationPct    Decimal                @default(30) @db.Decimal(5, 2)
-  fabricationPaidUSD Decimal                @default(0) @db.Decimal(12, 2)
-  installationPaidUSD Decimal               @default(0) @db.Decimal(12, 2)
-  status             CarpentryProjectStatus @default(ACTIVO)
-  startDate          DateTime?
-  endDate            DateTime?
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
+  id                  String                 @id @default(cuid())
+  name                String
+  clientName          String?
+  clientEmail         String?
+  clientPhone         String?
+  clientAddress       String?
+  clientCity          String?
+  clientState         String?
+  description         String?
+  totalAmountUSD      Decimal                @db.Decimal(12, 2)
+  initialPaymentUSD   Decimal?               @db.Decimal(12, 2)
+  laborCostUSD        Decimal?               @db.Decimal(12, 2)
+  fabricationPct      Decimal                @default(70) @db.Decimal(5, 2)
+  installationPct     Decimal                @default(30) @db.Decimal(5, 2)
+  fabricationPaidUSD  Decimal                @default(0) @db.Decimal(12, 2)
+  installationPaidUSD Decimal                @default(0) @db.Decimal(12, 2)
+  status              CarpentryProjectStatus @default(ACTIVO)
+  startDate           DateTime?
+  endDate             DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
 
-  carpenterId        String?
-  carpenter          PayrollEmployee?       @relation("ProjectCarpenter", fields: [carpenterId], references: [id], onDelete: SetNull)
-  architectId        String?
-  architect          PayrollEmployee?       @relation("ProjectArchitect", fields: [architectId], references: [id], onDelete: SetNull)
-  supervisorId       String?
-  supervisor         PayrollEmployee?       @relation("ProjectSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
+  carpenterId  String?
+  carpenter    PayrollEmployee? @relation("ProjectCarpenter", fields: [carpenterId], references: [id], onDelete: SetNull)
+  architectId  String?
+  architect    PayrollEmployee? @relation("ProjectArchitect", fields: [architectId], references: [id], onDelete: SetNull)
+  supervisorId String?
+  supervisor   PayrollEmployee? @relation("ProjectSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
 
-  files              CarpentryProjectFile[]
-  tasks              CarpentryTask[]
-  payments           PayrollPayment[]
-  clientPayments     CarpentryClientPayment[]
-  materialLists      CarpentryProjectMaterialList[]
-  purchaseOrders     CarpentryProjectPurchaseOrder[]
-  expenses           CarpentryProjectExpense[]
-  productionOrders   ProductionOrder[]
+  files               CarpentryProjectFile[]
+  tasks               CarpentryTask[]
+  payments            PayrollPayment[]
+  clientPayments      CarpentryClientPayment[]
+  materialLists       CarpentryProjectMaterialList[]
+  purchaseOrders      CarpentryProjectPurchaseOrder[]
+  expenses            CarpentryProjectExpense[]
+  productionOrders    ProductionOrder[]
+  inventoryEntries    CarpentryProjectInventoryEntry[]
+  inventoryDeliveries CarpentryProjectInventoryDelivery[]
 }
 
 model CarpentryProjectFile {
@@ -1634,89 +1637,144 @@ model CarpentryProjectFile {
 }
 
 model CarpentryProjectMaterialList {
-  id           String                 @id @default(cuid())
-  projectId    String
-  project      CarpentryProject       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name         String
-  description  String?
-  fileUrl      String
-  uploadedAt   DateTime               @default(now())
-  phase        CarpentryProjectPhase?
-  deliveredAt  DateTime?
+  id            String                     @id @default(cuid())
+  projectId     String
+  project       CarpentryProject           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  fileUrl       String
+  uploadedAt    DateTime                   @default(now())
+  phase         CarpentryProjectPhase?
+  deliveredAt   DateTime?
   deliveredById String?
-  deliveredBy  PayrollEmployee?       @relation("MaterialListReceiver", fields: [deliveredById], references: [id], onDelete: SetNull)
-  items        CarpentryProjectMaterial[]
+  deliveredBy   PayrollEmployee?           @relation("MaterialListReceiver", fields: [deliveredById], references: [id], onDelete: SetNull)
+  items         CarpentryProjectMaterial[]
 
   @@index([projectId])
 }
 
 model CarpentryProjectMaterial {
-  id            String  @id @default(cuid())
-  listId        String
-  list          CarpentryProjectMaterialList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  sku           String?
-  name          String
-  category      String?
-  unit          String?
-  quantity      Int     @default(0)
-  unitPriceUSD  Decimal @db.Decimal(12, 2)
+  id           String                       @id @default(cuid())
+  listId       String
+  list         CarpentryProjectMaterialList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  sku          String?
+  name         String
+  category     String?
+  unit         String?
+  quantity     Int                          @default(0)
+  unitPriceUSD Decimal                      @db.Decimal(12, 2)
 
   @@index([listId])
 }
 
 model CarpentryProjectPurchaseOrder {
-  id              String    @id @default(cuid())
-  projectId       String
-  project         CarpentryProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  saleId          String?
-  totalUSD        Decimal   @db.Decimal(12, 2)
-  status          ProjectPurchaseStatus @default(PENDING)
-  requiresSecret  Boolean   @default(false)
-  secretToken     String?
-  notes           String?
-  createdAt       DateTime  @default(now())
+  id                                String                              @id @default(cuid())
+  projectId                         String
+  project                           CarpentryProject                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  saleId                            String?
+  totalUSD                          Decimal                             @db.Decimal(12, 2)
+  status                            ProjectPurchaseStatus               @default(PENDING)
+  requiresSecret                    Boolean                             @default(false)
+  secretToken                       String?
+  notes                             String?
+  createdAt                         DateTime                            @default(now())
+  CarpentryProjectInventoryEntry    CarpentryProjectInventoryEntry[]
+  CarpentryProjectInventoryDelivery CarpentryProjectInventoryDelivery[]
 
   @@index([projectId])
 }
 
+model CarpentryProjectInventoryEntry {
+  id                String                        @id @default(cuid())
+  projectId         String
+  project           CarpentryProject              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  purchaseOrderId   String
+  purchaseOrder     CarpentryProjectPurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  orderId           String
+  orderItemId       String                        @unique
+  itemName          String
+  sku               String?
+  productId         String?
+  quantity          Int                           @default(0)
+  remainingQuantity Int                           @default(0)
+  unitPriceUSD      Decimal                       @db.Decimal(12, 2)
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
+
+  deliveryItems CarpentryProjectInventoryDeliveryItem[]
+
+  @@index([projectId])
+  @@index([purchaseOrderId])
+}
+
+model CarpentryProjectInventoryDelivery {
+  id              String                                  @id @default(cuid())
+  projectId       String
+  project         CarpentryProject                        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  purchaseOrderId String
+  purchaseOrder   CarpentryProjectPurchaseOrder           @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  phase           CarpentryProjectPhase?
+  notes           String?
+  deliveredAt     DateTime                                @default(now())
+  deliveredById   String?
+  deliveredBy     PayrollEmployee?                        @relation("MaterialDeliveryReceiver", fields: [deliveredById], references: [id], onDelete: SetNull)
+  items           CarpentryProjectInventoryDeliveryItem[]
+  createdAt       DateTime                                @default(now())
+
+  @@index([projectId])
+  @@index([purchaseOrderId])
+}
+
+model CarpentryProjectInventoryDeliveryItem {
+  id         String                            @id @default(cuid())
+  deliveryId String
+  delivery   CarpentryProjectInventoryDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  entryId    String
+  entry      CarpentryProjectInventoryEntry    @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  quantity   Int
+  createdAt  DateTime                          @default(now())
+
+  @@index([entryId])
+}
+
 model CarpentryProjectExpense {
-  id             String    @id @default(cuid())
-  projectId      String
-  project        CarpentryProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  provider       String
-  invoiceNumber  String?
-  description    String
-  expenseType    ExpenseType
-  date           DateTime
-  quantity       Int      @default(1)
-  unitCostUSD    Decimal  @db.Decimal(12, 2)
-  totalCostUSD   Decimal  @db.Decimal(12, 2)
-  receiptUrl     String?
-  createdById    String?
-  createdAt      DateTime @default(now())
+  id            String           @id @default(cuid())
+  projectId     String
+  project       CarpentryProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  provider      String
+  invoiceNumber String?
+  description   String
+  expenseType   ExpenseType
+  date          DateTime
+  quantity      Int              @default(1)
+  unitCostUSD   Decimal          @db.Decimal(12, 2)
+  totalCostUSD  Decimal          @db.Decimal(12, 2)
+  receiptUrl    String?
+  createdById   String?
+  createdAt     DateTime         @default(now())
 
   @@index([projectId])
 }
 
 model ProductionOrder {
-  id             String    @id @default(cuid())
-  projectId      String
-  project        CarpentryProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  number         String    @unique
+  id              String                 @id @default(cuid())
+  projectId       String
+  project         CarpentryProject       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  number          String                 @unique
   carpentryLeadId String?
-  carpentryLead  PayrollEmployee? @relation("ProductionCarpenter", fields: [carpentryLeadId], references: [id], onDelete: SetNull)
-  supervisorId   String?
-  supervisor     PayrollEmployee? @relation("ProductionSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
-  phase          CarpentryProjectPhase?
-  scheduledStart DateTime?
-  scheduledEnd   DateTime?
-  installDate    DateTime?
-  status         ProductionStatus @default(PLANNED)
-  progressPct    Decimal   @db.Decimal(5, 2) @default(0)
-  notes          String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  tasks          CarpentryTask[] @relation("ProductionTasks")
+  carpentryLead   PayrollEmployee?       @relation("ProductionCarpenter", fields: [carpentryLeadId], references: [id], onDelete: SetNull)
+  supervisorId    String?
+  supervisor      PayrollEmployee?       @relation("ProductionSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
+  phase           CarpentryProjectPhase?
+  scheduledStart  DateTime?
+  scheduledEnd    DateTime?
+  installDate     DateTime?
+  status          ProductionStatus       @default(PLANNED)
+  progressPct     Decimal                @default(0) @db.Decimal(5, 2)
+  notes           String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  tasks           CarpentryTask[]        @relation("ProductionTasks")
 
   @@index([projectId])
 }
@@ -1743,35 +1801,35 @@ enum ProductionStatus {
 }
 
 model CarpentryTask {
-  id          String                 @id @default(cuid())
-  employeeId  String
-  employee    PayrollEmployee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  projectId   String?
-  project     CarpentryProject?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  description String
-  workDate    DateTime               @default(now())
-  amountUSD   Decimal                @default(0) @db.Decimal(12, 2)
-  phase       CarpentryProjectPhase?
-  status      CarpentryTaskStatus    @default(PENDIENTE)
-  createdAt   DateTime               @default(now())
+  id                String                 @id @default(cuid())
+  employeeId        String
+  employee          PayrollEmployee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  projectId         String?
+  project           CarpentryProject?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  description       String
+  workDate          DateTime               @default(now())
+  amountUSD         Decimal                @default(0) @db.Decimal(12, 2)
+  phase             CarpentryProjectPhase?
+  status            CarpentryTaskStatus    @default(PENDIENTE)
+  createdAt         DateTime               @default(now())
   productionOrderId String?
-  productionOrder   ProductionOrder?  @relation("ProductionTasks", fields: [productionOrderId], references: [id], onDelete: SetNull)
+  productionOrder   ProductionOrder?       @relation("ProductionTasks", fields: [productionOrderId], references: [id], onDelete: SetNull)
 
   @@index([employeeId])
   @@index([projectId])
 }
 
 model CarpentryClientPayment {
-  id          String        @id @default(cuid())
-  projectId   String
-  project     CarpentryProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  amountUSD   Decimal       @db.Decimal(12, 2)
-  paidAt      DateTime      @default(now())
-  method      PaymentMethod?
-  reference   String?
-  notes       String?
-  proofUrl    String?
-  createdAt   DateTime      @default(now())
+  id        String           @id @default(cuid())
+  projectId String
+  project   CarpentryProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  amountUSD Decimal          @db.Decimal(12, 2)
+  paidAt    DateTime         @default(now())
+  method    PaymentMethod?
+  reference String?
+  notes     String?
+  proofUrl  String?
+  createdAt DateTime         @default(now())
 
   @@index([projectId])
   @@index([paidAt])

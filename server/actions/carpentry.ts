@@ -78,6 +78,49 @@ async function saveProjectFiles(
   );
 }
 
+async function createInventoryEntriesFromOrder(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  purchaseOrderId: string,
+  saleId: string | null
+) {
+  if (!saleId) return;
+  const order = await tx.order.findUnique({
+    where: { id: saleId },
+    include: { items: true },
+  });
+  if (!order?.items?.length) return;
+  for (const item of order.items) {
+    const existing = await tx.carpentryProjectInventoryEntry.findUnique({
+      where: { orderItemId: item.id },
+    });
+    if (existing) continue;
+    await tx.carpentryProjectInventoryEntry.create({
+      data: {
+        projectId,
+        purchaseOrderId,
+        orderId: saleId,
+        orderItemId: item.id,
+        itemName: item.name,
+        sku: null,
+        productId: item.productId,
+        quantity: item.quantity,
+        remainingQuantity: item.quantity,
+        unitPriceUSD: item.priceUSD as any,
+      },
+    });
+  }
+}
+
+async function ensureInventoryEntriesForProject(projectId: string, purchaseOrders: { id: string; saleId: string | null }[]) {
+  if (!purchaseOrders?.length) return;
+  await prisma.$transaction(async (tx) => {
+    for (const po of purchaseOrders) {
+      await createInventoryEntriesFromOrder(tx, projectId, po.id, po.saleId);
+    }
+  });
+}
+
 export async function getCarpentryProjects() {
   const session = await getServerSession(authOptions);
   requireAdmin(session);
@@ -117,7 +160,9 @@ export async function getCarpentryProjectById(id: string) {
     },
   });
   if (!project) return null;
-  const saleIds = project.purchaseOrders?.filter((po) => po.saleId).map((po) => po.saleId || "") || [];
+  const purchaseOrders = project.purchaseOrders || [];
+  await ensureInventoryEntriesForProject(project.id, purchaseOrders);
+  const saleIds = purchaseOrders.filter((po) => po.saleId).map((po) => po.saleId || "") || [];
   let saleMap = new Map<string, any>();
   if (saleIds.length) {
     const sales = await prisma.order.findMany({
@@ -126,14 +171,28 @@ export async function getCarpentryProjectById(id: string) {
     });
     saleMap = new Map(sales.map((sale) => [sale.id, sale]));
   }
-  const enrichedPurchaseOrders = project.purchaseOrders.map((po) => ({
+  const enrichedPurchaseOrders = purchaseOrders.map((po) => ({
     ...po,
     sale: po.saleId ? saleMap.get(po.saleId) || null : null,
   }));
+  const inventoryEntries = await prisma.carpentryProjectInventoryEntry.findMany({
+    where: { projectId: project.id },
+    include: { purchaseOrder: true },
+  });
+  const inventoryDeliveries = await prisma.carpentryProjectInventoryDelivery.findMany({
+    where: { projectId: project.id },
+    include: {
+      deliveredBy: true,
+      items: { include: { entry: true } },
+    },
+    orderBy: { deliveredAt: "desc" },
+  });
 
   return {
     ...project,
     purchaseOrders: enrichedPurchaseOrders,
+    inventoryEntries,
+    inventoryDeliveries,
   };
 }
 
@@ -622,16 +681,19 @@ export async function createCarpentryProjectPurchaseOrder(formData: FormData) {
   if (!projectId || totalUSD <= 0) {
     redirect("/dashboard/admin/carpinteria?error=Orden%20invalida");
   }
-  await prisma.carpentryProjectPurchaseOrder.create({
-    data: {
-      projectId,
-      saleId,
-      totalUSD: totalUSD as any,
-      status: normalizeEnum(purchaseStatusMap, statusRaw, purchaseStatusMap.PENDING),
-      requiresSecret: requireSecret,
-      secretToken,
-      notes,
-    },
+  await prisma.$transaction(async (tx) => {
+    const purchaseOrder = await tx.carpentryProjectPurchaseOrder.create({
+      data: {
+        projectId,
+        saleId,
+        totalUSD: totalUSD as any,
+        status: normalizeEnum(purchaseStatusMap, statusRaw, purchaseStatusMap.PENDING),
+        requiresSecret: requireSecret,
+        secretToken,
+        notes,
+      },
+    });
+    await createInventoryEntriesFromOrder(tx, projectId, purchaseOrder.id, saleId);
   });
   redirect(`/dashboard/admin/carpinteria/${projectId}?message=Orden%20de%20compra%20creada`);
 }
@@ -670,6 +732,76 @@ export async function createCarpentryProjectExpense(formData: FormData) {
     },
   });
   redirect(`/dashboard/admin/carpinteria/${projectId}?message=Gasto%20registrado`);
+}
+
+export async function createCarpentryProjectInventoryDelivery(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  const projectId = String(formData.get("projectId") || "").trim();
+  const purchaseOrderId = String(formData.get("purchaseOrderId") || "").trim();
+  const phaseRaw = String(formData.get("phase") || "").trim().toUpperCase();
+  const deliveredById = String(formData.get("deliveredById") || "").trim() || null;
+  const notes = String(formData.get("notes") || "").trim() || null;
+  const phaseValue = (Object.values(CarpentryProjectPhase) as string[]).includes(phaseRaw)
+    ? (phaseRaw as CarpentryProjectPhase)
+    : null;
+
+  const items: { entryId: string; quantity: number }[] = [];
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith("entry_")) continue;
+    const entryId = key.replace("entry_", "");
+    const qty = Number(String(value || "").trim());
+    if (Number.isFinite(qty) && qty > 0) {
+      items.push({ entryId, quantity: Math.round(qty) });
+    }
+  }
+
+  if (!projectId || !purchaseOrderId || !items.length) {
+    redirect(`/dashboard/admin/carpinteria/${projectId}?error=La%20entrega%20requiere%20una%20orden%20y%20al%20menos%20un%20material`);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const purchaseOrder = await tx.carpentryProjectPurchaseOrder.findUnique({
+      where: { id: purchaseOrderId },
+    });
+    if (!purchaseOrder || purchaseOrder.projectId !== projectId) {
+      throw new Error("Orden inválida");
+    }
+    const delivery = await tx.carpentryProjectInventoryDelivery.create({
+      data: {
+        projectId,
+        purchaseOrderId,
+        phase: phaseValue,
+        deliveredById,
+        notes,
+      },
+    });
+    for (const item of items) {
+      const entry = await tx.carpentryProjectInventoryEntry.findUnique({
+        where: { id: item.entryId },
+        select: { remainingQuantity: true, projectId: true },
+      });
+      if (!entry || entry.projectId !== projectId) {
+        throw new Error("Entrada de inventario inválida");
+      }
+      if (entry.remainingQuantity < item.quantity) {
+        throw new Error("Cantidad mayor que la existencia disponible");
+      }
+      await tx.carpentryProjectInventoryEntry.update({
+        where: { id: entry.id },
+        data: { remainingQuantity: entry.remainingQuantity - item.quantity },
+      });
+      await tx.carpentryProjectInventoryDeliveryItem.create({
+        data: {
+          deliveryId: delivery.id,
+          entryId: entry.id,
+          quantity: item.quantity,
+        },
+      });
+    }
+  });
+
+  redirect(`/dashboard/admin/carpinteria/${projectId}?message=Entrega%20registrada`);
 }
 
 export async function createProductionOrder(formData: FormData) {
