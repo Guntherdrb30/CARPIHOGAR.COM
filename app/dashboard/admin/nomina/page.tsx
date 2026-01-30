@@ -8,6 +8,7 @@ import {
   getPayrollEmployees,
   getPayrollPayments,
   updatePayrollEmployee,
+  updatePayrollPaymentDate,
 } from "@/server/actions/payroll";
 import { createCarpentryTask, getCarpentryProjects, getCarpentryTasks } from "@/server/actions/carpentry";
 import { getSettings } from "@/server/actions/settings";
@@ -54,6 +55,10 @@ export default async function NominaAdminPage({ searchParams }: { searchParams?:
   if ((session?.user as any)?.role !== "ADMIN") {
     redirect("/auth/login?callbackUrl=/dashboard/admin/nomina");
   }
+  const sessionUser = (session?.user as any) || {};
+  const userEmail = String(sessionUser.email || "").toLowerCase();
+  const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
+  const isRoot = sessionUser.role === "ADMIN" && userEmail === rootEmail;
   const sp = (await searchParams) || ({} as any);
   const message = sp.message ? decodeURIComponent(String(sp.message)) : "";
   const error = sp.error ? decodeURIComponent(String(sp.error)) : "";
@@ -189,17 +194,42 @@ export default async function NominaAdminPage({ searchParams }: { searchParams?:
                         </tr>
                       </thead>
                       <tbody>
-                        {week.payments.map((p) => (
-                          <tr key={`${week.key}-${p.id}`} className="border-b border-orange-100">
-                            <td className="px-2 py-1 text-xs text-gray-600">{formatFullDate(getPaymentDate(p) ?? new Date())}</td>
-                            <td className="px-2 py-1">{p.employee?.name || "-"}</td>
-                            <td className="px-2 py-1">{p.category || "-"}</td>
-                            <td className="px-2 py-1">{p.method || "-"}</td>
-                            <td className="px-2 py-1">{p.service || p.description || "-"}</td>
-                            <td className="px-2 py-1">{p.reference || "-"}</td>
-                            <td className="px-2 py-1 text-right font-semibold">{formatUSD(Number(p.amountUSD || 0))}</td>
-                          </tr>
-                        ))}
+                        {week.payments.map((p) => {
+                          const paymentDate = getPaymentDate(p) ?? new Date();
+                          const paymentIsoDate = paymentDate.toISOString().slice(0, 10);
+                          return (
+                            <tr key={`${week.key}-${p.id}`} className="border-b border-orange-100">
+                              <td className="px-2 py-1 text-xs text-gray-600">
+                                {formatFullDate(paymentDate)}
+                                {isRoot && (
+                                  <form action={updatePayrollPaymentDate} className="mt-1 flex flex-wrap gap-1 items-center">
+                                    <input type="hidden" name="paymentId" value={p.id} />
+                                    <input
+                                      name="paidAt"
+                                      type="date"
+                                      defaultValue={paymentIsoDate}
+                                      className="border px-2 py-0.5 text-xs rounded text-orange-700"
+                                    />
+                                    <button
+                                      type="submit"
+                                      className="text-xs bg-orange-600 text-white rounded px-2 py-0.5"
+                                    >
+                                      Editar
+                                    </button>
+                                  </form>
+                                )}
+                              </td>
+                              <td className="px-2 py-1">{p.employee?.name || "-"}</td>
+                              <td className="px-2 py-1">{p.category || "-"}</td>
+                              <td className="px-2 py-1">{p.method || "-"}</td>
+                              <td className="px-2 py-1">{p.service || p.description || "-"}</td>
+                              <td className="px-2 py-1">{p.reference || "-"}</td>
+                              <td className="px-2 py-1 text-right font-semibold">
+                                {formatUSD(Number(p.amountUSD || 0))}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                       <tfoot>
                         <tr className="text-sm font-semibold text-orange-700">

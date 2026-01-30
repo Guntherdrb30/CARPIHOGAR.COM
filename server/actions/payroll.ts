@@ -10,6 +10,24 @@ function requireAdmin(session: any) {
   if (role !== "ADMIN") throw new Error("Not authorized");
 }
 
+type SessionUser = {
+  id?: string;
+  email?: string;
+  role?: string;
+};
+
+async function requireRootSession() {
+  const session = await getServerSession(authOptions);
+  const user = (session?.user as SessionUser) || {};
+  const email = String(user.email || "").toLowerCase();
+  const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
+  const isRoot = user.role === "ADMIN" && email === rootEmail;
+  if (!isRoot) {
+    throw new Error("Not authorized");
+  }
+  return { session, user };
+}
+
 const toDecimal = (value: FormDataEntryValue | null, fallback = 0) => {
   const n = Number(String(value || "").trim());
   return Number.isFinite(n) ? n : fallback;
@@ -143,4 +161,23 @@ export async function createPayrollPayment(formData: FormData) {
     },
   });
   redirect("/dashboard/admin/nomina?message=Pago%20registrado");
+}
+
+export async function updatePayrollPaymentDate(formData: FormData) {
+  await requireRootSession();
+  const paymentId = String(formData.get("paymentId") || "").trim();
+  const paidAtRaw = String(formData.get("paidAt") || "").trim();
+  if (!paymentId) throw new Error("Missing paymentId");
+  if (!paidAtRaw) {
+    redirect("/dashboard/admin/nomina?error=Fecha%20requerida");
+  }
+  const paidAt = new Date(paidAtRaw);
+  if (Number.isNaN(paidAt.getTime())) {
+    redirect("/dashboard/admin/nomina?error=Fecha%20invalida");
+  }
+  await prisma.payrollPayment.update({
+    where: { id: paymentId },
+    data: { paidAt: paidAt as any },
+  });
+  redirect("/dashboard/admin/nomina?message=Fecha%20actualizada");
 }
