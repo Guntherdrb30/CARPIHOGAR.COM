@@ -47,13 +47,15 @@ export default async function AdminSettingsPage() {
             'use server';
             const slaWarningRaw = parseFloat(String(formData.get('slaWarningDays') || '7').replace(',', '.'));
             const slaCriticalRaw = parseFloat(String(formData.get('slaCriticalOverdueDays') || '3').replace(',', '.'));
+            const ecommerceRaw = Array.from(formData.getAll('ecommerceIvaEnabled') as string[]);
+            const ecommerceEnabled = ecommerceRaw.some((value) => value === 'true' || value === 'on' || value === '1');
             const data = {
                 brandName: formData.get('brandName') as string,
                 whatsappPhone: formData.get('whatsappPhone') as string,
                 contactPhone: formData.get('contactPhone') as string,
                 contactEmail: formData.get('contactEmail') as string,
                 ivaPercent: parseFloat(formData.get('ivaPercent') as string),
-                ecommerceIvaEnabled: isRoot ? formData.get('ecommerceIvaEnabled') : undefined,
+                ecommerceIvaEnabled: isRoot ? ecommerceEnabled : undefined,
                 primaryColor: (formData.get('primaryColor') as string) || undefined,
                 secondaryColor: (formData.get('secondaryColor') as string) || undefined,
                 logoUrl: (formData.get('logoUrl') as string) || undefined,
@@ -129,10 +131,12 @@ export default async function AdminSettingsPage() {
           </div>
           {isRoot && (
             <div className="mb-4">
+              <input type="hidden" name="ecommerceIvaEnabled" value="false" />
               <label className="flex items-center gap-2 text-gray-700">
                 <input
                   type="checkbox"
                   name="ecommerceIvaEnabled"
+                  value="true"
                   defaultChecked={Boolean((settings as any).ecommerceIvaEnabled ?? true)}
                   className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
