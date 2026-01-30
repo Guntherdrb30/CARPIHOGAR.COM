@@ -357,15 +357,10 @@ export default function RevisarPage() {
               <span>Base imponible:</span>
               <span>{formatUSD(taxableBaseUSD)}</span>
             </div>
-            <div className="flex justify-between">
-              <span>
-                IVA {ivaEnabled ? `(${settingsIvaPercent}%)` : `(desactivado, ${settingsIvaPercent}%)`}
-              </span>
-              <span>{formatUSD(iva)}</span>
-            </div>
-            {!ivaEnabled && (
-              <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded px-2 py-1 mt-1">
-                El IVA se ha desactivado temporalmente para ecommerce; solo aparece si confirms con factura desde el panel admin.
+            {ivaEnabled && (
+              <div className="flex justify-between">
+                <span>IVA ({settingsIvaPercent}%):</span>
+                <span>{formatUSD(iva)}</span>
               </div>
             )}
             <div className="flex justify-between font-bold">
