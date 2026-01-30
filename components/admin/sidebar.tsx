@@ -138,6 +138,7 @@ export default function AdminSidebar() {
       items: [
         { href: '/dashboard/admin/notificaciones', label: 'Notificaciones', badgeValue: incompleteProducts, badgeColor: 'amber' },
         { href: '/dashboard/admin/ventas/nueva', label: 'Nueva Venta' },
+        { href: '/dashboard/admin/presupuestos', label: 'Presupuestos' },
         { href: '/dashboard/admin/ventas', label: 'Ventas', badgeValue: salesPending, badgeColor: 'red' },
         { href: '/dashboard/admin/ventas/aliados', label: 'Ventas Aliados (verificar)', badgeValue: allyPending, badgeColor: 'red' },
         { href: '/dashboard/admin/usuarios', label: 'Usuarios', badgeValue: usersPending, badgeColor: 'red' },
