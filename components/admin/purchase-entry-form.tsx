@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import PurchasePreviewTable from "./purchase-preview-table";
+import PurchasePreviewTable, { type PaymentMode } from "./purchase-preview-table";
 
 type Supplier = {
   id: string;
@@ -47,9 +47,7 @@ export default function PurchaseEntryForm({
   );
   const [bankAccountId, setBankAccountId] = useState<string>("");
   const [paymentReference, setPaymentReference] = useState<string>("");
-  const [paymentMode, setPaymentMode] = useState<
-    "CONTADO" | "CREDITO_SIN_ABONO" | "CREDITO_CON_ABONO"
-  >("CONTADO");
+  const [paymentMode, setPaymentMode] = useState<PaymentMode>("CONTADO");
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
   const [paymentUploading, setPaymentUploading] = useState(false);
   const [paymentReceiptUrl, setPaymentReceiptUrl] = useState<string>("");
@@ -279,6 +277,7 @@ export default function PurchaseEntryForm({
           bankAccountId={bankAccountId || undefined}
           paymentReference={paymentReference || undefined}
           notes={notes || undefined}
+          paymentMode={paymentMode}
           defaultMargins={normalizedMargins}
         />
       </div>

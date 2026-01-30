@@ -16,6 +16,14 @@ type Margins = {
   wholesale: number;
 };
 
+export type PaymentMode = "CONTADO" | "CREDITO_SIN_ABONO" | "CREDITO_CON_ABONO";
+
+const PAYMENT_MODE_LABELS: Record<PaymentMode, string> = {
+  CONTADO: "Pago inmediato (pago completo)",
+  CREDITO_SIN_ABONO: "Crédito (sin abono inicial)",
+  CREDITO_CON_ABONO: "Pago parcial (crédito con abono inicial)",
+};
+
 type PurchaseRow = {
   id: string;
   productId?: string | null;
@@ -53,8 +61,7 @@ export default function PurchasePreviewTable({
   paymentReference,
   notes,
   defaultMargins,
-  paymentMode: paymentModeProp = "CONTADO",
-  onPaymentModeChange,
+  paymentMode = "CONTADO",
 }: {
   supplierId?: string;
   currency: "USD" | "VES";
@@ -68,10 +75,7 @@ export default function PurchasePreviewTable({
   paymentReference?: string;
   notes?: string;
   defaultMargins: Margins;
-  paymentMode?: "CONTADO" | "CREDITO_SIN_ABONO" | "CREDITO_CON_ABONO";
-  onPaymentModeChange?: (
-    mode: "CONTADO" | "CREDITO_SIN_ABONO" | "CREDITO_CON_ABONO",
-  ) => void;
+  paymentMode?: PaymentMode;
 }) {
   const rate = currency === "VES" ? Number(tasaVES || 0) : 1;
   const [rows, setRows] = useState<PurchaseRow[]>([]);
@@ -95,20 +99,6 @@ export default function PurchasePreviewTable({
   const [ivaPercent, setIvaPercent] = useState<number>(defaultIvaPercent || 16);
   const [ivaManual, setIvaManual] = useState<boolean>(false);
   const [ivaAmountCurrency, setIvaAmountCurrency] = useState<number>(0);
-  const [paymentMode, setPaymentMode] = useState<
-    "CONTADO" | "CREDITO_SIN_ABONO" | "CREDITO_CON_ABONO"
-  >(paymentModeProp);
-  useEffect(() => {
-    if (paymentModeProp !== paymentMode) {
-      setPaymentMode(paymentModeProp);
-    }
-  }, [paymentModeProp, paymentMode]);
-  const handlePaymentModeChange = (
-    mode: "CONTADO" | "CREDITO_SIN_ABONO" | "CREDITO_CON_ABONO",
-  ) => {
-    setPaymentMode(mode);
-    onPaymentModeChange?.(mode);
-  };
   const [paidAmountUSD, setPaidAmountUSD] = useState<number | "">("");
   const [igtfAmountManualUSD, setIgtfAmountManualUSD] = useState<number>(0);
 
@@ -995,38 +985,12 @@ export default function PurchasePreviewTable({
       <div className="border rounded p-3 bg-gray-50 space-y-3 text-sm">
         <div className="font-semibold">Condiciones de pago</div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div>
-            <div className="text-xs text-gray-600 mb-1">Tipo de pago</div>
-            <div className="space-y-1">
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="radio"
-                  name="paymentMode"
-                  checked={paymentMode === "CONTADO"}
-                  onChange={() => handlePaymentModeChange("CONTADO")}
-                />
-                <span>Pago inmediato (pago completo)</span>
-              </label>
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="radio"
-                  name="paymentMode"
-                  checked={paymentMode === "CREDITO_SIN_ABONO"}
-                  onChange={() => handlePaymentModeChange("CREDITO_SIN_ABONO")}
-                />
-                <span>Crédito (sin abono inicial)</span>
-              </label>
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="radio"
-                  name="paymentMode"
-                  checked={paymentMode === "CREDITO_CON_ABONO"}
-                  onChange={() => handlePaymentModeChange("CREDITO_CON_ABONO")}
-                />
-                <span>Crédito con abono inicial</span>
-              </label>
+            <div>
+              <div className="text-xs text-gray-600 mb-1">Tipo de pago</div>
+              <div className="text-sm font-medium text-gray-700">
+                {PAYMENT_MODE_LABELS[paymentMode]}
+              </div>
             </div>
-          </div>
 
           <div>
             <label className="text-xs text-gray-600">
