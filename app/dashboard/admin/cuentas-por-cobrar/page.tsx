@@ -232,6 +232,7 @@ export default async function CuentasPorCobrarPage({ searchParams }: { searchPar
               const phone = (o.user as any)?.phone as string | undefined;
               const msg = `Hola, le saludamos de ${(process.env.NEXT_PUBLIC_BRAND || 'Carpihogar')}. Orden ${o.id}. Saldo: $${saldoUSD.toFixed(2)}. ${vence ? 'Vence: '+new Date(vence).toLocaleDateString()+'. ' : ''}Agradecemos su pronto pago.`;
               const waHref = `https://api.whatsapp.com/send?${phone ? `phone=${encodeURIComponent(phone)}&` : ''}text=${encodeURIComponent(msg)}`;
+              const receiptHref = `/dashboard/admin/ventas/${o.id}/print?tipo=recibo`;
               return (
                 <tr key={o.id} className={`border-t align-top text-sm ${rowClass}`}>
                   <td className="px-3 py-2">{o.id.substring(0,8)}...</td>
@@ -300,7 +301,22 @@ export default async function CuentasPorCobrarPage({ searchParams }: { searchPar
                         </form>
                       )}
                       <a className="px-2 py-1 border rounded text-center" href={`/dashboard/admin/cuentas-por-cobrar/${o.id}`}>Ver cuenta por cobrar</a>
-                      <a className="px-2 py-1 border rounded text-center" href={`/dashboard/admin/ventas/${o.id}/print`} target="_blank">Imprimir</a>
+                      <a
+                        className="px-2 py-1 border rounded text-center"
+                        href={receiptHref}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Ver recibo
+                      </a>
+                      <a
+                        className="px-2 py-1 border rounded text-center"
+                        href={`/dashboard/admin/ventas/${o.id}/print`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Imprimir
+                      </a>
                     </div>
                   </td>
                 </tr>
