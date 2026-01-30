@@ -219,21 +219,21 @@ export default function QuoteForm({
     }
     if (!customerPhone.trim()) {
       e.preventDefault();
-      setError("El tel\u00e9fono del cliente es obligatorio.");
+      setError("El teléfono del cliente es obligatorio.");
       return;
     }
     if (addrMode === "saved") {
       if (!selectedAddressId) {
         e.preventDefault();
         setError(
-          "Selecciona una direcci\u00f3n guardada o crea una nueva."
+          "Selecciona una dirección guardada o crea una nueva."
         );
         return;
       }
     } else {
       if (!addrState || !addrCity || !addr1.trim()) {
         e.preventDefault();
-        setError("Completa Estado, Ciudad y Direcci\u00f3n.");
+        setError("Completa Estado, Ciudad y Dirección.");
         return;
       }
     }
@@ -310,7 +310,7 @@ export default function QuoteForm({
         </div>
         <div>
           <label className="block text-sm text-gray-700">
-            Tel\u00e9fono
+            Teléfono
           </label>
           <input
             name="customerPhone"
@@ -322,7 +322,7 @@ export default function QuoteForm({
         </div>
         <div>
           <label className="block text-sm text-gray-700">
-            C\u00e9dula / RIF
+            Cédula / RIF
           </label>
           <input
             name="customerTaxId"
@@ -334,7 +334,7 @@ export default function QuoteForm({
         </div>
         <div className="md:col-span-2">
           <label className="block text-sm text-gray-700">
-            Direcci\u00f3n fiscal
+            Dirección fiscal
           </label>
           <textarea
             name="customerFiscalAddress"
@@ -346,8 +346,8 @@ export default function QuoteForm({
         </div>
       </div>
 
-      <div className="bg-white p-3 rounded border">
-        <h3 className="font-semibold mb-2">Datos de env\u00edo</h3>
+        <div className="bg-white p-3 rounded border">
+        <h3 className="font-semibold mb-2">Datos de envío</h3>
         {savedAddresses.length > 0 && (
           <div className="mb-3">
             <div className="text-sm text-gray-700 mb-1">
@@ -388,8 +388,8 @@ export default function QuoteForm({
                     setSelectedAddressId("");
                   }}
                 />
-                <span className="text-sm text-gray-800">
-                  Nueva direcci\u00f3n
+              <span className="text-sm text-gray-800">
+                Nueva dirección
                 </span>
               </label>
             </div>
@@ -452,7 +452,7 @@ export default function QuoteForm({
           </div>
           <div className="md:col-span-2">
             <label className="block text-sm text-gray-700">
-              Direcci\u00f3n
+              Dirección
             </label>
             <input
               name="addr_address1"
@@ -495,7 +495,7 @@ export default function QuoteForm({
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Nombre, SKU o c\u00f3digo de barras"
+          placeholder="Nombre, SKU o código de barras"
           className="border rounded px-2 py-1 w-full"
         />
         {found.length > 0 && (
@@ -568,7 +568,7 @@ export default function QuoteForm({
         </div>
         <h3 className="font-semibold mb-2">Items del presupuesto</h3>
         {items.length === 0 && (
-          <div className="text-sm text-gray-500">Sin items a\u00fan</div>
+          <div className="text-sm text-gray-500">Sin ítems aún</div>
         )}
         {items.length > 0 && (
           <table className="w-full table-auto text-sm">
@@ -695,4 +695,3 @@ export default function QuoteForm({
     </form>
   );
 }
-
