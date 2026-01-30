@@ -67,7 +67,7 @@ La seguridad se aplica en `middleware.ts` y en acciones del servidor.
 
 ## Stack tecnico
 
-- Next.js (App Router), React, TailwindCSS.
+- Next.js(App Router), React, TailwindCSS.
 - NextAuth (credenciales + Google OAuth).
 - Prisma + PostgreSQL.
 - Nodemailer (SMTP).

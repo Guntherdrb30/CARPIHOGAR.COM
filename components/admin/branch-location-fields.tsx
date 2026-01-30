@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import L from "leaflet";
-import type { LeafletMouseEvent } from "leaflet";
+import type {
+  LeafletMouseEvent,
+  Map as LeafletMap,
+  Marker as LeafletMarker,
+} from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { venezuelaStates } from "@/lib/venezuela-regions";
 
+type LeafletModule = typeof import("leaflet");
+type LeafletImport = LeafletModule & { default?: LeafletModule };
 type Props = {
   defaultState?: string;
   defaultCity?: string;
@@ -34,8 +39,9 @@ export default function BranchLocationFields({
   );
   const [geocodeLoading, setGeocodeLoading] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const markerRef = useRef<L.Marker | null>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
+  const markerRef = useRef<LeafletMarker | null>(null);
+  const leafletRef = useRef<LeafletModule | null>(null);
 
   const cityOptions = useMemo(() => {
     const match = venezuelaStates.find(
@@ -53,32 +59,44 @@ export default function BranchLocationFields({
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (mapRef.current || !mapContainerRef.current) return;
-    const map = L.map(mapContainerRef.current).setView(
-      [Number(lat), Number(lng)],
-      13
-    );
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors",
-    }).addTo(map);
-    const marker = L.marker([Number(lat), Number(lng)], {
-      draggable: true,
-    }).addTo(map);
-    marker.on("dragend", (event) => {
-      const m = event.target as L.Marker;
-      const pos = m.getLatLng();
-      setLat(pos.lat.toFixed(6));
-      setLng(pos.lng.toFixed(6));
-    });
-    map.on("click", (event: LeafletMouseEvent) => {
-      const pos = event.latlng;
-      setLat(pos.lat.toFixed(6));
-      setLng(pos.lng.toFixed(6));
-    });
-    mapRef.current = map;
-    markerRef.current = marker;
+    let cancelled = false;
+
+    const initMap = async () => {
+      const module = (await import("leaflet")) as LeafletImport;
+      if (cancelled || !mapContainerRef.current) return;
+      const Leaflet = (module.default ?? module) as LeafletModule;
+      leafletRef.current = Leaflet;
+      const coords: [number, number] = [Number(lat), Number(lng)];
+      const map = Leaflet.map(mapContainerRef.current).setView(coords, 13);
+      Leaflet.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(map);
+      const marker = Leaflet.marker(coords, {
+        draggable: true,
+      }).addTo(map);
+      marker.on("dragend", (event) => {
+        const m = event.target as LeafletMarker;
+        const pos = m.getLatLng();
+        setLat(pos.lat.toFixed(6));
+        setLng(pos.lng.toFixed(6));
+      });
+      map.on("click", (event: LeafletMouseEvent) => {
+        const pos = event.latlng;
+        setLat(pos.lat.toFixed(6));
+        setLng(pos.lng.toFixed(6));
+      });
+      mapRef.current = map;
+      markerRef.current = marker;
+    };
+
+    initMap();
+
     return () => {
-      map.remove();
-      mapRef.current = null;
+      cancelled = true;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
       markerRef.current = null;
     };
   }, []);
@@ -86,11 +104,12 @@ export default function BranchLocationFields({
   useEffect(() => {
     const map = mapRef.current;
     const marker = markerRef.current;
-    if (!map || !marker) return;
+    const Leaflet = leafletRef.current;
+    if (!map || !marker || !Leaflet) return;
     const parsedLat = Number(lat);
     const parsedLng = Number(lng);
     if (!isFinite(parsedLat) || !isFinite(parsedLng)) return;
-    const nextPos = L.latLng(parsedLat, parsedLng);
+    const nextPos = Leaflet.latLng(parsedLat, parsedLng);
     marker.setLatLng(nextPos);
     map.panTo(nextPos);
   }, [lat, lng]);

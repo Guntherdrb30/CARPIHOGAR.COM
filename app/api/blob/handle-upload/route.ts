@@ -23,8 +23,10 @@ export async function POST(request: Request) {
     }
 
     const isRegistration = scope === 'registration';
+    const body = await request.json();
     const res = await handleUpload({
       request,
+      body,
       token,
       onBeforeGenerateToken: async () => {
         return {

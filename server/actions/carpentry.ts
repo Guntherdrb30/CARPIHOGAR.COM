@@ -132,9 +132,6 @@ export async function getCarpentryProjects() {
   return prisma.carpentryProject.findMany({
     include: {
       files: true,
-      carpenter: true,
-      architect: true,
-      supervisor: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -149,9 +146,6 @@ export async function getCarpentryProjectById(id: string) {
       files: true,
       tasks: { include: { employee: true }, orderBy: { workDate: "desc" } },
       clientPayments: { orderBy: { paidAt: "desc" } },
-      carpenter: true,
-      architect: true,
-      supervisor: true,
       materialLists: {
         include: { items: true, deliveredBy: true },
         orderBy: { uploadedAt: "desc" },
