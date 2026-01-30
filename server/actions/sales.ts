@@ -400,6 +400,7 @@ export async function deleteCreditSale(formData: FormData) {
       await tx.receivableEntry.deleteMany({ where: { receivableId: order.receivable.id } });
       await tx.receivable.delete({ where: { id: order.receivable.id } });
     }
+    await tx.orderItem.deleteMany({ where: { orderId: order.id } });
     await tx.order.delete({ where: { id: order.id } });
   });
   try { revalidatePath('/dashboard/admin/ventas'); } catch {}
