@@ -153,7 +153,7 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
 
         const settings = await prisma.siteSettings.findUnique({ where: { id: 1 } });
         const tasaVES = Number((settings as any)?.tasaVES || 40);
-        const ivaPercent = Number((settings as any)?.ivaPercent || 16);
+        const ivaPercent = 0;
         const vesSalesDisabled = Boolean((settings as any)?.vesSalesDisabled ?? false);
         if (vesSalesDisabled && String(paymentCurrency) === 'VES') {
             try { await prisma.auditLog.create({ data: { userId, action: 'CHECKOUT_PAYMENT_VALIDATION_FAILED', details: 'VES sales disabled' } }); } catch {}
@@ -301,6 +301,7 @@ export async function confirmOrderAction(_prevState: any, formData: FormData) {
                     tasaVES,
                     totalUSD,
                     totalVES,
+                    documentType: 'RECIBO' as any,
                     shippingAddressId: selectedAddress.id,
                     items: {
                         create: pricedItems.map((it) => ({
