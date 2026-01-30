@@ -9,6 +9,24 @@ import { redirect } from 'next/navigation';
 import { basicTemplate, sendMail, isEmailEnabled } from '@/lib/mailer';
 import { applyPriceAdjustments, applyUsdPaymentDiscount, getPriceAdjustmentSettings, toCurrencyCode } from '@/server/price-adjustments';
 
+type SessionUser = {
+  id?: string;
+  email?: string;
+  role?: string;
+};
+
+async function requireRootSession() {
+  const session = await getServerSession(authOptions);
+  const user = (session?.user as SessionUser) || {};
+  const email = String(user.email || '').toLowerCase();
+  const rootEmail = String(process.env.ROOT_EMAIL || 'root@carpihogar.com').toLowerCase();
+  const isRoot = user.role === 'ADMIN' && email === rootEmail;
+  if (!isRoot) {
+    throw new Error('Not authorized');
+  }
+  return { session, user };
+}
+
 export async function searchProducts(q: string) {
   const where: any = q ? { OR: [ { name: { contains: q, mode: 'insensitive' } }, { sku: { contains: q, mode: 'insensitive' } } ] } : {};
   const items = await prisma.product.findMany({
@@ -336,6 +354,57 @@ export async function markSaleReviewed(formData: FormData) {
       revalidatePath(`/dashboard/cliente/pedidos/${order.id}/print`);
     }
   } catch {}
+}
+
+export async function deleteCreditSale(formData: FormData) {
+  const { session } = await requireRootSession();
+  const orderId = String(formData.get('orderId') || '').trim();
+  if (!orderId) throw new Error('orderId requerido');
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      items: true,
+      payment: true,
+      receivable: { include: { entries: true } },
+    },
+  });
+  if (!order) throw new Error('Orden no encontrada');
+  const saleType = String(order.saleType || '').toUpperCase();
+  if (saleType !== 'CREDITO') throw new Error('Solo se pueden eliminar ventas a crédito');
+  if (order.payment) throw new Error('La venta ya tiene un pago registrado');
+  const status = String(order.status || '').toUpperCase();
+  if (status === 'PAGADO' || status === 'COMPLETADO') {
+    throw new Error('La venta ya fue confirmada');
+  }
+  await prisma.$transaction(async (tx) => {
+    for (const item of order.items || []) {
+      await tx.stockMovement.create({
+        data: {
+          productId: item.productId,
+          type: 'ENTRADA' as any,
+          quantity: Number(item.quantity),
+          reason: `SALE_DELETE ${order.id}`,
+          userId: (session?.user as any)?.id || null,
+        },
+      });
+      await tx.product.update({
+        where: { id: item.productId },
+        data: {
+          stock: { increment: Number(item.quantity) },
+          stockUnits: { increment: Number(item.quantity) } as any,
+        },
+      });
+    }
+    await tx.commission.deleteMany({ where: { orderId: order.id } });
+    if (order.receivable?.id) {
+      await tx.receivableEntry.deleteMany({ where: { receivableId: order.receivable.id } });
+      await tx.receivable.delete({ where: { id: order.receivable.id } });
+    }
+    await tx.order.delete({ where: { id: order.id } });
+  });
+  try { revalidatePath('/dashboard/admin/ventas'); } catch {}
+  try { revalidatePath('/dashboard/admin/cuentas-por-cobrar'); } catch {}
+  redirect(`/dashboard/admin/ventas?message=${encodeURIComponent('Venta eliminada')}`);
 }
 
 export async function getOrderById(id: string) {

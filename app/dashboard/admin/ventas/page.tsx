@@ -1,3 +1,5 @@
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import {
   getSales,
   getCommissions,
@@ -5,6 +7,7 @@ import {
   markCommissionPaid,
   markSaleReviewed,
   sendOrderWhatsAppPdfByForm,
+  deleteCreditSale,
 } from "@/server/actions/sales";
 import { getAllyPendingSalesCount } from "@/server/actions/ally-admin";
 
@@ -24,11 +27,16 @@ export default async function AdminSalesPage({
   const sp = ((await searchParams) || {}) as any;
   const sellerId = sp.sellerId || "";
   const message = sp.message || "";
-   const orderId = (sp.orderId || "") as string;
+  const orderId = (sp.orderId || "") as string;
   const docTypeParam = String(sp.docType || "").toLowerCase();
   const invoiceQ = String(sp.invoice || "").trim();
   const clienteQ = String(sp.cliente || "").trim();
   const rifQ = String(sp.rif || "").trim();
+  const session = await getServerSession(authOptions);
+  const user = (session?.user as any) || {};
+  const userEmail = String(user.email || "").toLowerCase();
+  const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
+  const isRoot = user.role === "ADMIN" && userEmail === rootEmail;
 
   const [orders, commissions, sellers] = await Promise.all([
     getSales({
@@ -207,6 +215,13 @@ export default async function AdminSalesPage({
                       : o.id
                       ? `Orden: ${String(o.id).slice(-6)}`
                       : "";
+                  const isCredit = String(o.saleType || "").toUpperCase() === "CREDITO";
+                  const statusValue = String(o.status || "").toUpperCase();
+                  const canDeleteCreditSale =
+                    isRoot &&
+                    isCredit &&
+                    !o.payment &&
+                    !["PAGADO", "COMPLETADO"].includes(statusValue);
 
                   return (
                     <tr key={o.id} className="border-t align-top">
@@ -370,6 +385,17 @@ export default async function AdminSalesPage({
                               ? "Marque la venta como revisada para ver soportes."
                               : "Sin documentos disponibles."}
                           </span>
+                        )}
+                        {canDeleteCreditSale && (
+                          <form action={deleteCreditSale} className="mt-2">
+                            <input type="hidden" name="orderId" value={o.id} />
+                            <button
+                              type="submit"
+                              className="px-2 py-0.5 border border-red-200 rounded text-xs text-red-700 bg-red-50 hover:bg-red-100"
+                            >
+                              Eliminar venta crédito
+                            </button>
+                          </form>
                         )}
                       </td>
                     </tr>
