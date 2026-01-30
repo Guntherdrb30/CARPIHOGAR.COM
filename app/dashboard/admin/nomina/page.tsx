@@ -9,6 +9,7 @@ import {
   getPayrollPayments,
   updatePayrollEmployee,
   updatePayrollPaymentDate,
+  deletePayrollPayment,
 } from "@/server/actions/payroll";
 import { createCarpentryTask, getCarpentryProjects, getCarpentryTasks } from "@/server/actions/carpentry";
 import { getSettings } from "@/server/actions/settings";
@@ -202,21 +203,32 @@ export default async function NominaAdminPage({ searchParams }: { searchParams?:
                               <td className="px-2 py-1 text-xs text-gray-600">
                                 {formatFullDate(paymentDate)}
                                 {isRoot && (
-                                  <form action={updatePayrollPaymentDate} className="mt-1 flex flex-wrap gap-1 items-center">
-                                    <input type="hidden" name="paymentId" value={p.id} />
-                                    <input
-                                      name="paidAt"
-                                      type="date"
-                                      defaultValue={paymentIsoDate}
-                                      className="border px-2 py-0.5 text-xs rounded text-orange-700"
-                                    />
-                                    <button
-                                      type="submit"
-                                      className="text-xs bg-orange-600 text-white rounded px-2 py-0.5"
-                                    >
-                                      Editar
-                                    </button>
-                                  </form>
+                                  <>
+                                    <form action={updatePayrollPaymentDate} className="mt-1 flex flex-wrap gap-1 items-center">
+                                      <input type="hidden" name="paymentId" value={p.id} />
+                                      <input
+                                        name="paidAt"
+                                        type="date"
+                                        defaultValue={paymentIsoDate}
+                                        className="border px-2 py-0.5 text-xs rounded text-orange-700"
+                                      />
+                                      <button
+                                        type="submit"
+                                        className="text-xs bg-orange-600 text-white rounded px-2 py-0.5"
+                                      >
+                                        Editar
+                                      </button>
+                                    </form>
+                                    <form action={deletePayrollPayment} className="mt-1">
+                                      <input type="hidden" name="paymentId" value={p.id} />
+                                      <button
+                                        type="submit"
+                                        className="text-xs bg-red-600 text-white rounded px-2 py-0.5"
+                                      >
+                                        Eliminar
+                                      </button>
+                                    </form>
+                                  </>
                                 )}
                               </td>
                               <td className="px-2 py-1">{p.employee?.name || "-"}</td>

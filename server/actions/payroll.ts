@@ -181,3 +181,11 @@ export async function updatePayrollPaymentDate(formData: FormData) {
   });
   redirect("/dashboard/admin/nomina?message=Fecha%20actualizada");
 }
+
+export async function deletePayrollPayment(formData: FormData) {
+  await requireRootSession();
+  const paymentId = String(formData.get("paymentId") || "").trim();
+  if (!paymentId) throw new Error("Missing paymentId");
+  await prisma.payrollPayment.delete({ where: { id: paymentId } });
+  redirect("/dashboard/admin/nomina?message=Pago%20eliminado");
+}
