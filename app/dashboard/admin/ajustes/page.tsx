@@ -53,6 +53,7 @@ export default async function AdminSettingsPage() {
                 contactPhone: formData.get('contactPhone') as string,
                 contactEmail: formData.get('contactEmail') as string,
                 ivaPercent: parseFloat(formData.get('ivaPercent') as string),
+                ecommerceIvaEnabled: isRoot ? formData.get('ecommerceIvaEnabled') : undefined,
                 primaryColor: (formData.get('primaryColor') as string) || undefined,
                 secondaryColor: (formData.get('secondaryColor') as string) || undefined,
                 logoUrl: (formData.get('logoUrl') as string) || undefined,
@@ -126,6 +127,23 @@ export default async function AdminSettingsPage() {
               className="w-full px-3 py-2 border rounded-lg"
             />
           </div>
+          {isRoot && (
+            <div className="mb-4">
+              <label className="flex items-center gap-2 text-gray-700">
+                <input
+                  type="checkbox"
+                  name="ecommerceIvaEnabled"
+                  defaultChecked={Boolean((settings as any).ecommerceIvaEnabled ?? true)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                Activar IVA en ecommerce (checkout)
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                Al desactivar esto, todas las compras desde el checkout se registran como recibo sin IVA. Solo el formulario de nueva venta
+                con documento tipo factura seguirá aplicándolo.
+              </p>
+            </div>
+          )}
           <div className="mb-4">
             <label className="block text-gray-700">Comisión Vendedor (%)</label>
             <input

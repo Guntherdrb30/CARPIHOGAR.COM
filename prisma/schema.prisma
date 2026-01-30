@@ -258,6 +258,7 @@ model SiteSettings {
   categoryPriceAdjustments         Json?
   usdPaymentDiscountPercent        Decimal?  @default(20) @db.Decimal(6, 2)
   usdPaymentDiscountEnabled        Boolean   @default(true)
+  ecommerceIvaEnabled             Boolean   @default(true)
   vesSalesDisabled                 Boolean   @default(false)
   slaWarningDays                   Decimal?  @default(7) @db.Decimal(6, 2)
   slaCriticalOverdueDays           Decimal?  @default(3) @db.Decimal(6, 2)

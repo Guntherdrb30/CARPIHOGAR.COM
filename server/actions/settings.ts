@@ -23,6 +23,7 @@ export async function ensureSiteSettingsColumns() {
         'ADD COLUMN IF NOT EXISTS "categoryPriceAdjustments" JSONB, ' +
         'ADD COLUMN IF NOT EXISTS "usdPaymentDiscountPercent" DECIMAL(6,2) DEFAULT 20, ' +
         'ADD COLUMN IF NOT EXISTS "usdPaymentDiscountEnabled" BOOLEAN NOT NULL DEFAULT true, ' +
+        'ADD COLUMN IF NOT EXISTS "ecommerceIvaEnabled" BOOLEAN NOT NULL DEFAULT true, ' +
         'ADD COLUMN IF NOT EXISTS "vesSalesDisabled" BOOLEAN NOT NULL DEFAULT false, ' +
         'ADD COLUMN IF NOT EXISTS "heroAutoplayMs" INTEGER, ' +
         'ADD COLUMN IF NOT EXISTS "slaWarningDays" DECIMAL(6,2) DEFAULT 7, ' +
@@ -220,6 +221,7 @@ export async function getSettings() {
       defaultMarginClientPct: (settings as any).defaultMarginClientPct?.toNumber?.() ?? 40,
       defaultMarginAllyPct: (settings as any).defaultMarginAllyPct?.toNumber?.() ?? 30,
       defaultMarginWholesalePct: (settings as any).defaultMarginWholesalePct?.toNumber?.() ?? 20,
+      ecommerceIvaEnabled: toBoolSafe((settings as any).ecommerceIvaEnabled, true),
       vesSalesDisabled: Boolean((settings as any).vesSalesDisabled ?? false),
       heroAutoplayMs: Number((settings as any).heroAutoplayMs ?? 5000) || 5000,
       slaWarningDays: (settings as any).slaWarningDays?.toNumber?.() ?? 7,
@@ -318,6 +320,7 @@ export async function getSettings() {
       defaultMarginClientPct: 40,
       defaultMarginAllyPct: 30,
       defaultMarginWholesalePct: 20,
+      ecommerceIvaEnabled: true,
       vesSalesDisabled: false,
       categoryBannerCarpinteriaUrl: "",
       categoryBannerHogarUrl: "",
@@ -555,6 +558,10 @@ export async function updateSettings(data: any) {
     throw new Error("Not authorized");
   }
 
+  const email = String((session?.user as any)?.email || "").toLowerCase();
+  const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
+  const isRoot = email === rootEmail;
+
   // La tasa oficial (tasaVES) se gestiona solo vía BCV o setTasaManual
     const cleaned = { ...(data || {}) } as any;
     delete cleaned.tasaVES;
@@ -592,6 +599,11 @@ export async function updateSettings(data: any) {
       categoryBannerCarpinteriaUrl: cleaned.categoryBannerCarpinteriaUrl || null,
       categoryBannerHogarUrl: cleaned.categoryBannerHogarUrl || null,
   } as any;
+  if (isRoot) {
+    prepared.ecommerceIvaEnabled = toBoolSafe(cleaned.ecommerceIvaEnabled, true);
+  } else {
+    delete prepared.ecommerceIvaEnabled;
+  }
 
   const settings = await prisma.siteSettings.update({
     where: { id: 1 },

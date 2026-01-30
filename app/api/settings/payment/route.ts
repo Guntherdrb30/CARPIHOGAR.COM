@@ -18,6 +18,7 @@ export async function GET() {
     paymentMercantilName: (s as any).paymentMercantilName || '',
     ivaPercent: (s as any).ivaPercent || 16,
     tasaVES: (s as any).tasaVES || 40,
+    ecommerceIvaEnabled: Boolean((s as any).ecommerceIvaEnabled ?? true),
     deliveryMinFeeUSD: Number((s as any).deliveryMotoMinFeeUSD ?? 4) || 4,
     usdPaymentDiscountPercent: Number(pricing.usdPaymentDiscountPercent ?? 20),
     usdPaymentDiscountEnabled: Boolean(pricing.usdPaymentDiscountEnabled ?? true),

@@ -91,6 +91,8 @@ export default function RevisarPage() {
     return () => { cancelled = true };
   }, []);// ConfiguraciÃ³n (puede venir de BD/ajustes si se requiere)
   const [ivaPercent, setIvaPercent] = useState<number>(16);
+  const [settingsIvaPercent, setSettingsIvaPercent] = useState<number>(16);
+  const [ivaEnabled, setIvaEnabled] = useState<boolean>(true);
   const [tasaVES, setTasaVES] = useState<number>(40);
   const [usdDiscountEnabled, setUsdDiscountEnabled] = useState<boolean>(true);
   const [usdDiscountPercent, setUsdDiscountPercent] = useState<number>(20);
@@ -183,9 +185,11 @@ export default function RevisarPage() {
         if (!res.ok) return;
         const data = await res.json();
         if (cancelled) return;
-        if (typeof data.ivaPercent === 'number') {
-          setIvaPercent(Number(data.ivaPercent) || 16);
-        }
+        const percent = typeof data.ivaPercent === 'number' ? Number(data.ivaPercent) : 16;
+        setSettingsIvaPercent(percent);
+        const enabled = Boolean(data.ecommerceIvaEnabled ?? true);
+        setIvaEnabled(enabled);
+        setIvaPercent(enabled ? percent : 0);
         if (typeof data.tasaVES === 'number') {
           setTasaVES(Number(data.tasaVES) || 40);
           setTasaTop(Number(data.tasaVES) || 40);
@@ -354,9 +358,16 @@ export default function RevisarPage() {
               <span>{formatUSD(taxableBaseUSD)}</span>
             </div>
             <div className="flex justify-between">
-              <span>IVA ({ivaPercent}%):</span>
+              <span>
+                IVA {ivaEnabled ? `(${settingsIvaPercent}%)` : `(desactivado, ${settingsIvaPercent}%)`}
+              </span>
               <span>{formatUSD(iva)}</span>
             </div>
+            {!ivaEnabled && (
+              <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded px-2 py-1 mt-1">
+                El IVA se ha desactivado temporalmente para ecommerce; solo aparece si confirms con factura desde el panel admin.
+              </div>
+            )}
             <div className="flex justify-between font-bold">
               <span>Total (USD):</span>
               <span>{formatUSD(totalUSD)}</span>
