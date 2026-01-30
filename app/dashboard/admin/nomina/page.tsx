@@ -10,6 +10,44 @@ import {
   updatePayrollEmployee,
 } from "@/server/actions/payroll";
 import { createCarpentryTask, getCarpentryProjects, getCarpentryTasks } from "@/server/actions/carpentry";
+import { getSettings } from "@/server/actions/settings";
+
+const parseDate = (value?: string | Date | null) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getWeekBounds = (date: Date) => {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  const day = normalized.getDay(); // 0 = Sunday
+  const diffToMonday = (day + 6) % 7;
+  const start = new Date(normalized);
+  start.setDate(normalized.getDate() - diffToMonday);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+};
+
+const formatShortDate = (date: Date) => {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}`;
+};
+
+const formatFullDate = (date: Date) => {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+const formatUSD = (value: number) => `$${value.toFixed(2)}`;
+const formatVES = (value: number) => `Bs ${value.toFixed(2)}`;
+const getPaymentDate = (payment: any) =>
+  parseDate(payment?.paidAt || payment?.workDate || payment?.createdAt);
 
 export default async function NominaAdminPage({ searchParams }: { searchParams?: Promise<{ message?: string; error?: string }> }) {
   const session = await getServerSession(authOptions);
@@ -20,12 +58,46 @@ export default async function NominaAdminPage({ searchParams }: { searchParams?:
   const message = sp.message ? decodeURIComponent(String(sp.message)) : "";
   const error = sp.error ? decodeURIComponent(String(sp.error)) : "";
 
-  const [employees, payments, projects, tasks] = await Promise.all([
+  const [employees, payments, projects, tasks, settings] = await Promise.all([
     getPayrollEmployees(),
     getPayrollPayments(),
     getCarpentryProjects(),
     getCarpentryTasks(),
+    getSettings(),
   ]);
+  const tasaVES = Number((settings as any)?.tasaVES || 0) || 0;
+
+  type WeekGroup = {
+    key: string;
+    start: Date;
+    end: Date;
+    payments: any[];
+    totalUSD: number;
+  };
+
+  const weekMap = new Map<string, WeekGroup>();
+  payments.forEach((p: any) => {
+    const paidAt = getPaymentDate(p);
+    if (!paidAt) return;
+    const { start, end } = getWeekBounds(paidAt);
+    const key = start.toISOString().slice(0, 10);
+    let group = weekMap.get(key);
+    if (!group) {
+      group = { key, start: new Date(start), end: new Date(end), payments: [], totalUSD: 0 };
+      weekMap.set(key, group);
+    }
+    group.payments.push(p);
+    group.totalUSD += Number(p.amountUSD || 0);
+  });
+
+  const weeklyPayrolls = Array.from(weekMap.values()).sort((a, b) => b.start.getTime() - a.start.getTime());
+  weeklyPayrolls.forEach((week) => {
+    week.payments.sort((a, b) => {
+      const da = getPaymentDate(a) ?? new Date();
+      const db = getPaymentDate(b) ?? new Date();
+      return db.getTime() - da.getTime();
+    });
+  });
 
   return (
     <div className="p-4 space-y-6">
@@ -73,6 +145,83 @@ export default async function NominaAdminPage({ searchParams }: { searchParams?:
             <button className="px-3 py-1 rounded bg-blue-600 text-white">Guardar empleado</button>
           </div>
         </form>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Control semanal de nómina</h2>
+          <div className="text-xs uppercase tracking-[0.3em] text-orange-600">
+            Tasa BCV {tasaVES > 0 ? tasaVES.toFixed(2) : "no registrada"} Bs/USD
+          </div>
+        </div>
+        {weeklyPayrolls.length ? (
+          weeklyPayrolls.map((week, index) => {
+            const weekLabel = `Semana del ${formatShortDate(week.start)} al ${formatShortDate(week.end)}`;
+            const totalVES = week.totalUSD * tasaVES;
+            return (
+              <details
+                key={week.key}
+                open={index === 0}
+                className="rounded-2xl border border-orange-300 bg-white shadow-sm overflow-hidden"
+              >
+                <summary className="flex items-center justify-between cursor-pointer px-4 py-3 bg-gradient-to-r from-orange-500 via-orange-400 to-orange-200 text-white text-sm font-semibold">
+                  <div>
+                    <div>{weekLabel}</div>
+                    <div className="text-xs text-orange-100">{formatFullDate(week.start)} – {formatFullDate(week.end)}</div>
+                  </div>
+                  <div className="text-right text-xs space-y-1">
+                    <div>Total USD <span className="font-semibold">{formatUSD(week.totalUSD)}</span></div>
+                    <div>Total Bs <span className="font-semibold">{formatVES(totalVES)}</span></div>
+                  </div>
+                </summary>
+                <div className="border-t border-orange-200 bg-white p-4">
+                  <div className="overflow-x-auto rounded-lg border border-orange-100 bg-white shadow-inner">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-orange-50 text-orange-600 text-xs uppercase">
+                        <tr>
+                          <th className="px-2 py-1 text-left">Fecha</th>
+                          <th className="px-2 py-1 text-left">Empleado</th>
+                          <th className="px-2 py-1 text-left">Categoria</th>
+                          <th className="px-2 py-1 text-left">Metodo</th>
+                          <th className="px-2 py-1 text-left">Servicio</th>
+                          <th className="px-2 py-1 text-left">Referencia</th>
+                          <th className="px-2 py-1 text-right">Monto USD</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {week.payments.map((p) => (
+                          <tr key={`${week.key}-${p.id}`} className="border-b border-orange-100">
+                            <td className="px-2 py-1 text-xs text-gray-600">{formatFullDate(getPaymentDate(p) ?? new Date())}</td>
+                            <td className="px-2 py-1">{p.employee?.name || "-"}</td>
+                            <td className="px-2 py-1">{p.category || "-"}</td>
+                            <td className="px-2 py-1">{p.method || "-"}</td>
+                            <td className="px-2 py-1">{p.service || p.description || "-"}</td>
+                            <td className="px-2 py-1">{p.reference || "-"}</td>
+                            <td className="px-2 py-1 text-right font-semibold">{formatUSD(Number(p.amountUSD || 0))}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="text-sm font-semibold text-orange-700">
+                          <td colSpan={6} className="px-2 py-2 text-right">Total USD semana</td>
+                          <td className="px-2 py-2 text-right">{formatUSD(week.totalUSD)}</td>
+                        </tr>
+                        <tr className="text-xs text-orange-600">
+                          <td colSpan={6} className="px-2 py-1 text-right">Equivalente Bs</td>
+                          <td className="px-2 py-1 text-right">{formatVES(totalVES)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              </details>
+            );
+          })
+        ) : (
+          <div className="rounded-xl border border-dashed border-orange-200 bg-orange-50 p-4 text-sm text-orange-700">
+            No hay pagos semanales registrados todavía.
+          </div>
+        )}
       </section>
 
       <section className="bg-white p-4 rounded-lg shadow space-y-3">
