@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -14,6 +15,22 @@ type SessionUser = {
   id?: string;
   email?: string;
   role?: string;
+};
+
+const parseDateInput = (value?: string | null) => {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const isoOnly = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(raw);
+  if (isoOnly) {
+    const year = Number(isoOnly[1]);
+    const month = Number(isoOnly[2]);
+    const day = Number(isoOnly[3]);
+    const date = new Date(year, month - 1, day);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
 async function requireRootSession() {
@@ -31,6 +48,11 @@ async function requireRootSession() {
 const toDecimal = (value: FormDataEntryValue | null, fallback = 0) => {
   const n = Number(String(value || "").trim());
   return Number.isFinite(n) ? n : fallback;
+};
+
+type PayrollPaymentFilters = {
+  startDate?: string | null;
+  endDate?: string | null;
 };
 
 export async function getPayrollEmployees() {
@@ -106,11 +128,29 @@ export async function deletePayrollEmployee(formData: FormData) {
   redirect("/dashboard/admin/nomina?message=Empleado%20eliminado");
 }
 
-export async function getPayrollPayments() {
+export async function getPayrollPayments(filters?: PayrollPaymentFilters) {
   const session = await getServerSession(authOptions);
   requireAdmin(session);
+  const where: Prisma.PayrollPaymentWhereInput = {};
+  const startDate = parseDateInput(filters?.startDate || null);
+  const endDate = parseDateInput(filters?.endDate || null);
+  const dateFilter: Prisma.DateTimeFilter = {};
+  if (startDate) {
+    const normalizedStart = new Date(startDate);
+    normalizedStart.setHours(0, 0, 0, 0);
+    dateFilter.gte = normalizedStart;
+  }
+  if (endDate) {
+    const normalizedEnd = new Date(endDate);
+    normalizedEnd.setHours(23, 59, 59, 999);
+    dateFilter.lte = normalizedEnd;
+  }
+  if (dateFilter.gte || dateFilter.lte) {
+    where.paidAt = dateFilter;
+  }
   return prisma.payrollPayment.findMany({
     include: { employee: true, project: true },
+    where,
     orderBy: { paidAt: "desc" },
     take: 200,
   });

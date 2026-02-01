@@ -51,7 +51,16 @@ const formatVES = (value: number) => `Bs ${value.toFixed(2)}`;
 const getPaymentDate = (payment: any) =>
   parseDate(payment?.paidAt || payment?.workDate || payment?.createdAt);
 
-export default async function NominaAdminPage({ searchParams }: { searchParams?: Promise<{ message?: string; error?: string }> }) {
+export default async function NominaAdminPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    message?: string;
+    error?: string;
+    startDate?: string;
+    endDate?: string;
+  }>;
+}) {
   const session = await getServerSession(authOptions);
   if ((session?.user as any)?.role !== "ADMIN") {
     redirect("/auth/login?callbackUrl=/dashboard/admin/nomina");
@@ -64,9 +73,21 @@ export default async function NominaAdminPage({ searchParams }: { searchParams?:
   const message = sp.message ? decodeURIComponent(String(sp.message)) : "";
   const error = sp.error ? decodeURIComponent(String(sp.error)) : "";
 
+  const normalizeParam = (value: string | string[] | undefined | null) => {
+    if (Array.isArray(value)) value = value[0];
+    if (!value) return null;
+    const trimmed = String(value).trim();
+    return trimmed || null;
+  };
+
+  const filters = {
+    startDate: normalizeParam(sp.startDate),
+    endDate: normalizeParam(sp.endDate),
+  };
+
   const [employees, payments, projects, tasks, settings] = await Promise.all([
     getPayrollEmployees(),
-    getPayrollPayments(),
+    getPayrollPayments(filters),
     getCarpentryProjects(),
     getCarpentryTasks(),
     getSettings(),
@@ -104,6 +125,16 @@ export default async function NominaAdminPage({ searchParams }: { searchParams?:
       return db.getTime() - da.getTime();
     });
   });
+
+  const filterStartDate = parseDate(filters.startDate);
+  const filterEndDate = parseDate(filters.endDate);
+  const filterDateDescription = filterStartDate
+    ? filterEndDate
+      ? `Mostrando pagos desde ${formatFullDate(filterStartDate)} hasta ${formatFullDate(filterEndDate)}.`
+      : `Mostrando pagos desde ${formatFullDate(filterStartDate)}.`
+    : filterEndDate
+    ? `Mostrando pagos hasta ${formatFullDate(filterEndDate)}.`
+    : "";
 
   return (
     <div className="p-4 space-y-6">
@@ -149,6 +180,47 @@ export default async function NominaAdminPage({ searchParams }: { searchParams?:
           </div>
           <div className="md:col-span-6">
             <button className="px-3 py-1 rounded bg-blue-600 text-white">Guardar empleado</button>
+          </div>
+        </form>
+      </section>
+
+      <section className="bg-white p-4 rounded-lg shadow space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Buscar pagos por fecha</h2>
+            <p className="text-sm text-gray-500">Filtra las nóminas registradas por fecha de pago.</p>
+          </div>
+          {filterDateDescription && <span className="text-xs text-gray-500">{filterDateDescription}</span>}
+        </div>
+        <form action="/dashboard/admin/nomina" method="get" className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+          <label className="flex flex-col gap-1 text-sm text-gray-600">
+            <span>Desde</span>
+            <input
+              name="startDate"
+              type="date"
+              defaultValue={filters.startDate ?? ""}
+              className="border rounded px-2 py-1"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-gray-600">
+            <span>Hasta</span>
+            <input
+              name="endDate"
+              type="date"
+              defaultValue={filters.endDate ?? ""}
+              className="border rounded px-2 py-1"
+            />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" className="px-3 py-1 rounded bg-orange-600 text-white text-sm">
+              Aplicar filtros
+            </button>
+            <a
+              href="/dashboard/admin/nomina"
+              className="px-3 py-1 rounded border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
+            >
+              Limpiar
+            </a>
           </div>
         </form>
       </section>
