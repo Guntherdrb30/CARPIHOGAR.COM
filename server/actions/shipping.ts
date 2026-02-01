@@ -109,6 +109,54 @@ export async function saveShippingDetails(payload: ShippingUpdatePayload) {
     return { success: true, data: result };
 }
 
+export async function updateShippingStatusFromAdmin(formData: FormData) {
+    const session = await getServerSession(authOptions);
+    const role = (session?.user as any)?.role as string | undefined;
+    const email = String((session?.user as any)?.email || '').toLowerCase();
+    const rootEmail = String(process.env.ROOT_EMAIL || 'root@carpihogar.com').toLowerCase();
+    const isRoot = role === 'ADMIN' && email === rootEmail;
+    if (role !== 'DESPACHO' && !isRoot) {
+        throw new Error('Not authorized');
+    }
+
+    const orderId = String(formData.get('orderId') || '').trim();
+    const statusRaw = String(formData.get('status') || '').trim().toUpperCase();
+    if (!orderId || !statusRaw) {
+        throw new Error('Missing order or status');
+    }
+    const allowedStatuses = Object.values(ShippingStatus) as ShippingStatus[];
+    const normalizedStatus = allowedStatuses.includes(statusRaw as ShippingStatus)
+        ? (statusRaw as ShippingStatus)
+        : 'PENDIENTE';
+
+    const existing = await prisma.shipping.findUnique({ where: { orderId } });
+    if (!existing) {
+        throw new Error('Shipping record not found');
+    }
+
+    const delta: any = { status: normalizedStatus };
+    if (normalizedStatus === 'ENTREGADO') {
+        delta.deliveryConfirmedAt = new Date() as any;
+    }
+
+    const result = await prisma.shipping.update({
+        where: { orderId },
+        data: delta,
+    });
+
+    if (normalizedStatus === 'ENTREGADO') {
+        try { await prisma.order.update({ where: { id: orderId }, data: { status: 'COMPLETADO' as any } }); } catch {}
+    }
+
+    revalidatePath('/dashboard/admin/envios');
+    try { revalidatePath('/dashboard/admin/envios/online'); } catch {}
+    try { revalidatePath('/dashboard/admin/envios/tienda'); } catch {}
+    try { revalidatePath('/dashboard/cliente/envios'); } catch {}
+    try { revalidatePath('/dashboard/admin/envios/logs'); } catch {}
+
+    return { success: true, data: result };
+}
+
 export async function claimDelivery(orderId: string) {
     const session = await getServerSession(authOptions);
     const userId = (session?.user as any)?.id;

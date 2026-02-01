@@ -413,7 +413,8 @@ export async function getMyOrderById(id: string) {
 export async function getAllShippedOrders(query?: string) {
     const session = await getServerSession(authOptions);
 
-    if (((session?.user as any)?.role) !== 'ADMIN') {
+    const role = ((session?.user as any)?.role) as string | undefined;
+    if (role !== 'ADMIN' && role !== 'DESPACHO') {
         throw new Error('Not authorized');
     }
 

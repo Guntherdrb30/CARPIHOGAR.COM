@@ -1,14 +1,54 @@
 import { getAllShippedOrders } from "@/server/actions/orders";
+import { updateShippingStatusFromAdmin } from "@/server/actions/shipping";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { ShippingStatus } from "@prisma/client";
 import Link from "next/link";
 import { Search, MapPin } from "lucide-react";
+
+const formatDate = (value?: Date | string | null) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("es-VE", { day: "2-digit", month: "2-digit", year: "numeric" });
+};
+
+const statusBadgeClass = (status: string) => {
+  switch (status) {
+    case "PENDIENTE":
+      return "bg-red-100 text-red-800";
+    case "ENTREGADO":
+      return "bg-green-100 text-green-800";
+    case "PREPARANDO":
+      return "bg-yellow-100 text-yellow-800";
+    case "DESPACHADO":
+      return "bg-blue-100 text-blue-800";
+    case "EN_TRANSITO":
+      return "bg-indigo-100 text-indigo-800";
+    case "INCIDENCIA":
+      return "bg-orange-100 text-orange-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+};
 
 export default async function AdminEnviosPage({
   searchParams,
 }: {
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
+  const session = await getServerSession(authOptions);
+  const currentUser = (session?.user as any) || {};
+  const role = String(currentUser.role || "").toUpperCase();
+  const email = String(currentUser.email || "").toLowerCase();
+  const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
+  const isRoot = role === "ADMIN" && email === rootEmail;
+  const canChangeStatus = role === "DESPACHO" || isRoot;
+
   const searchQuery = searchParams?.q?.toString() || "";
   const orders = await getAllShippedOrders(searchQuery);
+
+  const statusOptions = Object.values(ShippingStatus) as ShippingStatus[];
 
   return (
     <div className="p-4 sm:p-6 md:p-8">
@@ -49,6 +89,7 @@ export default async function AdminEnviosPage({
                 <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Tracking</th>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ciudad</th>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Estado del Envío</th>
+                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Fecha entrega</th>
                 <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
               </tr>
             </thead>
@@ -61,40 +102,44 @@ export default async function AdminEnviosPage({
                         #{order.id.substring(0, 8)}
                       </Link>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{order.user.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{order.shipping?.carrier}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-mono">{order.shipping?.tracking}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{order.shippingAddress?.city}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {(() => {
-                        const status = order.shipping?.status || 'PENDIENTE';
-                        let badgeClass = 'bg-gray-100 text-gray-800';
-                        switch (status) {
-                          case 'PENDIENTE':
-                            badgeClass = 'bg-red-100 text-red-800';
-                            break;
-                          case 'ENTREGADO':
-                            badgeClass = 'bg-green-100 text-green-800';
-                            break;
-                          case 'PREPARANDO':
-                            badgeClass = 'bg-yellow-100 text-yellow-800';
-                            break;
-                          case 'DESPACHADO':
-                            badgeClass = 'bg-blue-100 text-blue-800';
-                            break;
-                          case 'EN_TRANSITO':
-                            badgeClass = 'bg-indigo-100 text-indigo-800';
-                            break;
-                          case 'INCIDENCIA':
-                            badgeClass = 'bg-orange-100 text-orange-800';
-                            break;
-                        }
-                        return (
-                          <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeClass}`}>
-                            {status}
-                          </span>
-                        );
-                      })()}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{order.user?.name || "—"}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{order.shipping?.carrier || "—"}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-mono">{order.shipping?.tracking || "—"}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{order.shippingAddress?.city || "—"}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex flex-col gap-2">
+                        <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusBadgeClass(order.shipping?.status || "PENDIENTE")}`}>
+                          {order.shipping?.status || "PENDIENTE"}
+                        </span>
+                        {canChangeStatus && (
+                          <form action={updateShippingStatusFromAdmin} method="post" className="flex flex-wrap gap-2 items-center">
+                            <input type="hidden" name="orderId" value={order.id} />
+                            <select
+                              name="status"
+                              defaultValue={order.shipping?.status || "PENDIENTE"}
+                              className="border rounded px-3 py-1 text-xs"
+                            >
+                              {statusOptions.map((statusOption) => (
+                                <option key={statusOption} value={statusOption}>
+                                  {statusOption}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="submit"
+                              className="px-3 py-1 rounded bg-blue-600 text-white text-xs hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                            >
+                              Actualizar
+                            </button>
+                          </form>
+                        )}
+                        {!canChangeStatus && (
+                          <p className="text-xs text-gray-500">Solo root o despachador puede actualizar el estatus.</p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {formatDate(order.shipping?.deliveryConfirmedAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-3">
@@ -103,10 +148,12 @@ export default async function AdminEnviosPage({
                         {order.user?.phone ? (
                           <a
                             className="text-green-600 hover:text-green-800"
-                            href={`https://wa.me/${order.user.phone.replace(/[^0-9]/g,'') || ''}?text=${encodeURIComponent(`Hola ${order.user.name || ''}, te compartimos los datos de tu envío #${order.id.slice(0,8)}. Transportista: ${order.shipping?.carrier || '-'}; Tracking: ${order.shipping?.tracking || '-'}.
+                            href={`https://wa.me/${order.user.phone.replace(/[^0-9]/g,'') || ''}?text=${encodeURIComponent(`Hola ${order.user?.name || ''}, te compartimos los datos de tu envío #${order.id.slice(0,8)}. Transportista: ${order.shipping?.carrier || '-'}; Tracking: ${order.shipping?.tracking || '-'}.
 PDF: ${(process.env.NEXT_PUBLIC_URL || '') + '/api/shipments/' + order.id + '/pdf'}`)}`}
                             target="_blank" rel="noreferrer"
-                          >WhatsApp</a>
+                          >
+                            WhatsApp
+                          </a>
                         ) : null}
                       </div>
                     </td>
@@ -114,7 +161,7 @@ PDF: ${(process.env.NEXT_PUBLIC_URL || '') + '/api/shipments/' + order.id + '/pd
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="text-center py-16 text-gray-500">
+                  <td colSpan={8} className="text-center py-16 text-gray-500">
                     <p className="text-lg">No se encontraron envíos.</p>
                     {searchQuery && <p className="text-sm mt-2">Intenta con otra búsqueda.</p>}
                   </td>
