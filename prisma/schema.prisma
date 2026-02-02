@@ -85,6 +85,7 @@ model User {
   designTasksAssigned             DesignProjectTask[]     @relation("DesignTaskAssignee")
   designTasksCreated              DesignProjectTask[]     @relation("DesignTaskCreatedBy")
   designUpdatesCreated            DesignProjectUpdate[]   @relation("DesignProjectUpdateAuthor")
+  carpentryProjectUpdatesCreated  CarpentryProjectUpdate[] @relation("CarpentryProjectUpdateCreated")
   driverLocations                 DriverLocation[]
   ecpdDesigns                     EcpdDesign[]
   kitchenDesigns                  KitchenDesign[]
@@ -1032,6 +1033,7 @@ model PayrollEmployee {
   payments                        PayrollPayment[]
   productionOrdersAsCarpentryLead ProductionOrder[]                   @relation("ProductionCarpenter")
   productionOrdersAsSupervisor    ProductionOrder[]                   @relation("ProductionSupervisor")
+  updatesResponsible              CarpentryProjectUpdate[]           @relation("CarpentryProjectUpdateResponsible")
 }
 
 model PayrollPayment {
@@ -1090,6 +1092,7 @@ model CarpentryProject {
   tasks               CarpentryTask[]
   payments            PayrollPayment[]
   productionOrders    ProductionOrder[]
+  updates             CarpentryProjectUpdate[]
 
   @@index([architectId])
   @@index([carpenterId])
@@ -1271,6 +1274,24 @@ model CarpentryTask {
   @@index([employeeId])
   @@index([projectId])
   @@index([productionOrderId])
+}
+
+model CarpentryProjectUpdate {
+  id                  String                   @id @default(cuid())
+  projectId           String
+  description         String
+  progressDate        DateTime
+  phase               CarpentryProjectPhase
+  responsibleEmployeeId String?
+  imageUrl            String?
+  createdById         String?
+  createdAt           DateTime                 @default(now())
+  project             CarpentryProject         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  responsible         PayrollEmployee?         @relation("CarpentryProjectUpdateResponsible", fields: [responsibleEmployeeId], references: [id], onUpdate: NoAction)
+  createdBy           User?                    @relation("CarpentryProjectUpdateCreated", fields: [createdById], references: [id], onUpdate: NoAction)
+
+  @@index([projectId])
+  @@index([responsibleEmployeeId])
 }
 
 model CarpentryClientPayment {

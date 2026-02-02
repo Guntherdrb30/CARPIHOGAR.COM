@@ -156,6 +156,10 @@ export async function getCarpentryProjectById(id: string) {
         include: { tasks: { orderBy: { workDate: "desc" } } },
         orderBy: { createdAt: "desc" },
       },
+      updates: {
+        include: { responsible: true, createdBy: true },
+        orderBy: { progressDate: "desc" },
+      },
     },
   });
   if (!project) return null;

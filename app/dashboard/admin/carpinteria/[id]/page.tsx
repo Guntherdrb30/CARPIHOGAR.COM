@@ -12,6 +12,7 @@ import CarpentryFileUploader from "@/components/admin/carpentry-file-uploader";
 import ProofUploader from "@/components/admin/proof-uploader";
 import SupportFileUploader from "@/components/admin/support-file-uploader";
 import CarpentryProjectTabs from "@/components/admin/carpentry-project-tabs";
+import CarpentryProgressForm from "@/components/admin/carpentry-progress-form";
 
 export default async function CarpinteriaProjectPage({ params, searchParams }: { params: Promise<{ id: string }>, searchParams?: Promise<{ message?: string; error?: string }> }) {
   const session = await getServerSession(authOptions);
@@ -33,6 +34,7 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
 
   const countByType = (type: string) => project.files.filter((f: any) => f.fileType === type).length;
   const supportFiles = project.files.filter((f: any) => f.fileType === "SOPORTE");
+  const updates = Array.isArray(project.updates) ? project.updates : [];
 
   return (
     <div className="p-4 space-y-6">
@@ -100,6 +102,44 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
             </p>
           </div>
         </form>
+      </section>
+
+      <section className="bg-white p-4 rounded-lg shadow space-y-4">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Avances del proyecto</h2>
+            <p className="text-sm text-gray-500 max-w-2xl">
+              Documenta cada avance con descripción, fecha, fase y responsable. Puedes adjuntar una imagen del avance para tener evidencia visual.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr),320px] gap-4">
+          <div className="space-y-3">
+            {updates.length ? (
+              updates.map((update: any) => (
+                <article key={update.id} className="rounded border border-gray-200 p-3 space-y-2 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs uppercase tracking-[0.3em] text-gray-500">
+                    <span>{update.phase || "Fase"}</span>
+                    <span>{new Date(update.progressDate).toLocaleDateString()}</span>
+                  </div>
+                  <p className="text-sm text-gray-700">{update.description}</p>
+                  {update.imageUrl && (
+                    <div className="rounded border border-gray-200 bg-gray-50 p-2">
+                      <img src={update.imageUrl} alt="Avance" className="max-h-40 w-full object-cover" />
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-center justify-between text-xs text-gray-500">
+                    <span>Responsable: {update.responsible?.name || "Sin especificar"}</span>
+                    <span>Cargado por: {update.createdBy?.name || "Admin"}</span>
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="text-xs text-gray-500">Aún no hay avances registrados.</div>
+            )}
+          </div>
+          <CarpentryProgressForm projectId={project.id} employees={employees} />
+        </div>
       </section>
 
       <section className="bg-white p-4 rounded-lg shadow space-y-4">
