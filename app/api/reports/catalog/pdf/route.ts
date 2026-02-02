@@ -6,6 +6,7 @@ import { getProducts } from '@/server/actions/products';
 import { getSettings } from '@/server/actions/settings';
 import prisma from '@/lib/prisma';
 import PDFDocument from 'pdfkit/js/pdfkit.standalone.js';
+import sharp from 'sharp';
 
 const ITEMS_PER_PAGE = 8;
 const ALLOWED_SORTS = new Set(['name', 'price', 'stock']);
@@ -53,6 +54,17 @@ const parseCurrency = (value?: string | null): 'USD' | 'VES' => {
   return ALLOWED_CURRENCIES.has(normalized) ? (normalized as 'USD' | 'VES') : 'USD';
 };
 
+const optimizeImageBuffer = async (source: Buffer) => {
+  try {
+    return await sharp(source)
+      .resize({ width: 200, height: 120, fit: 'inside' })
+      .jpeg({ quality: 60, mozjpeg: true })
+      .toBuffer();
+  } catch {
+    return source;
+  }
+};
+
 const loadImageBuffer = async (source?: string | null): Promise<Buffer | null> => {
   if (!source) return null;
   try {
@@ -60,12 +72,12 @@ const loadImageBuffer = async (source?: string | null): Promise<Buffer | null> =
       const response = await fetch(source);
       if (!response.ok) return null;
       const arrayBuffer = await response.arrayBuffer();
-      return Buffer.from(arrayBuffer);
+      return optimizeImageBuffer(Buffer.from(arrayBuffer));
     }
     const normalized = source.replace(/^\/+/, '');
     const targetPath = path.join(process.cwd(), 'public', normalized);
     if (fs.existsSync(targetPath)) {
-      return fs.readFileSync(targetPath);
+      return optimizeImageBuffer(fs.readFileSync(targetPath));
     }
   } catch {
     // ignore image download errors
