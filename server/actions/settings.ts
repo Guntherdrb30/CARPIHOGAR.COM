@@ -88,55 +88,69 @@ async function ensureAdminSettingsAuditLogTable() {
   } catch {}
 }
 
-// Obtiene la tasa BCV (Bs/USD) desde la pÃ¡gina oficial
+function parseBcvHtml(html: string): number | null {
+  const marker = 'id="dolar"';
+  const idx = html.indexOf(marker);
+  if (idx === -1) return null;
+  const snippet = html.slice(idx, idx + 1200);
+  const m = snippet.match(/<strong>\s*([\d.,]+)\s*<\/strong>/i);
+  if (!m) return null;
+  const raw = m[1].trim();
+  const normalized = raw.replace(/\./g, "").replace(",", ".");
+  const value = parseFloat(normalized);
+  if (!isFinite(value) || value <= 0) return null;
+  return value;
+}
+
+// Obtiene la tasa BCV (Bs/USD) desde la página oficial o proxies confiables
 async function fetchBcvRate(): Promise<number | null> {
   try {
-    // 1) Intentar primero una API externa (pydolarve) para obtener la tasa BCV en JSON
     try {
-      const apiRes = await fetch(
-        "https://pydolarve.org/api/v1/dollar?page=bcv",
-        { cache: "no-store" }
-      );
+      const apiRes = await fetch("https://pydolarve.org/api/v1/dollar?page=bcv", {
+        cache: "no-store",
+      });
       if (apiRes.ok) {
         const data: any = await apiRes.json();
         const candidates: any[] = [];
-        if (data?.monitors?.bcv?.price != null)
-          candidates.push(data.monitors.bcv.price);
-        if (data?.monitors?.BCV?.price != null)
-          candidates.push(data.monitors.BCV.price);
+        if (data?.monitors?.bcv?.price != null) candidates.push(data.monitors.bcv.price);
+        if (data?.monitors?.BCV?.price != null) candidates.push(data.monitors.BCV.price);
         if (data?.bcv?.price != null) candidates.push(data.bcv.price);
         if (data?.BCV?.price != null) candidates.push(data.BCV.price);
-        const num = candidates.find(
-          (v) => typeof v === "number" && isFinite(v) && v > 0
-        );
-        if (typeof num === "number") {
-          return Number(num);
-        }
+        const normalized = candidates
+          .map((v) => {
+            if (typeof v === "number") return Number.isFinite(v) ? v : null;
+            if (typeof v === "string") {
+              const cleaned = v.replace(/\./g, "").replace(",", ".");
+              const parsed = Number(cleaned);
+              return Number.isFinite(parsed) ? parsed : null;
+            }
+            return null;
+          })
+          .find((v) => typeof v === "number" && isFinite(v) && v > 0);
+        if (typeof normalized === "number") return normalized;
       }
     } catch {
-      // Si falla esta fuente, seguimos con el HTML oficial del BCV
+      // Si falla esta fuente, intentamos HTML
     }
 
-    // 2) Fallback: scrapping directo de la pï¿½gina del BCV
-    const res = await fetch("https://www.bcv.org.ve", { cache: "no-store" });
-    if (!res.ok) return null;
-    const html = await res.text();
-    const marker = 'id="dolar"';
-    const idx = html.indexOf(marker);
-    if (idx === -1) return null;
-    const snippet = html.slice(idx, idx + 1200);
-    const m = snippet.match(/<strong>\s*([\d.,]+)\s*<\/strong>/i);
-    if (!m) return null;
-    const raw = m[1].trim();
-    const normalized = raw.replace(/\./g, "").replace(",", ".");
-    const value = parseFloat(normalized);
-    if (!isFinite(value) || value <= 0) return null;
-    return value;
+    const htmlSources = ["https://www.bcv.org.ve", "https://r.jina.ai/http://www.bcv.org.ve"];
+    for (const source of htmlSources) {
+      try {
+        const res = await fetch(source, { cache: "no-store" });
+        if (!res.ok) continue;
+        const html = await res.text();
+        const parsed = parseBcvHtml(html);
+        if (parsed) return parsed;
+      } catch {
+        // Continuamos con el siguiente origen
+      }
+    }
+
+    return null;
   } catch {
     return null;
   }
 }
-
 async function applyBcvRate({
   rate,
   auditAction,
