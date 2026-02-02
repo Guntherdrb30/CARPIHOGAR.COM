@@ -8,7 +8,7 @@ import prisma from '@/lib/prisma';
 import PDFDocument from 'pdfkit/js/pdfkit.standalone.js';
 import sharp from 'sharp';
 
-const ITEMS_PER_PAGE = 8;
+const DEFAULT_ITEMS_PER_PAGE = 8;
 const ALLOWED_SORTS = new Set(['name', 'price', 'stock']);
 const PRICE_TYPE_META: Record<string, { label: string; field: string }> = {
   client: { label: 'Cliente', field: 'priceUSD' },
@@ -110,6 +110,7 @@ type BuildCatalogPdfParams = {
   priceTypes: string[];
   currency: 'USD' | 'VES';
   exchangeRate: number;
+  itemsPerPage: number;
 };
 
 const buildCatalogPdf = async ({
@@ -120,6 +121,7 @@ const buildCatalogPdf = async ({
   priceTypes,
   currency,
   exchangeRate,
+  itemsPerPage,
 }: BuildCatalogPdfParams) => {
   const doc = new PDFDocument({ size: 'A4', margin: 40 });
   const chunks: Buffer[] = [];
@@ -297,8 +299,8 @@ const buildCatalogPdf = async ({
   if (!products.length) {
     await renderPage([], 0);
   } else {
-    for (let pageIndex = 0; pageIndex * ITEMS_PER_PAGE < products.length; pageIndex += 1) {
-      const slice = products.slice(pageIndex * ITEMS_PER_PAGE, pageIndex * ITEMS_PER_PAGE + ITEMS_PER_PAGE);
+    for (let pageIndex = 0; pageIndex * itemsPerPage < products.length; pageIndex += 1) {
+      const slice = products.slice(pageIndex * itemsPerPage, pageIndex * itemsPerPage + itemsPerPage);
       await renderPage(slice, pageIndex);
     }
   }
@@ -319,8 +321,17 @@ export async function GET(req: Request) {
   const sortDir = rawSortDir === 'desc' ? 'desc' : 'asc';
   const priceTypes = parsePriceTypes(url.searchParams.get('priceTypes'));
   const currency = parseCurrency(url.searchParams.get('currency'));
+  const itemsPerPageParam = Number(url.searchParams.get('itemsPerPage'));
+  const itemsPerPage =
+    Number.isFinite(itemsPerPageParam) && itemsPerPageParam > 0 && itemsPerPageParam <= 8
+      ? Math.floor(itemsPerPageParam)
+      : DEFAULT_ITEMS_PER_PAGE;
+  const rawProductIds = String(url.searchParams.get('productIds') || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
 
-  const products = await getProducts({
+  const allProducts = await getProducts({
     categorySlug: rawCategory || undefined,
   });
   const settings = await getSettings();
@@ -328,20 +339,30 @@ export async function GET(req: Request) {
     ? await prisma.category.findFirst({ where: { slug: rawCategory } })
     : null;
   const categoryLabel = category?.name || 'Todos los productos';
-  const sortedProducts = sortProducts(products, sortBy, sortDir);
+  const sortedProducts = sortProducts(allProducts, sortBy, sortDir);
+  const requestedProductIds = Array.from(new Set(rawProductIds));
+  let effectiveProducts = sortedProducts;
+  if (requestedProductIds.length) {
+    const lookup = new Map(sortedProducts.map((p) => [p.id, p]));
+    const ordered = requestedProductIds.map((id) => lookup.get(id)).filter(Boolean);
+    if (ordered.length) {
+      effectiveProducts = ordered;
+    }
+  }
   const sortLabel = resolveSortLabel(sortBy, sortDir);
   const exchangeRate = (() => {
     const rate = Number(settings?.tasaVES ?? 0);
     return rate > 0 ? rate : 1;
   })();
   const pdfBuffer = await buildCatalogPdf({
-    products: sortedProducts,
+    products: effectiveProducts,
     settings,
     categoryLabel,
     sortLabel,
     priceTypes,
     currency,
     exchangeRate,
+    itemsPerPage,
   });
 
   const safeCategory = rawCategory.replace(/[^a-z0-9_-]/gi, '').toLowerCase() || 'general';

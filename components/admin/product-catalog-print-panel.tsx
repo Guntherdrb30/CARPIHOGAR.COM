@@ -36,6 +36,7 @@ export default function ProductCatalogPrintPanel({
   const [sortValue, setSortValue] = useState(sortOptions[0].value);
   const [priceTypes, setPriceTypes] = useState<string[]>(['client']);
   const [currency, setCurrency] = useState<'USD' | 'VES'>('USD');
+  const [itemsPerPage, setItemsPerPage] = useState(4);
   const [sortBy, sortDir] = sortValue.split('::');
 
   const filteredProducts = useMemo(() => {
@@ -104,8 +105,13 @@ export default function ProductCatalogPrintPanel({
     const next = event.target.value === 'VES' ? 'VES' : 'USD';
     setCurrency(next);
   }, []);
+  const handleItemsPerPageChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    const value = Number(event.target.value);
+    const clamped = Number.isFinite(value) ? Math.min(Math.max(value, 1), 8) : itemsPerPage;
+    setItemsPerPage(clamped);
+  }, [itemsPerPage]);
 
-  const previewProducts = filteredProducts.slice(0, 8);
+  const previewProducts = filteredProducts.slice(0, itemsPerPage);
   const placeholderCount = Math.max(0, 8 - previewProducts.length);
   const displayedCategory = categories.find((c) => c.slug === category);
   const categoryLabel = displayedCategory ? displayedCategory.name : 'Todas las categorías';
@@ -126,8 +132,13 @@ export default function ProductCatalogPrintPanel({
     url.searchParams.set('sortDir', sortDir || 'asc');
     url.searchParams.set('priceTypes', priceTypesParam);
     url.searchParams.set('currency', currency);
+    url.searchParams.set('itemsPerPage', String(itemsPerPage));
+    const idList = previewProducts.map((product) => product.id).filter(Boolean);
+    if (idList.length) {
+      url.searchParams.set('productIds', Array.from(new Set(idList)).join(','));
+    }
     return url.toString();
-  }, [category, sortBy, sortDir, priceTypesParam, currency]);
+  }, [category, sortBy, sortDir, priceTypesParam, currency, itemsPerPage, previewProducts]);
 
   const brandName = settings?.brandName || 'Carpihogar.ai';
   const logoUrl = settings?.logoUrl;
@@ -138,7 +149,7 @@ export default function ProductCatalogPrintPanel({
         <div>
           <p className="text-lg font-semibold text-gray-900">Catálogo imprimible</p>
           <p className="text-sm text-gray-500">
-            Genera un documento PDF con 8 productos por página que incluye logo y datos de contacto.
+            Genera un documento PDF con hasta {itemsPerPage} productos por página que incluye logo y datos de contacto.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -223,6 +234,20 @@ export default function ProductCatalogPrintPanel({
             ))}
           </select>
         </label>
+        <label className="space-y-2 text-sm text-gray-700">
+          <span className="font-medium">Productos por página</span>
+          <select
+            value={itemsPerPage}
+            onChange={handleItemsPerPageChange}
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm focus:border-brand focus:outline-none"
+          >
+            {[4, 6, 8].map((value) => (
+              <option key={value} value={value}>
+                {value} productos
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
@@ -250,7 +275,7 @@ export default function ProductCatalogPrintPanel({
               <p className="text-[11px] text-gray-500">Catálogo · {categoryLabel}</p>
             </div>
           </div>
-          <p className="text-[11px] text-gray-500">8 productos por página</p>
+          <p className="text-[11px] text-gray-500">{itemsPerPage} productos por página</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3 py-3">
