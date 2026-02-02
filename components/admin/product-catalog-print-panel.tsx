@@ -1,6 +1,6 @@
 'use client';
 
-import { ChangeEvent, useCallback, useMemo, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 type ProductCatalogPrintPanelProps = {
   products: any[];
@@ -37,6 +37,10 @@ export default function ProductCatalogPrintPanel({
   const [priceTypes, setPriceTypes] = useState<string[]>(['client']);
   const [currency, setCurrency] = useState<'USD' | 'VES'>('USD');
   const [itemsPerPage, setItemsPerPage] = useState(4);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewVisible, setPreviewVisible] = useState(false);
   const [sortBy, sortDir] = sortValue.split('::');
 
   const filteredProducts = useMemo(() => {
@@ -124,6 +128,20 @@ export default function ProductCatalogPrintPanel({
     .filter(Boolean)
     .join(' • ');
 
+  const closePreview = useCallback(() => {
+    setPreviewVisible(false);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  }, [previewUrl]);
+
+  useEffect(() => () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+  }, [previewUrl]);
+
   const pdfHref = useMemo(() => {
     if (typeof window === 'undefined') return '#';
     const url = new URL('/api/reports/catalog/pdf', window.location.origin);
@@ -135,7 +153,7 @@ export default function ProductCatalogPrintPanel({
     url.searchParams.set('itemsPerPage', String(itemsPerPage));
     const idList = previewProducts.map((product) => product.id).filter(Boolean);
     if (idList.length) {
-      url.searchParams.set('productIds', Array.from(new Set(idList)).join(','));
+    url.searchParams.set('productIds', Array.from(new Set(idList)).join(','));
     }
     return url.toString();
   }, [category, sortBy, sortDir, priceTypesParam, currency, itemsPerPage, previewProducts]);
@@ -144,7 +162,8 @@ export default function ProductCatalogPrintPanel({
   const logoUrl = settings?.logoUrl;
 
   return (
-    <section className="space-y-4 bg-white border border-gray-200 rounded-xl shadow-sm p-4">
+    <>
+      <section className="space-y-4 bg-white border border-gray-200 rounded-xl shadow-sm p-4">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-lg font-semibold text-gray-900">Catálogo imprimible</p>
@@ -153,14 +172,40 @@ export default function ProductCatalogPrintPanel({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a
-            href={pdfHref}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand/90"
-          >
-            Descargar catálogo (PDF)
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href={pdfHref}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand/90"
+            >
+              Descargar catálogo (PDF)
+            </a>
+            <button
+              type="button"
+              onClick={async () => {
+                if (previewLoading) return;
+                setPreviewError(null);
+                setPreviewLoading(true);
+                try {
+                  const resp = await fetch(`${pdfHref}&preview=1`);
+                  if (!resp.ok) throw new Error('No se pudo generar la vista previa');
+                  const blob = await resp.blob();
+                  const url = URL.createObjectURL(blob);
+                  setPreviewUrl(url);
+                  setPreviewVisible(true);
+                } catch (error: any) {
+                  setPreviewError(error?.message || 'Error al generar la vista previa');
+                } finally {
+                  setPreviewLoading(false);
+                }
+              }}
+              className="inline-flex items-center justify-center rounded-md border border-brand px-4 py-2 text-sm font-semibold text-brand hover:bg-brand/10 transition"
+            >
+              {previewLoading ? 'Cargando vista previa...' : 'Ver vista previa'}
+            </button>
+          </div>
+          {previewError && <p className="text-xs text-red-600">{previewError}</p>}
         </div>
       </div>
 
@@ -346,5 +391,27 @@ export default function ProductCatalogPrintPanel({
         {contactLine && <p className="text-[11px] text-gray-500">{contactLine}</p>}
       </div>
     </section>
+      {previewVisible && previewUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
+          <div className="relative w-full max-w-5xl rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+              <h3 className="text-sm font-semibold text-gray-900">Vista previa del catálogo</h3>
+              <button
+                type="button"
+                onClick={closePreview}
+                className="text-xs uppercase tracking-wide text-gray-500 hover:text-gray-900"
+              >
+                Cerrar vista previa
+              </button>
+            </div>
+            <iframe
+              title="Previsualización PDF"
+              src={previewUrl}
+              className="h-[70vh] w-full rounded-b-2xl border-0"
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
