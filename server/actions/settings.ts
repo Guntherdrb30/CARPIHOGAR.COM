@@ -129,11 +129,15 @@ async function fetchBcvRate(): Promise<number | null> {
           .find((v) => typeof v === "number" && isFinite(v) && v > 0);
         if (typeof normalized === "number") return normalized;
       }
-    } catch {
-      // Si falla esta fuente, intentamos HTML
+    } catch (e) {
+      console.error("[fetchBcvRate] pydolarve API failed", String(e));
     }
 
-    const htmlSources = ["https://www.bcv.org.ve", "https://r.jina.ai/http://www.bcv.org.ve"];
+    const htmlSources = [
+      "https://www.bcv.org.ve",
+      "https://r.jina.ai/http://www.bcv.org.ve",
+      "https://r.jina.ai/http://bcv.org.ve",
+    ];
     for (const source of htmlSources) {
       try {
         const res = await fetch(source, { cache: "no-store" });
@@ -142,7 +146,7 @@ async function fetchBcvRate(): Promise<number | null> {
         const parsed = parseBcvHtml(html);
         if (parsed) return parsed;
       } catch {
-        // Continuamos con el siguiente origen
+        console.error(`[fetchBcvRate] failed to parse HTML from ${source}`);
       }
     }
 
