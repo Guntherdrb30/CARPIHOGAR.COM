@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { headers } from "next/headers";
@@ -102,7 +102,7 @@ function parseBcvHtml(html: string): number | null {
   return value;
 }
 
-// Obtiene la tasa BCV (Bs/USD) desde la p�gina oficial o proxies confiables
+// Obtiene la tasa BCV (Bs/USD) desde la página oficial o proxies confiables
 async function fetchBcvRate(): Promise<number | null> {
   try {
     try {
@@ -491,7 +491,7 @@ export async function setLegalBillingSettings(formData: FormData) {
   return { ok: true };
 }
 
-// Actualiza la tasa VES desde el BCV (admin, botón manual)
+// Actualiza la tasa VES desde el BCV (admin, botÃ³n manual)
 export async function refreshTasaFromBCV() {
   await ensureSiteSettingsColumns();
   const session = await getServerSession(authOptions);
@@ -510,7 +510,7 @@ export async function refreshTasaFromBCV() {
   return { ok: true, tasaVES: rate };
 }
 
-// Cron/automático (protegido por token en /api/cron/update-bcv)
+// Cron/automÃ¡tico (protegido por token en /api/cron/update-bcv)
 export async function refreshTasaFromBCVCron(): Promise<{
   ok: boolean;
   tasaVES?: number;
@@ -556,7 +556,7 @@ export async function setTasaManual(tasa: number) {
     throw new Error("Not authorized");
   }
   const rate = Number(tasa);
-  if (!isFinite(rate) || rate <= 0) throw new Error("Tasa inválida");
+  if (!isFinite(rate) || rate <= 0) throw new Error("Tasa invÃ¡lida");
   await applyBcvRate({
     rate,
     auditAction: "BCV_RATE_MANUAL",
@@ -576,7 +576,7 @@ export async function updateSettings(data: any) {
   const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
   const isRoot = email === rootEmail;
 
-  // La tasa oficial (tasaVES) se gestiona solo vía BCV o setTasaManual
+  // La tasa oficial (tasaVES) se gestiona solo vÃ­a BCV o setTasaManual
     const cleaned = { ...(data || {}) } as any;
     delete cleaned.tasaVES;
   
@@ -723,7 +723,7 @@ export async function setDefaultMargins(formData: FormData) {
   const allyPct = Number(String(formData.get("defaultMarginAllyPct") || ""));
   const wholesalePct = Number(String(formData.get("defaultMarginWholesalePct") || ""));
   if ([clientPct, allyPct, wholesalePct].some((v) => isNaN(v) || v < 0)) {
-    throw new Error("Valores inválidos");
+    throw new Error("Valores invÃ¡lidos");
   }
   await prisma.siteSettings.update({
     where: { id: 1 },
