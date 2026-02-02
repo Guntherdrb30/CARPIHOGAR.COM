@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     }
     const progressDate = progressDateRaw ? new Date(progressDateRaw) : new Date();
     if (Number.isNaN(progressDate.getTime())) {
-      return NextResponse.json({ error: "Fecha inv�lida" }, { status: 400 });
+      return NextResponse.json({ error: "Fecha inválida" }, { status: 400 });
     }
 
     const phase = phases.includes(phaseRaw as CarpentryProjectPhase)
