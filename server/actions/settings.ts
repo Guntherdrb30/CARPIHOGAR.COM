@@ -145,9 +145,30 @@ async function fetchBcvRate(): Promise<number | null> {
         const html = await res.text();
         const parsed = parseBcvHtml(html);
         if (parsed) return parsed;
-      } catch {
-        console.error(`[fetchBcvRate] failed to parse HTML from ${source}`);
+      } catch (err) {
+        console.error(`[fetchBcvRate] failed to parse HTML from ${source}`, String(err));
       }
+    }
+
+    try {
+      const backupRes = await fetch("https://bcv-api.rafnixg.dev/rates/", { cache: "no-store" });
+      if (backupRes.ok) {
+        const data: any = await backupRes.json();
+        const altVal =
+          Number(data?.dollar) ||
+          Number(data?.value) ||
+          Number(data?.rate) ||
+          Number(data?.BCV) ||
+          Number(data?.bcv);
+        if (Number.isFinite(altVal) && altVal > 0) {
+          console.info("[fetchBcvRate] using rafnixg fallback API", altVal);
+          return altVal;
+        }
+      } else {
+        console.error("[fetchBcvRate] rafnixg fallback API returned", backupRes.status);
+      }
+    } catch (e) {
+      console.error("[fetchBcvRate] rafnixg fallback API failed", String(e));
     }
 
     return null;
