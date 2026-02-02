@@ -151,12 +151,8 @@ export default function ProductCatalogPrintPanel({
     url.searchParams.set('priceTypes', priceTypesParam);
     url.searchParams.set('currency', currency);
     url.searchParams.set('itemsPerPage', String(itemsPerPage));
-    const idList = previewProducts.map((product) => product.id).filter(Boolean);
-    if (idList.length) {
-    url.searchParams.set('productIds', Array.from(new Set(idList)).join(','));
-    }
     return url.toString();
-  }, [category, sortBy, sortDir, priceTypesParam, currency, itemsPerPage, previewProducts]);
+  }, [category, sortBy, sortDir, priceTypesParam, currency, itemsPerPage]);
 
   const brandName = settings?.brandName || 'Carpihogar.ai';
   const logoUrl = settings?.logoUrl;

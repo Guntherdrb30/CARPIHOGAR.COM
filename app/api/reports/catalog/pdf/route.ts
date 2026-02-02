@@ -326,11 +326,6 @@ export async function GET(req: Request) {
     Number.isFinite(itemsPerPageParam) && itemsPerPageParam > 0 && itemsPerPageParam <= 8
       ? Math.floor(itemsPerPageParam)
       : DEFAULT_ITEMS_PER_PAGE;
-  const rawProductIds = String(url.searchParams.get('productIds') || '')
-    .split(',')
-    .map((id) => id.trim())
-    .filter(Boolean);
-
   const allProducts = await getProducts({
     categorySlug: rawCategory || undefined,
   });
@@ -340,15 +335,7 @@ export async function GET(req: Request) {
     : null;
   const categoryLabel = category?.name || 'Todos los productos';
   const sortedProducts = sortProducts(allProducts, sortBy, sortDir);
-  const requestedProductIds = Array.from(new Set(rawProductIds));
-  let effectiveProducts = sortedProducts;
-  if (requestedProductIds.length) {
-    const lookup = new Map(sortedProducts.map((p) => [p.id, p]));
-    const ordered = requestedProductIds.map((id) => lookup.get(id)).filter(Boolean);
-    if (ordered.length) {
-      effectiveProducts = ordered;
-    }
-  }
+  const effectiveProducts = sortedProducts;
   const sortLabel = resolveSortLabel(sortBy, sortDir);
   const exchangeRate = (() => {
     const rate = Number(settings?.tasaVES ?? 0);
