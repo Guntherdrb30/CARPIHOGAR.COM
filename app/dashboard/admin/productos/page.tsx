@@ -10,6 +10,7 @@ import ProductQuickSearch from "@/components/admin/product-quick-search";
 import ProductActionsMenu from "@/components/admin/product-actions-menu";
 import ShowToastFromSearch from '@/components/show-toast-from-search';
 import ProductCreateForm from '@/components/admin/product-create-form';
+import ProductCatalogPrintPanel from '@/components/admin/product-catalog-print-panel';
 
 export default async function AdminProductsPage({ searchParams }: { searchParams?: Promise<{ q?: string; categoria?: string; proveedor?: string; message?: string; error?: string; createKitchen?: string }> }) {
   const session = await getServerSession(authOptions as any);
@@ -83,6 +84,13 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
         <button className="bg-blue-600 text-white px-3 py-1 rounded">Filtrar</button>
         <a href="/dashboard/admin/productos" className="px-3 py-1 rounded border text-gray-700">Limpiar</a>
       </form>
+
+      {/* Área imprimible */}
+      <ProductCatalogPrintPanel
+        products={products as any}
+        categories={categories as any}
+        settings={settings as any}
+      />
 
       {/* Crear producto */}
       <ProductCreateForm
