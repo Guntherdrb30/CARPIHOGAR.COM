@@ -137,7 +137,7 @@ const buildCatalogPdf = async ({
   const imageHeight = 72;
   const brandName = settings?.brandName || 'Carpihogar';
   const primaryColor = settings?.primaryColor || '#0ea5e9';
-  const logoBuffer = await loadImageBuffer(settings?.logoUrl);
+  const logoBuffer = await loadImageBuffer(settings?.logoUrl || '/logo-catalog.svg');
   const contactLine = [
     settings?.brandName,
     settings?.contactEmail,
