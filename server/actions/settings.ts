@@ -150,25 +150,40 @@ async function fetchBcvRate(): Promise<number | null> {
       }
     }
 
-    try {
-      const backupRes = await fetch("https://bcv-api.rafnixg.dev/rates/", { cache: "no-store" });
-      if (backupRes.ok) {
-        const data: any = await backupRes.json();
-        const altVal =
-          Number(data?.dollar) ||
-          Number(data?.value) ||
-          Number(data?.rate) ||
-          Number(data?.BCV) ||
-          Number(data?.bcv);
-        if (Number.isFinite(altVal) && altVal > 0) {
-          console.info("[fetchBcvRate] using rafnixg fallback API", altVal);
-          return altVal;
+    const rafnixSources = [
+      "https://r.jina.ai/http://bcv-api.rafnixg.dev/rates/",
+      "https://bcv-api.rafnixg.dev/rates/",
+    ];
+    for (const source of rafnixSources) {
+      try {
+        const res = await fetch(source, { cache: "no-store" });
+        if (!res.ok) {
+          console.error("[fetchBcvRate] rafnixg fallback API returned", res.status);
+          continue;
         }
-      } else {
-        console.error("[fetchBcvRate] rafnixg fallback API returned", backupRes.status);
+        const text = await res.text();
+        const jsonStart = text.indexOf("{");
+        const jsonEnd = text.lastIndexOf("}");
+        if (jsonStart === -1 || jsonEnd === -1) continue;
+        const rawJson = text.slice(jsonStart, jsonEnd + 1);
+        try {
+          const data = JSON.parse(rawJson) as any;
+          const altVal =
+            Number(data?.dollar) ||
+            Number(data?.value) ||
+            Number(data?.rate) ||
+            Number(data?.BCV) ||
+            Number(data?.bcv);
+          if (Number.isFinite(altVal) && altVal > 0) {
+            console.info("[fetchBcvRate] using rafnixg fallback API", altVal);
+            return altVal;
+          }
+        } catch (jsonErr) {
+          console.error("[fetchBcvRate] failed to parse rafnixg JSON", String(jsonErr));
+        }
+      } catch (err) {
+        console.error("[fetchBcvRate] rafnixg fallback API failed", String(err));
       }
-    } catch (e) {
-      console.error("[fetchBcvRate] rafnixg fallback API failed", String(e));
     }
 
     return null;
