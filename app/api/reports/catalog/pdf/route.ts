@@ -10,6 +10,7 @@ import {
   parsePriceTypes,
   resolveSortLabel,
   sortProducts,
+  toNumber,
 } from '@/lib/catalog-report';
 import { getProducts } from '@/server/actions/products';
 import { getSettings } from '@/server/actions/settings';
@@ -115,23 +116,6 @@ const loadImageBuffer = async (source?: string | null): Promise<Buffer | null> =
   }
 
   return null;
-};
-
-const sortProducts = (products: any[], sortBy: string, sortDir: string) => {
-  const comparator = (a: any, b: any) => {
-    if (sortBy === 'price') {
-      return toNumber(a?.priceUSD) - toNumber(b?.priceUSD);
-    }
-    if (sortBy === 'stock') {
-      return toNumber(a?.stock) - toNumber(b?.stock);
-    }
-    const nameA = String(a?.name || '').toLowerCase();
-    const nameB = String(b?.name || '').toLowerCase();
-    return nameA.localeCompare(nameB, 'es', { sensitivity: 'base' });
-  };
-  const copy = [...products];
-  copy.sort((a, b) => (sortDir === 'desc' ? -comparator(a, b) : comparator(a, b)));
-  return copy;
 };
 
 type BuildCatalogPdfParams = {
