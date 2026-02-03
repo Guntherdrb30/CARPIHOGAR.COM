@@ -155,6 +155,17 @@ export default function ProductCatalogPrintPanel({
     return url.toString();
   }, [category, sortBy, sortDir, priceTypesParam, currency, itemsPerPage]);
 
+  const csvHref = useMemo(() => {
+    if (typeof window === 'undefined') return '#';
+    const url = new URL('/api/reports/catalog/excel', window.location.origin);
+    if (category) url.searchParams.set('categorySlug', category);
+    url.searchParams.set('sortBy', sortBy || 'name');
+    url.searchParams.set('sortDir', sortDir || 'asc');
+    url.searchParams.set('priceTypes', priceTypesParam);
+    url.searchParams.set('currency', currency);
+    return url.toString();
+  }, [category, sortBy, sortDir, priceTypesParam, currency]);
+
   const brandName = settings?.brandName || 'Carpihogar.ai';
   const logoUrl = settings?.logoUrl;
 
@@ -177,6 +188,12 @@ export default function ProductCatalogPrintPanel({
               className="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand/90"
             >
               Descargar catálogo (PDF)
+            </a>
+            <a
+              href={csvHref}
+              className="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50"
+            >
+              Descargar lista (Excel)
             </a>
             <button
               type="button"
