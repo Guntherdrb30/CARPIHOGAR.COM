@@ -1,6 +1,7 @@
 'use client';
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { normalizeCatalogImageUrl } from '@/lib/catalog-image';
 
 type ProductCatalogPrintPanelProps = {
   products: any[];
@@ -329,26 +330,27 @@ export default function ProductCatalogPrintPanel({
                 if (!Number.isFinite(numeric)) return null;
                 return { label: option.label, value: numeric };
               })
-              .filter((entry): entry is { label: string; value: number } => Boolean(entry));
+                .filter((entry): entry is { label: string; value: number } => Boolean(entry));
+            const previewImageUrl = normalizeCatalogImageUrl(product?.images?.[0]);
 
-            return (
-              <div
-                key={product.id}
-                className="space-y-1 rounded-lg border border-gray-200 bg-white p-2 text-[12px] leading-snug text-gray-700"
-              >
-                <div className="h-20 w-full overflow-hidden rounded-md bg-gray-100">
-                  {product.images && product.images.length ? (
-                    <img
-                      src={product.images[0]}
-                      alt={product.name || 'Producto'}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
-                      Sin imagen
-                    </div>
-                  )}
+              return (
+                <div
+                  key={product.id}
+                  className="space-y-1 rounded-lg border border-gray-200 bg-white p-2 text-[12px] leading-snug text-gray-700"
+                >
+                  <div className="h-20 w-full overflow-hidden rounded-md bg-gray-100">
+                    {previewImageUrl ? (
+                      <img
+                        src={previewImageUrl}
+                        alt={product.name || 'Producto'}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
+                        Sin imagen
+                      </div>
+                    )}
                 </div>
                 <p className="text-[11px] text-gray-500">Código: {product.code || product.sku || '—'}</p>
                 <p className="font-semibold text-sm text-gray-900 leading-tight">{product.name}</p>

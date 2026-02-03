@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { NextResponse } from 'next/server';
+import { normalizeCatalogImageUrl } from '@/lib/catalog-image';
 import { getProducts } from '@/server/actions/products';
 import { getSettings } from '@/server/actions/settings';
 import prisma from '@/lib/prisma';
@@ -17,6 +18,11 @@ const PRICE_TYPE_META: Record<string, { label: string; field: string }> = {
 };
 const DEFAULT_PRICE_TYPES = ['client'];
 const ALLOWED_CURRENCIES = new Set(['USD', 'VES']);
+const FALLBACK_IMAGE_ORIGIN = (
+  process.env.NEXT_PUBLIC_URL ||
+  process.env.NEXTAUTH_URL ||
+  'https://carpihogar.com'
+).replace(/\/+$/, '');
 
 const toNumber = (value: any): number => {
   if (value == null) return 0;
@@ -65,23 +71,60 @@ const optimizeImageBuffer = async (source: Buffer) => {
   }
 };
 
+const fetchRemoteImageBuffer = async (url: string): Promise<Buffer | null> => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const arrayBuffer = await response.arrayBuffer();
+    return optimizeImageBuffer(Buffer.from(arrayBuffer));
+  } catch {
+    return null;
+  }
+};
+
 const loadImageBuffer = async (source?: string | null): Promise<Buffer | null> => {
   if (!source) return null;
-  try {
-    if (source.startsWith('http')) {
-      const response = await fetch(source);
-      if (!response.ok) return null;
-      const arrayBuffer = await response.arrayBuffer();
-      return optimizeImageBuffer(Buffer.from(arrayBuffer));
+  const trimmed = String(source).trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith('data:')) {
+    const encoded = trimmed.split(',', 2)[1];
+    if (encoded) {
+      try {
+        return optimizeImageBuffer(Buffer.from(encoded, 'base64'));
+      } catch {
+        // ignore parse errors and continue with other candidates
+      }
     }
-    const normalized = source.replace(/^\/+/, '');
-    const targetPath = path.join(process.cwd(), 'public', normalized);
-    if (fs.existsSync(targetPath)) {
-      return optimizeImageBuffer(fs.readFileSync(targetPath));
-    }
-  } catch {
-    // ignore image download errors
   }
+
+  const isAbsoluteRemote = /^https?:\/\//i.test(trimmed) || /^\/\//.test(trimmed);
+  if (isAbsoluteRemote) {
+    const remoteUrl = trimmed.startsWith('//') ? `https:${trimmed}` : trimmed;
+    const remoteBuffer = await fetchRemoteImageBuffer(remoteUrl);
+    if (remoteBuffer) return remoteBuffer;
+  }
+
+  const localRelative = trimmed.replace(/^\/+/, '');
+  if (!isAbsoluteRemote && localRelative) {
+    const localPath = path.join(process.cwd(), 'public', localRelative);
+    if (fs.existsSync(localPath)) {
+      try {
+        return optimizeImageBuffer(fs.readFileSync(localPath));
+      } catch {
+        // ignore file read errors
+      }
+    }
+  }
+
+  if (!isAbsoluteRemote) {
+    const remoteUrl = normalizeCatalogImageUrl(trimmed, { origin: FALLBACK_IMAGE_ORIGIN });
+    if (remoteUrl) {
+      const remoteBuffer = await fetchRemoteImageBuffer(remoteUrl);
+      if (remoteBuffer) return remoteBuffer;
+    }
+  }
+
   return null;
 };
 
