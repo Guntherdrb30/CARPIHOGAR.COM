@@ -3,6 +3,14 @@ import path from 'path';
 
 import { NextResponse } from 'next/server';
 import { normalizeCatalogImageUrl } from '@/lib/catalog-image';
+import {
+  ALLOWED_SORTS,
+  PRICE_TYPE_META,
+  parseCurrency,
+  parsePriceTypes,
+  resolveSortLabel,
+  sortProducts,
+} from '@/lib/catalog-report';
 import { getProducts } from '@/server/actions/products';
 import { getSettings } from '@/server/actions/settings';
 import prisma from '@/lib/prisma';
@@ -10,55 +18,36 @@ import PDFDocument from 'pdfkit/js/pdfkit.standalone.js';
 import sharp from 'sharp';
 
 const DEFAULT_ITEMS_PER_PAGE = 8;
-const ALLOWED_SORTS = new Set(['name', 'price', 'stock']);
-const PRICE_TYPE_META: Record<string, { label: string; field: string }> = {
-  client: { label: 'Cliente', field: 'priceUSD' },
-  ally: { label: 'Aliado', field: 'priceAllyUSD' },
-  wholesale: { label: 'Mayorista', field: 'priceWholesaleUSD' },
-};
-const DEFAULT_PRICE_TYPES = ['client'];
-const ALLOWED_CURRENCIES = new Set(['USD', 'VES']);
 const FALLBACK_IMAGE_ORIGIN = (
   process.env.NEXT_PUBLIC_URL ||
   process.env.NEXTAUTH_URL ||
   'https://carpihogar.com'
 ).replace(/\/+$/, '');
 
-const toNumber = (value: any): number => {
-  if (value == null) return 0;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  if (typeof value?.toNumber === 'function') {
-    const n = value.toNumber();
-    return Number.isFinite(n) ? n : 0;
+const cleanFooterText = (input: string) =>
+  String(input || '').replace(/[\r\n]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+
+const splitFooterLines = (text: string, maxLines = 2, maxChars = 74) => {
+  if (!text) return [];
+  const words = text.split(' ').filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxChars && current) {
+      lines.push(current);
+      current = word;
+      if (lines.length >= maxLines) break;
+      continue;
+    }
+    current = next;
   }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+  if (current && lines.length < maxLines) {
+    lines.push(current);
+  }
+  return lines.slice(0, maxLines);
 };
 
-const resolveSortLabel = (sortBy: string, sortDir: string) => {
-  if (sortBy === 'price') {
-    return sortDir === 'desc' ? 'Precio (mayor a menor)' : 'Precio (menor a mayor)';
-  }
-  if (sortBy === 'stock') {
-    return sortDir === 'asc' ? 'Stock (menor a mayor)' : 'Stock (mayor a menor)';
-  }
-  return sortDir === 'desc' ? 'Nombre (Z-A)' : 'Nombre (A-Z)';
-};
-
-const parsePriceTypes = (value?: string | null): string[] => {
-  if (!value) return [...DEFAULT_PRICE_TYPES];
-  const normalized = value
-    .split(',')
-    .map((token) => token.trim().toLowerCase())
-    .filter((token) => PRICE_TYPE_META[token]);
-  return normalized.length ? normalized : [...DEFAULT_PRICE_TYPES];
-};
-
-const parseCurrency = (value?: string | null): 'USD' | 'VES' => {
-  if (!value) return 'USD';
-  const normalized = value.trim().toUpperCase();
-  return ALLOWED_CURRENCIES.has(normalized) ? (normalized as 'USD' | 'VES') : 'USD';
-};
 
 const optimizeImageBuffer = async (source: Buffer) => {
   try {
@@ -181,15 +170,18 @@ const buildCatalogPdf = async ({
   const brandName = settings?.brandName || 'Carpihogar';
   const primaryColor = settings?.primaryColor || '#0ea5e9';
   const logoBuffer = await loadImageBuffer(settings?.logoUrl || '/logo-catalog.svg');
-  const contactLine = [
-    settings?.brandName,
-    settings?.contactEmail,
-    settings?.contactPhone,
-    settings?.legalCompanyName,
-    settings?.legalCompanyAddress,
-  ]
-    .filter(Boolean)
-    .join(' • ');
+  const contactLine = cleanFooterText(
+    [
+      settings?.brandName,
+      settings?.contactEmail,
+      settings?.contactPhone,
+      settings?.legalCompanyName,
+      settings?.legalCompanyAddress,
+    ]
+      .filter(Boolean)
+      .join(' • '),
+  );
+  const footerLines = contactLine ? splitFooterLines(contactLine) : [];
   const normalizedPriceTypes = priceTypes
     .map((type) => PRICE_TYPE_META[type])
     .filter((meta): meta is { label: string; field: string } => Boolean(meta));
@@ -223,12 +215,16 @@ const buildCatalogPdf = async ({
   };
 
   const drawFooter = () => {
-    if (!contactLine) return;
+    if (!footerLines.length) return;
     doc.font('Helvetica').fontSize(9).fillColor('#475569');
-    const footerY = doc.page.height - margin + 4;
-    doc.text(contactLine, margin, footerY, {
-      width: doc.page.width - margin * 2,
-      align: 'center',
+    const footerBaseY =
+      doc.page.height - margin + 4 - Math.max(0, footerLines.length - 1) * 10;
+    footerLines.forEach((line, index) => {
+      doc.text(line, margin, footerBaseY + index * 10, {
+        width: doc.page.width - margin * 2,
+        align: 'center',
+        lineBreak: false,
+      });
     });
     doc.fillColor('#111827');
   };
