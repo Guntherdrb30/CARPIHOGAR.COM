@@ -8,6 +8,7 @@ import Link from "next/link";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [resendMsg, setResendMsg] = useState("");
   const [resendOk, setResendOk] = useState<null | boolean>(null);
@@ -97,15 +98,47 @@ export default function LoginPage() {
             required
           />
         </div>
-        <div className="mb-4">
-          <label className="block text-gray-700">Contrasena</label>
+        <div className="mb-4 relative">
+          <label className="block text-gray-700">Contraseña</label>
           <input
-            type="password"
+            type={showPassword ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-2 border rounded-lg"
+            className="w-full px-3 py-2 border rounded-lg pr-10"
             required
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            className="absolute inset-y-0 right-3 flex items-center text-gray-500"
+            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+          >
+            {showPassword ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path d="M17.94 17.94A10.04 10.04 0 0 1 12 20c-5.52 0-10-4.48-10-10a9.95 9.95 0 0 1 2.5-6.56M9.5 9.5a3 3 0 0 1 4.2 4.2" />
+                <path d="M1 1l22 22" />
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            )}
+          </button>
         </div>
         <button type="submit" className="w-full bg-blue-500 text-white py-2 rounded-lg">
           Ingresar

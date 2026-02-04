@@ -9,6 +9,7 @@ import StockHistory from "@/components/admin/stock-history";
 import ProductQuickSearch from "@/components/admin/product-quick-search";
 import ProductActionsMenu from "@/components/admin/product-actions-menu";
 import ShowToastFromSearch from '@/components/show-toast-from-search';
+import ProductCatalogAiAssistant from '@/components/admin/product-catalog-ai-assistant';
 import ProductCreateForm from '@/components/admin/product-create-form';
 import ProductCatalogPrintPanel from '@/components/admin/product-catalog-print-panel';
 
@@ -56,6 +57,9 @@ export default async function AdminProductsPage({ searchParams }: { searchParams
           <ProductCsvUploader />
         </div>
       </details>
+      <div className="mb-4">
+        <ProductCatalogAiAssistant categories={categories as any} />
+      </div>
       <div className="mb-4">
         <label className="block text-sm text-gray-700 mb-1">Busqueda rapida</label>
         <ProductQuickSearch />
