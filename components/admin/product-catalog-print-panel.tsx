@@ -1,12 +1,28 @@
 'use client';
 
-import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useCallback, useMemo, useState } from 'react';
 import { normalizeCatalogImageUrl } from '@/lib/catalog-image';
 
 type ProductCatalogPrintPanelProps = {
   products: any[];
   categories: any[];
   settings: any;
+};
+
+type AiResult = {
+  summary: string;
+  coverTitle: string;
+  coverSubtitle?: string;
+  coverDescription?: string;
+  sections?: Array<{ title: string; text: string; highlight?: string }>;
+  featuredProducts?: Array<{
+    name: string;
+    note?: string;
+    priceLabel: string;
+    priceValue: string;
+    stock?: string;
+  }>;
+  catalogHtml: string;
 };
 
 const sortOptions = [
@@ -34,21 +50,22 @@ export default function ProductCatalogPrintPanel({
   settings,
 }: ProductCatalogPrintPanelProps) {
   const [category, setCategory] = useState('');
+  const [categoryTouched, setCategoryTouched] = useState(false);
   const [sortValue, setSortValue] = useState(sortOptions[0].value);
   const [priceTypes, setPriceTypes] = useState<string[]>(['client']);
+  const [priceTouched, setPriceTouched] = useState(false);
   const [currency, setCurrency] = useState<'USD' | 'VES'>('USD');
   const [itemsPerPage, setItemsPerPage] = useState(4);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [previewVisible, setPreviewVisible] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiResult, setAiResult] = useState<AiResult | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [sortBy, sortDir] = sortValue.split('::');
 
   const filteredProducts = useMemo(() => {
-    const hasCategory = Boolean(category);
+    const useCategory = Boolean(category);
     const baseList = Array.isArray(products) ? products : [];
 
-    const filtered = hasCategory
+    const filtered = useCategory
       ? baseList.filter((product) => product?.category?.slug === category)
       : [...baseList];
 
@@ -96,26 +113,38 @@ export default function ProductCatalogPrintPanel({
     return picked.length ? picked : [PRICE_TYPE_OPTIONS[0]];
   }, [priceTypes]);
   const priceSummary = selectedPriceOptions.map((option) => option.label).join(', ');
-  const priceTypesParam = priceTypes.length ? priceTypes.join(',') : 'client';
-  const togglePriceType = useCallback((value: string) => {
-    setPriceTypes((prev) => {
-      if (prev.includes(value)) {
-        if (prev.length === 1) return prev;
-        return prev.filter((type) => type !== value);
-      }
-      return [...prev, value];
-    });
+  const togglePriceType = useCallback(
+    (value: string) => {
+      setPriceTypes((prev) => {
+        if (prev.includes(value)) {
+          if (prev.length === 1) return prev;
+          return prev.filter((type) => type !== value);
+        }
+        return [...prev, value];
+      });
+      setPriceTouched(true);
+    },
+    []
+  );
+  const handleCategoryChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    setCategory(event.target.value);
+    setCategoryTouched(true);
   }, []);
   const handleCurrencyChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
     const next = event.target.value === 'VES' ? 'VES' : 'USD';
     setCurrency(next);
   }, []);
-  const handleItemsPerPageChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
-    const value = Number(event.target.value);
-    const clamped = Number.isFinite(value) ? Math.min(Math.max(value, 1), 8) : itemsPerPage;
-    setItemsPerPage(clamped);
-  }, [itemsPerPage]);
+  const handleItemsPerPageChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const value = Number(event.target.value);
+      const clamped = Number.isFinite(value) ? Math.min(Math.max(value, 1), 8) : itemsPerPage;
+      setItemsPerPage(clamped);
+    },
+    [itemsPerPage]
+  );
 
+  const readyToGenerate =
+    filteredProducts.length > 0 && priceTypes.length > 0 && categoryTouched && priceTouched;
   const previewProducts = filteredProducts.slice(0, itemsPerPage);
   const placeholderCount = Math.max(0, 8 - previewProducts.length);
   const displayedCategory = categories.find((c) => c.slug === category);
@@ -128,198 +157,250 @@ export default function ProductCatalogPrintPanel({
   ]
     .filter(Boolean)
     .join(' • ');
-
-  const closePreview = useCallback(() => {
-    setPreviewVisible(false);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-  }, [previewUrl]);
-
-  useEffect(() => () => {
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-  }, [previewUrl]);
-
-  const pdfHref = useMemo(() => {
-    if (typeof window === 'undefined') return '#';
-    const url = new URL('/api/reports/catalog/pdf', window.location.origin);
-    if (category) url.searchParams.set('categorySlug', category);
-    url.searchParams.set('sortBy', sortBy || 'name');
-    url.searchParams.set('sortDir', sortDir || 'asc');
-    url.searchParams.set('priceTypes', priceTypesParam);
-    url.searchParams.set('currency', currency);
-    url.searchParams.set('itemsPerPage', String(itemsPerPage));
-    return url.toString();
-  }, [category, sortBy, sortDir, priceTypesParam, currency, itemsPerPage]);
-
-  const csvHref = useMemo(() => {
-    if (typeof window === 'undefined') return '#';
-    const url = new URL('/api/reports/catalog/excel', window.location.origin);
-    if (category) url.searchParams.set('categorySlug', category);
-    url.searchParams.set('sortBy', sortBy || 'name');
-    url.searchParams.set('sortDir', sortDir || 'asc');
-    url.searchParams.set('priceTypes', priceTypesParam);
-    url.searchParams.set('currency', currency);
-    return url.toString();
-  }, [category, sortBy, sortDir, priceTypesParam, currency]);
-
   const brandName = settings?.brandName || 'Carpihogar.ai';
   const logoUrl = settings?.logoUrl;
+  const origin = typeof window === 'undefined' ? '' : window.location.origin;
+  const aiLogoUrl = `${origin}/logo-catalogo.svg`;
+
+  const generateAiCatalog = useCallback(async () => {
+    if (!readyToGenerate) return;
+    setAiError(null);
+    setAiResult(null);
+    setAiGenerating(true);
+    try {
+      const payload = {
+        products: filteredProducts.slice(0, 40).map((product) => ({
+          id: product.id,
+          name: product.name,
+          slug: product.slug,
+          brand: product.brand,
+          category: product.category?.name || product.category?.slug || null,
+          priceUSD: product.priceUSD,
+          priceAllyUSD: product.priceAllyUSD,
+          priceWholesaleUSD: product.priceWholesaleUSD,
+          stock: product.stock,
+          sku: product.sku,
+          code: product.code,
+          image: normalizeCatalogImageUrl(product?.images?.[0]) || null,
+        })),
+        filters: {
+          category: category || 'Todas las categorías',
+          priceTypes,
+          currency,
+          sortBy,
+          sortDir,
+        },
+        metadata: {
+          brandName,
+          logoUrl: aiLogoUrl,
+          contactLine,
+        },
+      };
+      const resp = await fetch('/api/reports/catalog/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await resp.json();
+      if (!resp.ok || !json?.ok) {
+        throw new Error(json?.error || 'No se pudo generar el catálogo.');
+      }
+      setAiResult(json.catalog);
+    } catch (error: any) {
+      setAiError(error?.message || 'No se pudo generar el catálogo con IA.');
+    } finally {
+      setAiGenerating(false);
+    }
+  }, [readyToGenerate, filteredProducts, priceTypes, category, currency, sortBy, sortDir, brandName, contactLine, aiLogoUrl]);
+
+  const downloadAiCatalog = useCallback(() => {
+    if (!aiResult?.catalogHtml || typeof window === 'undefined') return;
+    const blob = new Blob([aiResult.catalogHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const now = new Date().toISOString().split('T')[0];
+    link.href = url;
+    link.download = `catalogo-ia-${now}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [aiResult]);
 
   return (
     <>
       <section className="space-y-4 bg-white border border-gray-200 rounded-xl shadow-sm p-4">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-lg font-semibold text-gray-900">Catálogo imprimible</p>
-          <p className="text-sm text-gray-500">
-            Genera un documento PDF con hasta {itemsPerPage} productos por página que incluye logo y datos de contacto.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <a
-              href={pdfHref}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand/90"
-            >
-              Descargar catálogo (PDF)
-            </a>
-            <a
-              href={csvHref}
-              className="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-gray-400 hover:bg-gray-50"
-            >
-              Descargar lista (Excel)
-            </a>
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-lg font-semibold text-gray-900">Catálogo IA</p>
+            <p className="text-sm text-gray-500">
+              Genera un catálogo premium con estilo moderno y elegante usando los productos filtrados. La IA usará
+              la nueva identidad visual y las reglas de precio seleccionadas.
+            </p>
+          </div>
+          <div className="flex flex-col items-start gap-2 md:flex-row md:items-center">
             <button
               type="button"
-              onClick={async () => {
-                if (previewLoading) return;
-                setPreviewError(null);
-                setPreviewLoading(true);
-                try {
-                  const resp = await fetch(`${pdfHref}&preview=1`);
-                  if (!resp.ok) throw new Error('No se pudo generar la vista previa');
-                  const blob = await resp.blob();
-                  const url = URL.createObjectURL(blob);
-                  setPreviewUrl(url);
-                  setPreviewVisible(true);
-                } catch (error: any) {
-                  setPreviewError(error?.message || 'Error al generar la vista previa');
-                } finally {
-                  setPreviewLoading(false);
-                }
-              }}
-              className="inline-flex items-center justify-center rounded-md border border-brand px-4 py-2 text-sm font-semibold text-brand hover:bg-brand/10 transition"
+              disabled={!readyToGenerate || aiGenerating}
+              onClick={generateAiCatalog}
+              className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white shadow-sm transition ${
+                readyToGenerate && !aiGenerating
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-gray-300 cursor-not-allowed'
+              }`}
             >
-              {previewLoading ? 'Cargando vista previa...' : 'Ver vista previa'}
+              {aiGenerating ? 'Generando catálogo...' : 'Generar catálogo con IA'}
             </button>
+            <span className="text-xs font-medium text-gray-500">
+              Selecciona categoría y un tipo de precio antes de generar; se usarán {filteredProducts.length} productos.
+            </span>
           </div>
-          {previewError && <p className="text-xs text-red-600">{previewError}</p>}
         </div>
-      </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <label className="space-y-2 text-sm text-gray-700">
-          <span className="font-medium">Categoría</span>
-          <select
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm focus:border-brand focus:outline-none"
-          >
-            <option value="">Todas las categorías</option>
-            {categories.map((cat: any) => (
-              <option key={`${cat.id}-${cat.slug || cat.name}`} value={cat.slug}>
-                {cat.depth && cat.depth > 0 ? `${' '.repeat(cat.depth * 2)}› ` : ''}
-                {cat.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="space-y-2 text-sm text-gray-700">
-          <span className="font-medium">Organizado por</span>
-          <select
-            value={sortValue}
-            onChange={(event) => setSortValue(event.target.value)}
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm focus:border-brand focus:outline-none"
-          >
-            {sortOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      <div className="space-y-3">
-        <div className="space-y-2 text-sm text-gray-700">
-          <p className="font-medium">Tipo(s) de precio</p>
-          <div className="flex flex-wrap gap-2">
-            {PRICE_TYPE_OPTIONS.map((option) => {
-              const isSelected = priceTypes.includes(option.value);
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => togglePriceType(option.value)}
-                  className={`px-3 py-1 rounded-full border text-sm font-semibold transition ${
-                    isSelected
-                      ? 'bg-brand text-white border-brand'
-                      : 'border-gray-300 text-gray-600 hover:border-gray-400'
-                  }`}
-                >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="space-y-2 text-sm text-gray-700">
+            <span className="font-medium">Categoría</span>
+            <select
+              value={category}
+              onChange={handleCategoryChange}
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm focus:border-brand focus:outline-none"
+            >
+              <option value="">Todas las categorías</option>
+              {categories.map((cat: any) => (
+                <option key={`${cat.id}-${cat.slug || cat.name}`} value={cat.slug}>
+                  {cat.depth && cat.depth > 0 ? `${' '.repeat(cat.depth * 2)}› ` : ''}
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-2 text-sm text-gray-700">
+            <span className="font-medium">Organizado por</span>
+            <select
+              value={sortValue}
+              onChange={(event) => setSortValue(event.target.value)}
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm focus:border-brand focus:outline-none"
+            >
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
                   {option.label}
-                </button>
-              );
-            })}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="space-y-2 text-sm text-gray-700">
+            <span className="font-medium">Tipo(s) de precio</span>
+            <div className="flex flex-wrap gap-2">
+              {PRICE_TYPE_OPTIONS.map((option) => {
+                const isSelected = priceTypes.includes(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => togglePriceType(option.value)}
+                    className={`px-3 py-1 rounded-full border text-sm font-semibold transition ${
+                      isSelected
+                        ? 'bg-brand text-white border-brand'
+                        : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+          <label className="space-y-2 text-sm text-gray-700">
+            <span className="font-medium">Moneda del catálogo</span>
+            <select
+              value={currency}
+              onChange={handleCurrencyChange}
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm focus:border-brand focus:outline-none"
+            >
+              {CURRENCY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-        <label className="space-y-2 text-sm text-gray-700">
-          <span className="font-medium">Moneda del catálogo</span>
-          <select
-            value={currency}
-            onChange={handleCurrencyChange}
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm focus:border-brand focus:outline-none"
-          >
-            {CURRENCY_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="space-y-2 text-sm text-gray-700">
-          <span className="font-medium">Productos por página</span>
-          <select
-            value={itemsPerPage}
-            onChange={handleItemsPerPageChange}
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm focus:border-brand focus:outline-none"
-          >
-            {[4, 6, 8].map((value) => (
-              <option key={value} value={value}>
-                {value} productos
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
 
-      <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-        <span className="font-semibold text-gray-700">Vista previa</span>
-        <span>Filtrando {filteredProducts.length} productos</span>
-        <span>{categoryLabel}</span>
-        <span>{sortLabel}</span>
-        <span>Moneda: {currency}</span>
-        {priceSummary && <span>Precios: {priceSummary}</span>}
-        {contactLine && <span>{contactLine}</span>}
-      </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="space-y-2 text-sm text-gray-700">
+            <span className="font-medium">Productos por página</span>
+            <select
+              value={itemsPerPage}
+              onChange={handleItemsPerPageChange}
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 shadow-sm focus:border-brand focus:outline-none"
+            >
+              {[4, 6, 8].map((value) => (
+                <option key={value} value={value}>
+                  {value} productos
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
 
-      <div className="rounded-2xl border border-dashed border-gray-200 bg-slate-50 p-3">
+        <div className="space-y-2 text-sm">
+          <p>
+            Categoría: <strong>{displayedCategory ? displayedCategory.name : 'Todas las categorías'}</strong> ·
+            Tipo(s) de precio: <strong>{priceSummary || 'Cliente'}</strong> ·
+            Moneda: <strong>{currency}</strong>
+          </p>
+          {categoryTouched && priceTouched && !readyToGenerate && (
+            <p className="text-xs text-red-600">Es necesario al menos un producto filtrado para generar el catálogo.</p>
+          )}
+        </div>
+
+        {aiError && <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{aiError}</div>}
+        {aiResult && (
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+            <div className="flex flex-col gap-1">
+              <p className="text-base font-semibold text-gray-900">{aiResult.coverTitle}</p>
+              {aiResult.coverSubtitle && <p className="text-xs uppercase tracking-wide text-blue-600">{aiResult.coverSubtitle}</p>}
+              {aiResult.coverDescription && <p className="text-sm text-gray-700">{aiResult.coverDescription}</p>}
+            </div>
+            {aiResult.sections?.map((section) => (
+              <div key={section.title} className="mt-3 space-y-1">
+                <p className="text-sm font-semibold">{section.title}</p>
+                <p className="text-xs text-gray-800">{section.text}</p>
+                {section.highlight && <p className="text-[11px] text-gray-600">{section.highlight}</p>}
+              </div>
+            ))}
+            {aiResult.featuredProducts && aiResult.featuredProducts.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="text-xs uppercase tracking-wide text-gray-600">Productos destacados</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {aiResult.featuredProducts.map((item) => (
+                    <div key={`${item.name}-${item.priceValue}`} className="rounded border border-blue-100 bg-white p-2 text-[12px] text-blue-900">
+                      <p className="font-semibold">{item.name}</p>
+                      <p className="text-[11px] text-gray-500">{item.note || 'Selección IA'}</p>
+                      <p className="text-[11px] text-amber-600">
+                        {item.priceLabel}: <span className="font-semibold">{item.priceValue}</span>
+                      </p>
+                      {item.stock && <p className="text-[11px] text-gray-600">Stock: {item.stock}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={downloadAiCatalog}
+                className="inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand/90"
+              >
+                Descargar catálogo IA (HTML)
+              </button>
+              <span className="text-[11px] text-gray-600">Abre el archivo en tu editor o impresora para imprimir.</span>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="mt-4 space-y-4 rounded-2xl border border-dashed border-gray-200 bg-slate-50 p-3">
         <div className="flex items-center justify-between border-b border-gray-200 pb-3">
           <div className="flex items-center gap-3">
             {logoUrl && (
@@ -347,27 +428,27 @@ export default function ProductCatalogPrintPanel({
                 if (!Number.isFinite(numeric)) return null;
                 return { label: option.label, value: numeric };
               })
-                .filter((entry): entry is { label: string; value: number } => Boolean(entry));
+              .filter((entry): entry is { label: string; value: number } => Boolean(entry));
             const previewImageUrl = normalizeCatalogImageUrl(product?.images?.[0]);
 
-              return (
-                <div
-                  key={product.id}
-                  className="space-y-1 rounded-lg border border-gray-200 bg-white p-2 text-[12px] leading-snug text-gray-700"
-                >
-                  <div className="h-20 w-full overflow-hidden rounded-md bg-gray-100">
-                    {previewImageUrl ? (
-                      <img
-                        src={previewImageUrl}
-                        alt={product.name || 'Producto'}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
-                        Sin imagen
-                      </div>
-                    )}
+            return (
+              <div
+                key={product.id}
+                className="space-y-1 rounded-lg border border-gray-200 bg-white p-2 text-[12px] leading-snug text-gray-700"
+              >
+                <div className="h-20 w-full overflow-hidden rounded-md bg-gray-100">
+                  {previewImageUrl ? (
+                    <img
+                      src={previewImageUrl}
+                      alt={product.name || 'Producto'}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
+                      Sin imagen
+                    </div>
+                  )}
                 </div>
                 <p className="text-[11px] text-gray-500">Código: {product.code || product.sku || '—'}</p>
                 <p className="font-semibold text-sm text-gray-900 leading-tight">{product.name}</p>
@@ -404,29 +485,7 @@ export default function ProductCatalogPrintPanel({
         </div>
 
         {contactLine && <p className="text-[11px] text-gray-500">{contactLine}</p>}
-      </div>
-    </section>
-      {previewVisible && previewUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6">
-          <div className="relative w-full max-w-5xl rounded-2xl bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-              <h3 className="text-sm font-semibold text-gray-900">Vista previa del catálogo</h3>
-              <button
-                type="button"
-                onClick={closePreview}
-                className="text-xs uppercase tracking-wide text-gray-500 hover:text-gray-900"
-              >
-                Cerrar vista previa
-              </button>
-            </div>
-            <iframe
-              title="Previsualización PDF"
-              src={previewUrl}
-              className="h-[70vh] w-full rounded-b-2xl border-0"
-            />
-          </div>
-        </div>
-      )}
+      </section>
     </>
   );
 }
