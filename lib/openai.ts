@@ -78,18 +78,22 @@ export async function callOpenAIResponses(payload: ResponsesPayload) {
     throw new Error("OPENAI_API_KEY no está configurada");
   }
 
+  const bodyPayload: any = {
+    model: payload.model,
+    input: payload.input,
+    temperature: payload.temperature ?? 0,
+  };
+  if (payload.response_format) {
+    bodyPayload.text = { format: payload.response_format };
+  }
+
   const res = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model: payload.model,
-      input: payload.input,
-      response_format: payload.response_format,
-      temperature: payload.temperature ?? 0,
-    }),
+    body: JSON.stringify(bodyPayload),
   });
 
   if (!res.ok) {
@@ -101,4 +105,3 @@ export async function callOpenAIResponses(payload: ResponsesPayload) {
 
   return res.json();
 }
-
