@@ -90,12 +90,12 @@ export async function callOpenAIResponses(payload: ResponsesPayload) {
       type: responseFormat.type || 'json_schema',
     };
     if (responseFormat.json_schema) {
-      formatPayload.json_schema = responseFormat.json_schema;
+      formatPayload.schema = responseFormat.json_schema;
     } else if (responseFormat.schema) {
-      formatPayload.json_schema = responseFormat.schema;
+      formatPayload.schema = responseFormat.schema;
     } else if (!responseFormat.type) {
       // allow passing the schema directly
-      formatPayload.json_schema = responseFormat;
+      formatPayload.schema = responseFormat;
     }
     bodyPayload.text = { format: formatPayload };
   }
