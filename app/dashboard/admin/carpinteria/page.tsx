@@ -10,42 +10,7 @@ import { getPayrollEmployees } from "@/server/actions/payroll";
 import ProofUploader from "@/components/admin/proof-uploader";
 import CarpentryProjectTabs from "@/components/admin/carpentry-project-tabs";
 import CarpentryDocumentUploader from "@/components/admin/carpentry-document-uploader";
-
-const VENEZUELA_STATES = [
-  "Amazonas",
-  "Anzoátegui",
-  "Apure",
-  "Aragua",
-  "Barinas",
-  "Bolívar",
-  "Carabobo",
-  "Cojedes",
-  "Delta Amacuro",
-  "Distrito Capital",
-  "Falcón",
-  "Guárico",
-  "Lara",
-  "Mérida",
-  "Miranda",
-  "Monagas",
-  "Nueva Esparta",
-  "Portuguesa",
-  "Sucre",
-  "Táchira",
-  "Trujillo",
-  "Vargas",
-  "Yaracuy",
-  "Zulia",
-];
-
-const CITY_MAP: Record<string, string[]> = {
-  Distrito: ["Caracas", "El Hatillo", "Chacao"],
-  Miranda: ["Guatire", "Los Teques", "Higuerote"],
-  Carabobo: ["Valencia", "Naguanagua", "Puerto Cabello"],
-  Lara: ["Barquisimeto", "Cabudare", "Carora"],
-  Zulia: ["Maracaibo", "Cabimas", "San Francisco"],
-  default: ["Maracay", "Puerto Ordaz", "Ciudad Bolívar"],
-};
+import CarpentryClientLocationFields from "@/components/admin/carpentry-client-location-fields";
 
 export default async function CarpinteriaAdminPage({ searchParams }: { searchParams?: Promise<{ message?: string; error?: string }> }) {
   const session = await getServerSession(authOptions);
@@ -108,33 +73,7 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
               </p>
             </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700">Ciudad</label>
-                  <input
-                    name="clientCity"
-                    list="carpentry-cities"
-                    placeholder="Caracas"
-                    className="mt-1 w-full rounded border px-3 py-2 text-sm"
-                  />
-                  <datalist id="carpentry-cities">
-                    {["Caracas", "Valencia", "Maracay", "Maracaibo", "Barquisimeto"].map((city) => (
-                      <option key={city} value={city} />
-                    ))}
-                  </datalist>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700">Estado</label>
-                  <select name="clientState" className="mt-1 w-full rounded border px-3 py-2 text-sm">
-                    <option value="">Selecciona un estado</option>
-                    {VENEZUELA_STATES.map((state) => (
-                      <option key={state} value={state}>{state}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700">Dirección</label>
-                  <input name="clientAddress" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
-                </div>
+                <CarpentryClientLocationFields />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>

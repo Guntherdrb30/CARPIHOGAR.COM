@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import ProofUploader from "@/components/admin/proof-uploader";
 import SupportFileUploader from "@/components/admin/support-file-uploader";
 import { getPayrollEmployees } from "@/server/actions/payroll";
+import CarpentryClientLocationFields from "@/components/admin/carpentry-client-location-fields";
 import {
   createCarpentryProject,
   createCarpentrySubproject,
@@ -119,9 +120,7 @@ export default async function CarpentryPartialPaymentsPage({
               <input name="clientName" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <input name="clientCity" placeholder="Ciudad" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
-              <input name="clientState" placeholder="Estado" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
-              <input name="clientAddress" placeholder="Dirección" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+              <CarpentryClientLocationFields />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
