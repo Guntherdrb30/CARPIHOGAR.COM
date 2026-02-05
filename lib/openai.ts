@@ -84,7 +84,20 @@ export async function callOpenAIResponses(payload: ResponsesPayload) {
     temperature: payload.temperature ?? 0,
   };
   if (payload.response_format) {
-    bodyPayload.text = { format: payload.response_format };
+    const responseFormat: any = payload.response_format;
+    const formatPayload: any = {
+      name: responseFormat.name || 'response_format',
+      type: responseFormat.type || 'json_schema',
+    };
+    if (responseFormat.json_schema) {
+      formatPayload.json_schema = responseFormat.json_schema;
+    } else if (responseFormat.schema) {
+      formatPayload.json_schema = responseFormat.schema;
+    } else if (!responseFormat.type) {
+      // allow passing the schema directly
+      formatPayload.json_schema = responseFormat;
+    }
+    bodyPayload.text = { format: formatPayload };
   }
 
   const res = await fetch("https://api.openai.com/v1/responses", {
