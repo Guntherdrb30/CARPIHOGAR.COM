@@ -89,14 +89,24 @@ export async function callOpenAIResponses(payload: ResponsesPayload) {
       name: responseFormat.name || 'response_format',
       type: responseFormat.type || 'json_schema',
     };
-    if (responseFormat.json_schema) {
-      formatPayload.schema = responseFormat.json_schema;
-    } else if (responseFormat.schema) {
-      formatPayload.schema = responseFormat.schema;
-    } else if (!responseFormat.type) {
-      // allow passing the schema directly
-      formatPayload.schema = responseFormat;
-    }
+    const resolveSchema = (value: any) => {
+      if (!value || typeof value !== 'object') return null;
+      if ('schema' in value && typeof value.schema === 'object') {
+        return value.schema;
+      }
+      if ('json_schema' in value) {
+        const inner = value.json_schema;
+        if (inner && typeof inner === 'object') {
+          return resolveSchema(inner) || inner;
+        }
+      }
+      return value;
+    };
+    const schemaValue =
+      resolveSchema(responseFormat.json_schema) ||
+      resolveSchema(responseFormat.schema) ||
+      resolveSchema(responseFormat);
+    formatPayload.schema = schemaValue ?? { type: 'object', properties: {} };
     bodyPayload.text = { format: formatPayload };
   }
 
