@@ -169,8 +169,10 @@ function buildCatalogHtml({
   }>;
 }) {
   const perPage = 24; // 4 columns x 6 rows
-  const pages = chunk(products, perPage);
-  const totalPages = Math.max(1, pages.length + 1); // cover + product pages
+  const rawPages = chunk(products, perPage);
+  const pages = rawPages.length ? rawPages : [[]];
+  // Print only product pages (4x6). This keeps the catalog compact.
+  const totalPages = Math.max(1, pages.length);
   const safeBrandName = escapeHtml(brandName);
   const safeCategory = escapeHtml(categoryLabel);
   const safePrintedAt = escapeHtml(printedAt);
@@ -178,70 +180,22 @@ function buildCatalogHtml({
   const safeSort = escapeHtml(sortLabel);
   const safeCurrency = escapeHtml(currency);
   const safeRate =
-    currency === 'VES' ? ` · Tasa: ${escapeHtml(Number(exchangeRate || 0).toFixed(2))} Bs/USD` : '';
+    currency === 'VES' ? ` - Tasa: ${escapeHtml(Number(exchangeRate || 0).toFixed(2))} Bs/USD` : '';
   const priceLabelSummary = priceTypes
     .map((type) => (PRICE_TYPE_META as any)[type]?.label || type)
     .filter(Boolean)
     .join(', ');
 
-  const coverSectionsHtml = (copy.sections || [])
-    .map(
-      (section) => `
-        <div class="section">
-          <div class="section__kicker">${escapeHtml(section.highlight)}</div>
-          <h3 class="section__title">${escapeHtml(section.title)}</h3>
-          <p class="section__text">${escapeHtml(section.text)}</p>
-        </div>
-      `,
-    )
-    .join('');
-
-  const coverHtml = `
-    <section class="page page--cover">
-      <header class="page__header">
-        <div class="brand">
-          <img class="brand__logo" src="${escapeHtml(logoUrl)}" alt="${safeBrandName}" />
-          <div class="brand__meta">
-            <div class="brand__name">${safeBrandName}</div>
-            <div class="brand__tag">CATALOGO PREMIUM</div>
-          </div>
-        </div>
-        <div class="meta">
-          <div class="meta__row"><span>Categoria</span><strong>${safeCategory}</strong></div>
-          <div class="meta__row"><span>Precios</span><strong>${escapeHtml(priceLabelSummary || 'Cliente')}</strong></div>
-          <div class="meta__row"><span>Moneda</span><strong>${safeCurrency}</strong></div>
-        </div>
-      </header>
-
-      <div class="cover">
-        <h1 class="cover__title">${escapeHtml(copy.coverTitle)}</h1>
-        <div class="cover__subtitle">${escapeHtml(copy.coverSubtitle)}</div>
-        <p class="cover__desc">${escapeHtml(copy.coverDescription)}</p>
-        <div class="cover__summary">${escapeHtml(copy.summary)}</div>
-      </div>
-
-      <div class="sections">
-        ${coverSectionsHtml}
-      </div>
-
-      <footer class="page__footer">
-        <div class="footer__left">${safePrintedAt}</div>
-        <div class="footer__center">${safeContact}</div>
-        <div class="footer__right">Pagina 1 / ${totalPages}</div>
-      </footer>
-    </section>
-  `;
-
   const productPagesHtml = pages
     .map((pageProducts, idx) => {
-      const pageNumber = idx + 2; // cover is 1
+      const pageNumber = idx + 1;
       const cards = pageProducts
         .map((p) => {
           const label = p.code || p.sku || 'SIN CODIGO';
           const stockText =
             typeof p.stock === 'number' && Number.isFinite(p.stock)
               ? `${p.stock}`
-              : '—';
+              : '-';
           const imgUrl = p.image ? escapeHtml(p.image) : '';
           const priceLines = p.prices
             .map(
@@ -464,7 +418,6 @@ function buildCatalogHtml({
     </style>
   </head>
   <body>
-    ${coverHtml}
     ${productPagesHtml}
   </body>
 </html>`;
@@ -677,7 +630,7 @@ export async function POST(request: Request) {
       note: p.code || p.sku ? `Código: ${String(p.code || p.sku)}` : '',
       priceLabel: p.prices[0]?.label || 'Precio',
       priceValue: p.prices[0]?.value || 'Bajo solicitud',
-      stock: typeof p.stock === 'number' ? String(p.stock) : '—',
+      stock: typeof p.stock === 'number' ? String(p.stock) : '-',
     }));
 
     const catalogHtml = buildCatalogHtml({

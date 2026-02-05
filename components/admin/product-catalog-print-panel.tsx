@@ -361,32 +361,7 @@ export default function ProductCatalogPrintPanel({
             <div className="flex flex-col gap-1">
               <p className="text-base font-semibold text-gray-900">{aiResult.coverTitle}</p>
               {aiResult.coverSubtitle && <p className="text-xs uppercase tracking-wide text-blue-600">{aiResult.coverSubtitle}</p>}
-              {aiResult.coverDescription && <p className="text-sm text-gray-700">{aiResult.coverDescription}</p>}
             </div>
-            {aiResult.sections?.map((section) => (
-              <div key={section.title} className="mt-3 space-y-1">
-                <p className="text-sm font-semibold">{section.title}</p>
-                <p className="text-xs text-gray-800">{section.text}</p>
-                {section.highlight && <p className="text-[11px] text-gray-600">{section.highlight}</p>}
-              </div>
-            ))}
-            {aiResult.featuredProducts && aiResult.featuredProducts.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <p className="text-xs uppercase tracking-wide text-gray-600">Productos destacados</p>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {aiResult.featuredProducts.map((item) => (
-                    <div key={`${item.name}-${item.priceValue}`} className="rounded border border-blue-100 bg-white p-2 text-[12px] text-blue-900">
-                      <p className="font-semibold">{item.name}</p>
-                      <p className="text-[11px] text-gray-500">{item.note || 'Selección IA'}</p>
-                      <p className="text-[11px] text-amber-600">
-                        {item.priceLabel}: <span className="font-semibold">{item.priceValue}</span>
-                      </p>
-                      {item.stock && <p className="text-[11px] text-gray-600">Stock: {item.stock}</p>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
