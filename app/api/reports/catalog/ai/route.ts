@@ -140,6 +140,7 @@ function buildCatalogHtml({
   sortLabel,
   copy,
   products,
+  groupByCategory,
 }: {
   origin: string;
   brandName: string;
@@ -165,15 +166,14 @@ function buildCatalogHtml({
     code?: string | null;
     sku?: string | null;
     image?: string | null;
+    category?: { name: string; slug: string; bannerUrl?: string | null } | null;
     stock?: number | null;
     prices: Array<{ label: string; value: string }>;
   }>;
+  groupByCategory?: boolean;
 }) {
   const perPage = 24; // 4 columns x 6 rows
-  const rawPages = chunk(products, perPage);
-  const pages = rawPages.length ? rawPages : [[]];
-  // Cover page + product pages (4x6).
-  const totalPages = Math.max(1, pages.length + 1);
+  const safeGroupByCategory = Boolean(groupByCategory);
   const safeBrandName = escapeHtml(brandName);
   const safeCategory = escapeHtml(categoryLabel);
   const safePrintedAt = escapeHtml(printedAt);
@@ -186,6 +186,183 @@ function buildCatalogHtml({
     .map((type) => (PRICE_TYPE_META as any)[type]?.label || type)
     .filter(Boolean)
     .join(', ');
+
+  const buildTotalPages = () => {
+    if (!safeGroupByCategory) {
+      const raw = chunk(products, perPage);
+      const pages = raw.length ? raw : [[]];
+      return Math.max(1, pages.length + 1);
+    }
+
+    // Cover + one intro page per category + N product pages per category.
+    const groups = groupProductsByCategory(products);
+    let productPages = 0;
+    for (const g of groups) {
+      const raw = chunk(g.products, perPage);
+      const pages = raw.length ? raw : [[]];
+      productPages += pages.length;
+    }
+    return Math.max(1, 1 + groups.length + productPages);
+  };
+
+  const totalPages = buildTotalPages();
+
+  const renderCardsHtml = (pageProducts: typeof products) => {
+    return pageProducts
+      .map((p) => {
+        const label = p.code || p.sku || 'SIN CODIGO';
+        const href =
+          p.slug && String(p.slug).trim()
+            ? `${origin}/productos/${encodeURIComponent(String(p.slug).trim())}`
+            : null;
+        const stockText =
+          typeof p.stock === 'number' && Number.isFinite(p.stock) ? `${p.stock}` : '-';
+        const imgUrl = p.image ? escapeHtml(p.image) : '';
+        const priceLines = p.prices
+          .map(
+            (line) =>
+              `<div class="price"><span class="price__label">${escapeHtml(line.label)}</span><span class="price__value">${escapeHtml(line.value)}</span></div>`,
+          )
+          .join('');
+        const inner = `
+              <div class="card__media">
+                ${
+                  imgUrl
+                    ? `<img class="card__img" src="${imgUrl}" alt="${escapeHtml(p.name)}" />`
+                    : `<div class="card__img card__img--empty">Sin imagen</div>`
+                }
+              </div>
+              <div class="card__body">
+                <div class="card__name">${escapeHtml(p.name)}</div>
+                <div class="card__codeLine"><span class="code__label">Codigo</span><span class="code__value">${escapeHtml(label)}</span></div>
+                <div class="card__prices">${priceLines}</div>
+                <div class="card__stock">Stock: <strong>${escapeHtml(stockText)}</strong></div>
+              </div>
+          `;
+
+        if (href) {
+          return `
+              <a class="card card--link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">
+                ${inner}
+              </a>
+            `;
+        }
+
+        return `
+            <article class="card">
+              ${inner}
+            </article>
+          `;
+      })
+      .join('');
+  };
+
+  const renderProductsPageHtml = ({
+    pageProducts,
+    pageNumber,
+    pageCategoryLabel,
+  }: {
+    pageProducts: typeof products;
+    pageNumber: number;
+    pageCategoryLabel: string;
+  }) => {
+    const cards = renderCardsHtml(pageProducts);
+    const safePageCategory = escapeHtml(pageCategoryLabel);
+    return `
+        <section class="page page--products">
+          <header class="page__header page__header--compact">
+            <div class="header__left">
+              <div class="header__brand">
+                <img class="header__logo" src="${escapeHtml(logoUrl)}" alt="${safeBrandName}" />
+                <div class="header__brandText">
+                  <div class="header__title">${safeBrandName}</div>
+                  <div class="header__sub">${safePageCategory} - ${escapeHtml(priceLabelSummary)} - ${safeCurrency}${safeRate}</div>
+                </div>
+              </div>
+            </div>
+            <div class="header__right">
+              <div class="header__sort">Orden: ${safeSort}</div>
+            </div>
+          </header>
+
+          <div class="grid">
+            ${cards}
+          </div>
+
+          <footer class="page__footer">
+            <div class="footer__left">
+              <img class="footer__logo" src="${escapeHtml(logoUrl)}" alt="${safeBrandName}" />
+              <span class="footer__date">${safePrintedAt}</span>
+            </div>
+            <div class="footer__center">${safeContact}</div>
+            <div class="footer__right">Pagina ${pageNumber} / ${totalPages}</div>
+          </footer>
+        </section>
+      `;
+  };
+
+  const renderCategoryIntroPageHtml = ({
+    group,
+    pageNumber,
+  }: {
+    group: ReturnType<typeof groupProductsByCategory>[number];
+    pageNumber: number;
+  }) => {
+    const catName = escapeHtml(group.name);
+    const imageUrl = group.image ? escapeHtml(group.image) : '';
+    const trust = group.trust;
+    return `
+      <section class="page page--category">
+        <header class="page__header">
+          <div class="brand">
+            <img class="brand__logo" src="${escapeHtml(logoUrl)}" alt="${safeBrandName}" />
+            <div class="brand__meta">
+              <div class="brand__name">${safeBrandName}</div>
+              <div class="brand__tag">CATEGORIA</div>
+            </div>
+          </div>
+          <div class="meta">
+            <div class="meta__row"><span>Categoria</span><strong>${catName}</strong></div>
+            <div class="meta__row"><span>Precios</span><strong>${escapeHtml(priceLabelSummary || 'Cliente')}</strong></div>
+            <div class="meta__row"><span>Moneda</span><strong>${safeCurrency}</strong></div>
+          </div>
+        </header>
+
+        <div class="catHero">
+          ${
+            imageUrl
+              ? `<img class="catHero__img" src="${imageUrl}" alt="${catName}" />`
+              : `<div class="catHero__img catHero__img--empty"></div>`
+          }
+          <div class="catHero__overlay"></div>
+          <div class="catHero__content">
+            <div class="catHero__kicker">${escapeHtml(trust.kicker)}</div>
+            <h2 class="catHero__title">${catName}</h2>
+            <p class="catHero__lead">${escapeHtml(trust.lead)}</p>
+          </div>
+        </div>
+
+        <div class="trustGrid">
+          ${trust.bullets
+            .map(
+              (b) => `
+            <div class="trust">
+              <div class="trust__title">${escapeHtml(b.title)}</div>
+              <div class="trust__text">${escapeHtml(b.text)}</div>
+            </div>
+          `,
+            )
+            .join('')}
+        </div>
+
+        <footer class="page__footer">
+          <div class="footer__left">${safePrintedAt}</div>
+          <div class="footer__center">${safeContact}</div>
+          <div class="footer__right">Pagina ${pageNumber} / ${totalPages}</div>
+        </footer>
+      </section>
+    `;
+  };
 
   const coverSectionsHtml = (copy.sections || [])
     .slice(0, 3)
@@ -236,89 +413,42 @@ function buildCatalogHtml({
     </section>
   `;
 
-  const productPagesHtml = pages
-    .map((pageProducts, idx) => {
-      const pageNumber = idx + 2; // cover is 1
-      const cards = pageProducts
-        .map((p) => {
-          const label = p.code || p.sku || 'SIN CODIGO';
-          const href =
-            p.slug && String(p.slug).trim()
-              ? `${origin}/productos/${encodeURIComponent(String(p.slug).trim())}`
-              : null;
-          const stockText =
-            typeof p.stock === 'number' && Number.isFinite(p.stock)
-              ? `${p.stock}`
-              : '-';
-          const imgUrl = p.image ? escapeHtml(p.image) : '';
-          const priceLines = p.prices
-            .map(
-              (line) =>
-                `<div class="price"><span class="price__label">${escapeHtml(line.label)}</span><span class="price__value">${escapeHtml(line.value)}</span></div>`,
-            )
-            .join('');
-          const inner = `
-              <div class="card__media">
-                ${imgUrl ? `<img class="card__img" src="${imgUrl}" alt="${escapeHtml(p.name)}" />` : `<div class="card__img card__img--empty">Sin imagen</div>`}
-              </div>
-              <div class="card__body">
-                <div class="card__name">${escapeHtml(p.name)}</div>
-                <div class="card__codeLine"><span class="code__label">Codigo</span><span class="code__value">${escapeHtml(label)}</span></div>
-                <div class="card__prices">${priceLines}</div>
-                <div class="card__stock">Stock: <strong>${escapeHtml(stockText)}</strong></div>
-              </div>
-          `;
+  const pagesHtml: string[] = [];
+  pagesHtml.push(coverHtml);
 
-          // Make the card clickable when we have a slug.
-          if (href) {
-            return `
-              <a class="card card--link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">
-                ${inner}
-              </a>
-            `;
-          }
+  if (safeGroupByCategory) {
+    const groups = groupProductsByCategory(products);
+    let pageCursor = 2; // cover is 1
+    for (const group of groups) {
+      pagesHtml.push(renderCategoryIntroPageHtml({ group, pageNumber: pageCursor }));
+      pageCursor += 1;
 
-          return `
-            <article class="card">
-              ${inner}
-            </article>
-          `;
-        })
-        .join('');
-
-      return `
-        <section class="page page--products">
-          <header class="page__header page__header--compact">
-            <div class="header__left">
-              <div class="header__brand">
-                <img class="header__logo" src="${escapeHtml(logoUrl)}" alt="${safeBrandName}" />
-                <div class="header__brandText">
-                  <div class="header__title">${safeBrandName}</div>
-                  <div class="header__sub">${safeCategory} - ${escapeHtml(priceLabelSummary)} - ${safeCurrency}${safeRate}</div>
-                </div>
-              </div>
-            </div>
-            <div class="header__right">
-              <div class="header__sort">Orden: ${safeSort}</div>
-            </div>
-          </header>
-
-          <div class="grid">
-            ${cards}
-          </div>
-
-          <footer class="page__footer">
-            <div class="footer__left">
-              <img class="footer__logo" src="${escapeHtml(logoUrl)}" alt="${safeBrandName}" />
-              <span class="footer__date">${safePrintedAt}</span>
-            </div>
-            <div class="footer__center">${safeContact}</div>
-            <div class="footer__right">Pagina ${pageNumber} / ${totalPages}</div>
-          </footer>
-        </section>
-      `;
-    })
-    .join('');
+      const raw = chunk(group.products, perPage);
+      const catPages = raw.length ? raw : [[]];
+      for (const pageProducts of catPages) {
+        pagesHtml.push(
+          renderProductsPageHtml({
+            pageProducts,
+            pageNumber: pageCursor,
+            pageCategoryLabel: group.name,
+          }),
+        );
+        pageCursor += 1;
+      }
+    }
+  } else {
+    const raw = chunk(products, perPage);
+    const productPages = raw.length ? raw : [[]];
+    productPages.forEach((pageProducts, idx) => {
+      pagesHtml.push(
+        renderProductsPageHtml({
+          pageProducts,
+          pageNumber: idx + 2,
+          pageCategoryLabel: categoryLabel,
+        }),
+      );
+    });
+  }
 
   const faviconUrl = `${origin}/favicon.ico`;
 
@@ -406,6 +536,54 @@ function buildCatalogHtml({
       .section__kicker{ font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
       .section__title{ margin: 8px 0 6px; font-size: 14px; }
       .section__text{ margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+
+      .catHero{
+        margin-top: 16px;
+        border-radius: calc(var(--radius) + 6px);
+        border: 1px solid var(--line);
+        overflow: hidden;
+        position: relative;
+        height: 150mm;
+        background: radial-gradient(520px 260px at 25% 20%, rgba(249,115,22,0.18), transparent 65%),
+                    radial-gradient(520px 260px at 82% 60%, rgba(14,165,233,0.14), transparent 65%),
+                    #ffffff;
+      }
+      .catHero__img{ position:absolute; inset:0; width:100%; height:100%; object-fit: cover; filter: saturate(1.05) contrast(1.02); }
+      .catHero__img--empty{ background: linear-gradient(135deg, rgba(249,115,22,0.16), rgba(14,165,233,0.14)); }
+      .catHero__overlay{
+        position:absolute; inset:0;
+        background: linear-gradient(180deg, rgba(2,6,23,0.05), rgba(2,6,23,0.55));
+      }
+      .catHero__content{
+        position:absolute;
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+        color: #ffffff;
+        padding: 14px 14px;
+        border-radius: var(--radius);
+        background: rgba(15,23,42,0.55);
+        border: 1px solid rgba(255,255,255,0.16);
+        backdrop-filter: blur(8px);
+      }
+      .catHero__kicker{ font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; opacity: 0.92; }
+      .catHero__title{ margin: 8px 0 6px; font-size: 30px; line-height: 1.05; letter-spacing: -0.02em; }
+      .catHero__lead{ margin: 0; max-width: 92%; font-size: 13px; line-height: 1.55; opacity: 0.95; }
+
+      .trustGrid{
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+      }
+      .trust{
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 12px 12px;
+        background: #ffffff;
+      }
+      .trust__title{ font-weight: 800; font-size: 12px; letter-spacing: 0.02em; }
+      .trust__text{ margin-top: 6px; font-size: 12px; color: var(--muted); line-height: 1.55; }
 
       .header__brand{ display:flex; gap: 10px; align-items:center; }
       .header__logo{ width: 34px; height: 34px; object-fit: contain; border-radius: 10px; background: #fff; border: 1px solid var(--line); padding: 6px; }
@@ -516,10 +694,94 @@ function buildCatalogHtml({
     </style>
   </head>
   <body>
-    ${coverHtml}
-    ${productPagesHtml}
+    ${pagesHtml.join('')}
   </body>
 </html>`;
+}
+
+function stableHash(input: string) {
+  // Tiny deterministic hash (no crypto) to pick variations per category.
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h >>> 0);
+}
+
+function groupProductsByCategory(
+  products: Array<{
+    category?: { name: string; slug: string; bannerUrl?: string | null } | null;
+    image?: string | null;
+  }>,
+) {
+  const map = new Map<
+    string,
+    {
+      key: string;
+      name: string;
+      bannerUrl?: string | null;
+      products: any[];
+    }
+  >();
+
+  for (const p of products as any[]) {
+    const key = p?.category?.slug ? String(p.category.slug) : '__otros__';
+    const name = p?.category?.name ? String(p.category.name) : 'Otros';
+    const bannerUrl = p?.category?.bannerUrl ?? null;
+    const entry =
+      map.get(key) || {
+        key,
+        name,
+        bannerUrl,
+        products: [],
+      };
+    entry.products.push(p);
+    // Prefer explicit bannerUrl, but keep first seen if not set.
+    if (!entry.bannerUrl && bannerUrl) entry.bannerUrl = bannerUrl;
+    map.set(key, entry);
+  }
+
+  const groups = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  const trustKickers = ['Compra con confianza', 'Calidad comprobada', 'Tu proyecto, respaldado', 'Atención que responde'];
+  const trustLeads = [
+    'Disponibilidad real, precios claros y un equipo listo para ayudarte a elegir lo correcto.',
+    'Productos seleccionados para durar, con soporte y servicio antes y después de tu compra.',
+    'Compra online con tranquilidad: información clara, atención rápida y respaldo Carpihogar.',
+    'Elige seguro: asesoría, stock actualizado y opciones para entrega o retiro.',
+  ];
+  const bulletSets = [
+    [
+      { title: 'Stock actual', text: 'Mostramos la disponibilidad real de nuestra tienda al momento de imprimir.' },
+      { title: 'Precios transparentes', text: 'Ves los precios según el tipo seleccionado, sin sorpresas.' },
+      { title: 'Soporte Carpihogar', text: 'Te acompañamos con asesoría para que compres con seguridad.' },
+    ],
+    [
+      { title: 'Compra online', text: 'Encuentra rápido lo que buscas y visita cada producto desde el catálogo.' },
+      { title: 'Atención inmediata', text: 'Respondemos por WhatsApp y canales oficiales.' },
+      { title: 'Respaldo y garantías', text: 'Trabajamos para que tu compra sea confiable y sin complicaciones.' },
+    ],
+    [
+      { title: 'Selección curada', text: 'Productos pensados para carpintería y hogar con calidad consistente.' },
+      { title: 'Disponibilidad real', text: 'Inventario actualizado para planificar tu compra.' },
+      { title: 'Entrega coordinada', text: 'Opciones de entrega o retiro para avanzar sin retrasos.' },
+    ],
+  ];
+
+  return groups.map((g) => {
+    const seed = stableHash(g.key);
+    const kicker = trustKickers[seed % trustKickers.length];
+    const lead = trustLeads[seed % trustLeads.length];
+    const bullets = bulletSets[seed % bulletSets.length];
+    const image =
+      (g.bannerUrl ? String(g.bannerUrl) : '') ||
+      (g.products.find((p: any) => p?.image)?.image ? String(g.products.find((p: any) => p?.image)?.image) : '');
+    return {
+      ...g,
+      image: image || null,
+      trust: { kicker, lead, bullets },
+    };
+  });
 }
 
 export async function POST(request: Request) {
@@ -605,6 +867,13 @@ export async function POST(request: Request) {
           priceAllyUSD: true,
           priceWholesaleUSD: true,
           images: true,
+          category: {
+            select: {
+              name: true,
+              slug: true,
+              bannerUrl: true,
+            },
+          },
         },
       })
     : [];
@@ -647,6 +916,13 @@ export async function POST(request: Request) {
     const db = id ? byId.get(id) : undefined;
     const name = String(db?.name || incoming.name || '').trim();
     const slug = (db?.slug ?? (incoming as any)?.slug ?? null) as any;
+    const category = (db as any)?.category
+      ? {
+          name: String((db as any).category.name || '').trim() || 'Sin categoría',
+          slug: String((db as any).category.slug || '').trim() || 'sin-categoria',
+          bannerUrl: (db as any).category.bannerUrl ?? null,
+        }
+      : null;
     const code = (db?.code ?? incoming.code ?? null) as any;
     const sku = (db?.sku ?? incoming.sku ?? null) as any;
     const stock =
@@ -663,7 +939,11 @@ export async function POST(request: Request) {
       ? normalizeCatalogImageUrl(String(imageCandidate), { origin })
       : null;
     const prices = resolvePriceLines(db || incoming);
-    return { id, name, slug, code, sku, image, stock, prices };
+    const normalizedCategory =
+      category && category.bannerUrl
+        ? { ...category, bannerUrl: normalizeCatalogImageUrl(String(category.bannerUrl), { origin }) }
+        : category;
+    return { id, name, slug, category: normalizedCategory, code, sku, image, stock, prices };
   });
 
   try {
@@ -734,6 +1014,11 @@ export async function POST(request: Request) {
       stock: typeof p.stock === 'number' ? String(p.stock) : '-',
     }));
 
+    const isAllCategories =
+      !parsedBody.filters?.category ||
+      String(parsedBody.filters.category).trim().toLowerCase() === 'todas las categorías' ||
+      String(parsedBody.filters.category).trim().toLowerCase() === 'todas las categorias';
+
     const catalogHtml = buildCatalogHtml({
       origin,
       brandName,
@@ -747,6 +1032,7 @@ export async function POST(request: Request) {
       sortLabel,
       copy: finalCopy,
       products: resolvedProducts,
+      groupByCategory: isAllCategories,
     });
 
     return NextResponse.json({
