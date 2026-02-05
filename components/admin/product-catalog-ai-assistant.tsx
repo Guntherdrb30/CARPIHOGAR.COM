@@ -108,7 +108,7 @@ export default function ProductCatalogAiAssistant({ categories }: Props) {
         <div className="flex items-center gap-3">
           <button
             type="submit"
-            className={inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white shadow-sm transition }
+            className="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white shadow-sm transition bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400"
             disabled={loading}
           >
             {loading ? 'Generando…' : 'Crear productos con IA'}
@@ -128,7 +128,7 @@ export default function ProductCatalogAiAssistant({ categories }: Props) {
             {created.map((item) => (
               <li key={item.id}>
                 <a
-                  href={/dashboard/admin/productos/}
+                  href={`/dashboard/admin/productos/${item.slug}`}
                   className="text-blue-600 underline"
                 >
                   {item.name}
@@ -143,7 +143,7 @@ export default function ProductCatalogAiAssistant({ categories }: Props) {
           <p className="font-semibold text-gray-800">Errores</p>
           <ul className="list-disc pl-5 text-red-700">
             {errors.map((err) => (
-              <li key={${err.name}-}>{err.name}: {err.reason}</li>
+              <li key={`${err.name}-${err.reason}`}>{err.name}: {err.reason}</li>
             ))}
           </ul>
         </div>
