@@ -161,6 +161,7 @@ function buildCatalogHtml({
   products: Array<{
     id?: string;
     name: string;
+    slug?: string | null;
     code?: string | null;
     sku?: string | null;
     image?: string | null;
@@ -192,6 +193,10 @@ function buildCatalogHtml({
       const cards = pageProducts
         .map((p) => {
           const label = p.code || p.sku || 'SIN CODIGO';
+          const href =
+            p.slug && String(p.slug).trim()
+              ? `${origin}/productos/${encodeURIComponent(String(p.slug).trim())}`
+              : null;
           const stockText =
             typeof p.stock === 'number' && Number.isFinite(p.stock)
               ? `${p.stock}`
@@ -203,8 +208,7 @@ function buildCatalogHtml({
                 `<div class="price"><span class="price__label">${escapeHtml(line.label)}</span><span class="price__value">${escapeHtml(line.value)}</span></div>`,
             )
             .join('');
-          return `
-            <article class="card">
+          const inner = `
               <div class="card__media">
                 ${imgUrl ? `<img class="card__img" src="${imgUrl}" alt="${escapeHtml(p.name)}" />` : `<div class="card__img card__img--empty">Sin imagen</div>`}
                 <div class="card__code">${escapeHtml(label)}</div>
@@ -214,6 +218,20 @@ function buildCatalogHtml({
                 <div class="card__prices">${priceLines}</div>
                 <div class="card__stock">Stock: <strong>${escapeHtml(stockText)}</strong></div>
               </div>
+          `;
+
+          // Make the card clickable when we have a slug.
+          if (href) {
+            return `
+              <a class="card card--link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">
+                ${inner}
+              </a>
+            `;
+          }
+
+          return `
+            <article class="card">
+              ${inner}
             </article>
           `;
         })
@@ -354,6 +372,14 @@ function buildCatalogHtml({
         display:flex;
         flex-direction: column;
         min-height: 0;
+      }
+      .card--link{
+        color: inherit;
+        text-decoration: none;
+      }
+      .card--link:focus{
+        outline: 2px solid rgba(14,165,233,0.55);
+        outline-offset: 2px;
       }
       .card__media{ position: relative; height: 46%; background: #f1f5f9; }
       .card__img{ width: 100%; height: 100%; object-fit: cover; display:block; }
@@ -547,6 +573,7 @@ export async function POST(request: Request) {
     const id = incoming.id ? String(incoming.id) : undefined;
     const db = id ? byId.get(id) : undefined;
     const name = String(db?.name || incoming.name || '').trim();
+    const slug = (db?.slug ?? (incoming as any)?.slug ?? null) as any;
     const code = (db?.code ?? incoming.code ?? null) as any;
     const sku = (db?.sku ?? incoming.sku ?? null) as any;
     const stock =
@@ -563,7 +590,7 @@ export async function POST(request: Request) {
       ? normalizeCatalogImageUrl(String(imageCandidate), { origin })
       : null;
     const prices = resolvePriceLines(db || incoming);
-    return { id, name, code, sku, image, stock, prices };
+    return { id, name, slug, code, sku, image, stock, prices };
   });
 
   try {
