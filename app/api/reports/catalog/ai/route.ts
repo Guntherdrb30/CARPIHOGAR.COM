@@ -16,7 +16,8 @@ const catalogSchema = {
       coverDescription: { type: 'string' },
       sections: {
         type: 'array',
-        maxItems: 4,
+        minItems: 3,
+        maxItems: 3,
         items: {
           type: 'object',
           properties: {
@@ -24,12 +25,14 @@ const catalogSchema = {
             text: { type: 'string' },
             highlight: { type: 'string' },
           },
-          required: ['title', 'text'],
+          // OpenAI Structured Outputs requires `required` to include every key in `properties`.
+          required: ['title', 'text', 'highlight'],
           additionalProperties: false,
         },
       },
       featuredProducts: {
         type: 'array',
+        minItems: 6,
         maxItems: 6,
         items: {
           type: 'object',
@@ -40,13 +43,21 @@ const catalogSchema = {
             priceValue: { type: 'string' },
             stock: { type: 'string' },
           },
-          required: ['name', 'priceLabel', 'priceValue'],
+          required: ['name', 'note', 'priceLabel', 'priceValue', 'stock'],
           additionalProperties: false,
         },
       },
       catalogHtml: { type: 'string' },
     },
-    required: ['summary', 'coverTitle', 'catalogHtml'],
+    required: [
+      'summary',
+      'coverTitle',
+      'coverSubtitle',
+      'coverDescription',
+      'sections',
+      'featuredProducts',
+      'catalogHtml',
+    ],
     additionalProperties: false,
   },
 };

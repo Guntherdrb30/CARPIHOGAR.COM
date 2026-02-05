@@ -66,6 +66,19 @@ export default function BranchLocationFields({
       if (cancelled || !mapContainerRef.current) return;
       const Leaflet = (module.default ?? module) as LeafletModule;
       leafletRef.current = Leaflet;
+
+      // Avoid 404s for marker icon assets under nested routes like `/dashboard/...`.
+      // Use absolute URLs for default marker images.
+      try {
+        delete (Leaflet.Icon.Default.prototype as any)._getIconUrl;
+        Leaflet.Icon.Default.mergeOptions({
+          iconRetinaUrl:
+            "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+          iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+          shadowUrl:
+            "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        });
+      } catch {}
       const coords: [number, number] = [Number(lat), Number(lng)];
       const map = Leaflet.map(mapContainerRef.current).setView(coords, 13);
       Leaflet.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
