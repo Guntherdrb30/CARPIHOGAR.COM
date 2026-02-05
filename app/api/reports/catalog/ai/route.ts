@@ -51,16 +51,22 @@ const catalogSchema = {
   },
 };
 
+const numericString = z.preprocess((value) => {
+  if (value == null || value === '') return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}, z.number().nullable());
+
 const incomingProductSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1),
   slug: z.string().optional(),
   brand: z.string().optional().nullable(),
   category: z.string().optional().nullable(),
-  priceUSD: z.number().optional().nullable(),
-  priceAllyUSD: z.number().optional().nullable(),
-  priceWholesaleUSD: z.number().optional().nullable(),
-  stock: z.number().optional().nullable(),
+  priceUSD: numericString.optional(),
+  priceAllyUSD: numericString.optional(),
+  priceWholesaleUSD: numericString.optional(),
+  stock: numericString.optional(),
   sku: z.string().optional().nullable(),
   code: z.string().optional().nullable(),
   image: z.string().optional().nullable(),
@@ -82,9 +88,14 @@ const payloadSchema = z.object({
   }).optional(),
 });
 
+const formatPrice = (value: number | null | undefined) => {
+  if (value == null) return null;
+  return Number.isFinite(value) ? Number(value.toFixed(2)) : null;
+};
+
 function renderProductSummary(product: z.infer<typeof incomingProductSchema>) {
   const label = product.code || product.sku || 'Código sin asignar';
-  const value = product.priceUSD ?? product.priceAllyUSD ?? product.priceWholesaleUSD ?? 0;
+  const value = formatPrice(product.priceUSD ?? product.priceAllyUSD ?? product.priceWholesaleUSD ?? null);
   const priceText = value ? `$${value.toFixed(2)}` : 'Precio bajo solicitud';
   return `${product.name} (${label}) — ${priceText}`;
 }
