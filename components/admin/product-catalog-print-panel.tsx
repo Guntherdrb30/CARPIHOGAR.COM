@@ -168,8 +168,9 @@ export default function ProductCatalogPrintPanel({
     setAiResult(null);
     setAiGenerating(true);
     try {
+      const maxProductsForCatalog = 240; // avoids huge payloads; supports multiple 24-item pages
       const payload = {
-        products: filteredProducts.slice(0, 40).map((product) => ({
+        products: filteredProducts.slice(0, maxProductsForCatalog).map((product) => ({
           id: product.id,
           name: product.name,
           slug: product.slug,
@@ -396,6 +397,19 @@ export default function ProductCatalogPrintPanel({
               </button>
               <span className="text-[11px] text-gray-600">Abre el archivo en tu editor o impresora para imprimir.</span>
             </div>
+            {aiResult.catalogHtml && (
+              <div className="mt-4 overflow-hidden rounded-xl border border-blue-100 bg-white">
+                <div className="flex items-center justify-between border-b border-blue-100 px-3 py-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gray-500">Vista previa</p>
+                  <p className="text-[11px] text-gray-500">Se imprime en páginas de 24 productos (4x6).</p>
+                </div>
+                <iframe
+                  title="Vista previa catálogo IA"
+                  className="h-[760px] w-full bg-white"
+                  srcDoc={aiResult.catalogHtml}
+                />
+              </div>
+            )}
           </div>
         )}
       </section>
