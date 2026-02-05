@@ -1,5 +1,6 @@
 import OfflineSaleForm from "@/components/admin/offline-sale-form";
 import { getSaleHoldById, getSellers, saveSaleHold } from "@/server/actions/sales";
+import { getCarpentryMaterialListById } from "@/server/actions/carpentry";
 import { getSettings } from "@/server/actions/settings";
 import { createOfflineSale } from "@/server/actions/sales";
 import { getServerSession } from "next-auth";
@@ -21,6 +22,8 @@ type SalePageQuery = {
   docType?: string;
   lockDocType?: string;
   carpentryProjectId?: string;
+  carpentrySubprojectId?: string;
+  carpentryMaterialListId?: string;
   backTo?: string;
 };
 
@@ -39,12 +42,25 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams?: 
   const docTypeOptions = lockDocTypeFlag && docTypeCandidate ? [docTypeCandidate] : undefined;
   const prefillBackTo = decodeValue(sp.backTo);
   const prefillCarpentryProjectId = decodeValue(sp.carpentryProjectId);
-  const [sellers, settings, session, pricing] = await Promise.all([
+  const prefillCarpentrySubprojectId = decodeValue(sp.carpentrySubprojectId);
+  const prefillCarpentryMaterialListId = decodeValue(sp.carpentryMaterialListId);
+  const [
+    carpentryMaterialList,
+    sellers,
+    settings,
+    session,
+    pricing,
+  ] = await Promise.all([
+    prefillCarpentryMaterialListId ? getCarpentryMaterialListById(prefillCarpentryMaterialListId) : Promise.resolve(null),
     getSellers(),
     getSettings(),
     getServerSession(authOptions),
     getPriceAdjustmentSettings(),
   ]);
+  const effectiveCarpentryProjectId = carpentryMaterialList?.projectId || prefillCarpentryProjectId;
+  const effectiveCarpentrySubprojectId = carpentryMaterialList?.subprojectId || prefillCarpentrySubprojectId;
+  const saleBackTo =
+    prefillBackTo || (effectiveCarpentryProjectId ? `/dashboard/admin/carpinteria/${effectiveCarpentryProjectId}` : undefined);
   const commission = Number((settings as any).sellerCommissionPercent || 5);
   const iva = Number((settings as any).ivaPercent || 16);
   const tasa = Number((settings as any).tasaVES || 40);
@@ -56,7 +72,19 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams?: 
   const maxPriceMode: 'P1' | 'P2' | 'P3' = 'P3';
   const fromQuote = String(sp.fromQuote || '');
   const holdId = String(sp.holdId || '');
-  let initialItems: Array<{ productId: string; name: string; p1: number; p2?: number | null; p3?: number | null; priceUSD: number; quantity: number; supplierCurrency?: string | null }> | undefined = undefined;
+  type InitialSaleItem = {
+    productId: string;
+    name: string;
+    sku?: string | null;
+    availableQty?: number | null;
+    p1: number;
+    p2?: number | null;
+    p3?: number | null;
+    priceUSD: number;
+    quantity: number;
+    supplierCurrency?: string | null;
+  };
+  let initialItems: InitialSaleItem[] | undefined = undefined;
   let initialSellerId: string | undefined = undefined;
   let initialCustomerName: string | undefined = initialCustomerNameOverride;
   let initialCustomerEmail: string | undefined = initialCustomerEmailOverride;
@@ -123,66 +151,83 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams?: 
         if (role !== 'ADMIN' && String((hold as any).createdById || '') !== userId && String((hold as any).sellerId || '') !== userId) {
           holdError = 'No autorizado para abrir esta venta en espera.';
         } else {
-        const meta = (hold as any).meta || {};
-        const parsedItems = Array.isArray((hold as any).items) ? (hold as any).items : [];
-        initialItems = parsedItems.map((it: any) => ({
-          productId: String(it.productId || ''),
-          name: String(it.name || ''),
-          sku: String(it.sku || ''),
-          availableQty: Number(it.availableQty || 0),
-          p1: Number(it.p1 || it.priceUSD || 0),
-          p2: it.p2 != null ? Number(it.p2) : null,
-          p3: it.p3 != null ? Number(it.p3) : null,
-          priceUSD: Number(it.priceUSD || 0),
-          quantity: Number(it.quantity || 1),
-          supplierCurrency: it.supplierCurrency || null,
-        }));
-        initialSellerId = String((hold as any).sellerId || '') || undefined;
-        initialCustomerName = String((hold as any).customerName || '') || undefined;
-        initialCustomerEmail = String((hold as any).customerEmail || '') || undefined;
-        initialCustomerPhone = String((hold as any).customerPhone || '') || undefined;
-        initialCustomerTaxId = String((hold as any).customerTaxId || '') || undefined;
-        initialCustomerFiscalAddress = String((hold as any).customerFiscalAddress || '') || undefined;
-        const paymentMethodCandidate = String(meta.paymentMethod || '').toUpperCase();
-        if (['PAGO_MOVIL', 'TRANSFERENCIA', 'ZELLE', 'EFECTIVO'].includes(paymentMethodCandidate)) {
-          initialPaymentMethod = paymentMethodCandidate as any;
-        }
-        const paymentCurrencyCandidate = String(meta.paymentCurrency || '').toUpperCase();
-        if (paymentCurrencyCandidate === 'USD' || paymentCurrencyCandidate === 'VES') {
-          initialPaymentCurrency = paymentCurrencyCandidate as any;
-        }
-        initialPaymentReference = String(meta.paymentReference || '') || undefined;
-        initialPmPayerName = String(meta.pmPayerName || '') || undefined;
-        initialPmPayerPhone = String(meta.pmPayerPhone || '') || undefined;
-        initialPmPayerBank = String(meta.pmBank || '') || undefined;
-        initialSendEmail = String(meta.sendEmail || '') === 'true' || meta.sendEmail === true;
-        initialDocType = String(meta.docType || '') === 'recibo' ? 'recibo' : 'factura';
-        initialSaleType = String(meta.saleType || '').toUpperCase() === 'CREDITO' ? 'CREDITO' : 'CONTADO';
-        initialCreditDueDate = String(meta.creditDueDate || '') || undefined;
-        initialAddressMode = String(meta.addrMode || '') === 'saved' ? 'saved' : 'new';
-        initialSelectedAddressId = String(meta.selectedAddressId || '') || undefined;
-        initialAddrState = String(meta.addrState || '') || undefined;
-        initialAddrCity = String(meta.addrCity || '') || undefined;
-        initialAddrZone = String(meta.addrZone || '') || undefined;
-        initialAddr1 = String(meta.addr1 || '') || undefined;
-        initialAddr2 = String(meta.addr2 || '') || undefined;
-        initialAddrNotes = String(meta.addrNotes || '') || undefined;
-        const pm = String(meta.priceMode || '').toUpperCase();
-        if (pm === 'P1' || pm === 'P2' || pm === 'P3') {
-          initialPriceMode = pm as any;
-        }
-        const originQuoteCandidate = String(meta.originQuoteId || '').trim();
-        if (originQuoteCandidate) holdOriginQuoteId = originQuoteCandidate;
-        const shippingCandidate = String(meta.shippingLocalOption || '').toUpperCase();
-        if (shippingCandidate === 'RETIRO_TIENDA' || shippingCandidate === 'DELIVERY') {
-          initialShippingFromHold = shippingCandidate;
-        }
+          const meta = (hold as any).meta || {};
+          const parsedItems = Array.isArray((hold as any).items) ? (hold as any).items : [];
+          initialItems = parsedItems.map((it: any) => ({
+            productId: String(it.productId || ''),
+            name: String(it.name || ''),
+            sku: it.sku != null ? String(it.sku) : null,
+            availableQty: it.availableQty != null ? Number(it.availableQty) : null,
+            p1: Number(it.p1 || it.priceUSD || 0),
+            p2: it.p2 != null ? Number(it.p2) : null,
+            p3: it.p3 != null ? Number(it.p3) : null,
+            priceUSD: Number(it.priceUSD || 0),
+            quantity: Number(it.quantity || 1),
+            supplierCurrency: it.supplierCurrency || null,
+          }));
+          initialSellerId = String((hold as any).sellerId || '') || undefined;
+          initialCustomerName = String((hold as any).customerName || '') || undefined;
+          initialCustomerEmail = String((hold as any).customerEmail || '') || undefined;
+          initialCustomerPhone = String((hold as any).customerPhone || '') || undefined;
+          initialCustomerTaxId = String((hold as any).customerTaxId || '') || undefined;
+          initialCustomerFiscalAddress = String((hold as any).customerFiscalAddress || '') || undefined;
+          const paymentMethodCandidate = String(meta.paymentMethod || '').toUpperCase();
+          if (['PAGO_MOVIL', 'TRANSFERENCIA', 'ZELLE', 'EFECTIVO'].includes(paymentMethodCandidate)) {
+            initialPaymentMethod = paymentMethodCandidate as any;
+          }
+          const paymentCurrencyCandidate = String(meta.paymentCurrency || '').toUpperCase();
+          if (paymentCurrencyCandidate === 'USD' || paymentCurrencyCandidate === 'VES') {
+            initialPaymentCurrency = paymentCurrencyCandidate as any;
+          }
+          initialPaymentReference = String(meta.paymentReference || '') || undefined;
+          initialPmPayerName = String(meta.pmPayerName || '') || undefined;
+          initialPmPayerPhone = String(meta.pmPayerPhone || '') || undefined;
+          initialPmPayerBank = String(meta.pmBank || '') || undefined;
+          initialSendEmail = String(meta.sendEmail || '') === 'true' || meta.sendEmail === true;
+          initialDocType = String(meta.docType || '') === 'recibo' ? 'recibo' : 'factura';
+          initialSaleType = String(meta.saleType || '').toUpperCase() === 'CREDITO' ? 'CREDITO' : 'CONTADO';
+          initialCreditDueDate = String(meta.creditDueDate || '') || undefined;
+          initialAddressMode = String(meta.addrMode || '') === 'saved' ? 'saved' : 'new';
+          initialSelectedAddressId = String(meta.selectedAddressId || '') || undefined;
+          initialAddrState = String(meta.addrState || '') || undefined;
+          initialAddrCity = String(meta.addrCity || '') || undefined;
+          initialAddrZone = String(meta.addrZone || '') || undefined;
+          initialAddr1 = String(meta.addr1 || '') || undefined;
+          initialAddr2 = String(meta.addr2 || '') || undefined;
+          initialAddrNotes = String(meta.addrNotes || '') || undefined;
+          const pm = String(meta.priceMode || '').toUpperCase();
+          if (pm === 'P1' || pm === 'P2' || pm === 'P3') {
+            initialPriceMode = pm as any;
+          }
+          const originQuoteCandidate = String(meta.originQuoteId || '').trim();
+          if (originQuoteCandidate) holdOriginQuoteId = originQuoteCandidate;
+          const shippingCandidate = String(meta.shippingLocalOption || '').toUpperCase();
+          if (shippingCandidate === 'RETIRO_TIENDA' || shippingCandidate === 'DELIVERY') {
+            initialShippingFromHold = shippingCandidate;
+          }
         }
       } else {
         holdError = 'Venta en espera no encontrada.';
       }
     } catch {
       holdError = 'No se pudo cargar la venta en espera.';
+    }
+  }
+  if ((!initialItems || !initialItems.length) && carpentryMaterialList?.items?.length) {
+    const matchedItems = carpentryMaterialList.items.filter((item) => item.productId);
+    if (matchedItems.length) {
+      initialItems = matchedItems.map((item) => ({
+        productId: item.productId!,
+        name: item.name || "Material",
+        sku: item.sku || null,
+        availableQty: null,
+        p1: Number(item.unitPriceUSD || 0),
+        p2: undefined,
+        p3: undefined,
+        priceUSD: Number(item.unitPriceUSD || 0),
+        quantity: Math.max(1, Number(item.quantity || 1)),
+        supplierCurrency: null,
+      }));
     }
   }
   const initialShipping = (() => {
@@ -253,8 +298,10 @@ export default async function NuevaVentaPage({ searchParams }: { searchParams?: 
           initialAddr1={initialAddr1}
           initialAddr2={initialAddr2}
           initialAddrNotes={initialAddrNotes}
-          carpentryProjectId={prefillCarpentryProjectId}
-          backTo={prefillBackTo}
+          carpentryProjectId={effectiveCarpentryProjectId}
+          carpentrySubprojectId={effectiveCarpentrySubprojectId}
+          carpentryMaterialListId={prefillCarpentryMaterialListId}
+          backTo={saleBackTo}
         />
       </div>
     </div>

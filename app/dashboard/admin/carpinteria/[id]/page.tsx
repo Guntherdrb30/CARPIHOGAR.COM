@@ -3,6 +3,9 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import {
   createCarpentryClientPayment,
+  createCarpentrySubproject,
+  createCarpentrySubprojectPayment,
+  createProductionOrder,
   deleteCarpentryClientPayment,
   getCarpentryProjectById,
   updateCarpentryProject,
@@ -35,6 +38,7 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
   const countByType = (type: string) => project.files.filter((f: any) => f.fileType === type).length;
   const supportFiles = project.files.filter((f: any) => f.fileType === "SOPORTE");
   const updates = Array.isArray(project.updates) ? project.updates : [];
+  const subprojects = Array.isArray(project.subprojects) ? project.subprojects : [];
 
   return (
     <div className="p-4 space-y-6">
@@ -139,6 +143,194 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
             )}
           </div>
           <CarpentryProgressForm projectId={project.id} employees={employees} />
+        </div>
+      </section>
+
+      <section className="bg-white p-4 rounded-lg shadow space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">Subproyectos internos</h2>
+            <p className="text-sm text-gray-500 max-w-2xl">
+              Divide el presupuesto en subproyectos, lleva el control de abonos y genera órdenes de producción para cada mueble.
+            </p>
+          </div>
+          <span className="text-xs uppercase tracking-[0.3em] text-gray-500">{subprojects.length || 0} subproyectos</span>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[1fr,320px]">
+          <div className="space-y-4">
+            {subprojects.length ? (
+              subprojects.map((subproject: any) => {
+                const fabricationGoal = Number(subproject.totalUSD || 0) * 0.7;
+                const installationGoal = Number(subproject.totalUSD || 0) * 0.3;
+                const fabricationProgress = fabricationGoal
+                  ? Math.min(100, (Number(subproject.fabricationPaidUSD || 0) / fabricationGoal) * 100)
+                  : 0;
+                const installationProgress = installationGoal
+                  ? Math.min(100, (Number(subproject.installationPaidUSD || 0) / installationGoal) * 100)
+                  : 0;
+                const readyForProduction = Number(subproject.fabricationPaidUSD || 0) >= fabricationGoal;
+                return (
+                  <article key={subproject.id} className="rounded-2xl border border-gray-200 bg-white p-3 text-sm text-gray-600 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-base font-semibold text-gray-900">{subproject.name}</h3>
+                        {subproject.description && (
+                          <p className="text-[11px] text-gray-500">{subproject.description}</p>
+                        )}
+                      </div>
+                      <span className="rounded-full bg-white text-[11px] uppercase tracking-[0.3em] text-gray-500 px-3 py-1 border">
+                        {subproject.status}
+                      </span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-2 text-[11px] text-gray-500 sm:grid-cols-2">
+                      <div>
+                        <span className="block font-semibold text-gray-900">{formatCurrency(subproject.totalUSD)}</span>
+                        <span>Monto total</span>
+                      </div>
+                      <div>
+                        <span className="block font-semibold text-gray-900">{subproject.quantity} piezas</span>
+                        <span>Cantidad estimada</span>
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-2 text-[11px] text-gray-500">
+                      <div className="flex items-center justify-between">
+                        <span>Fabricación</span>
+                        <span>{fabricationProgress.toFixed(1)}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-gray-200">
+                        <div className="h-1.5 rounded-full bg-emerald-500" style={{ width: `${fabricationProgress}%` }} />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Instalación</span>
+                        <span>{installationProgress.toFixed(1)}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-gray-200">
+                        <div className="h-1.5 rounded-full bg-blue-500" style={{ width: `${installationProgress}%` }} />
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-3">
+                      <details className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+                        <summary className="cursor-pointer font-semibold text-gray-700">Registrar abono</summary>
+                        <form action={createCarpentrySubprojectPayment} className="mt-3 space-y-2 text-xs">
+                          <input type="hidden" name="subprojectId" value={subproject.id} />
+                          <input type="hidden" name="returnTo" value={`/dashboard/admin/carpinteria/${project.id}`} />
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                            <input name="amountUSD" type="number" step="0.01" min="0.01" placeholder="Monto USD" className="rounded border px-2 py-1" required />
+                            <select name="phase" className="rounded border px-2 py-1">
+                              <option value="FABRICACION">Fabricación</option>
+                              <option value="INSTALACION">Instalación</option>
+                            </select>
+                            <input name="paidAt" type="date" className="rounded border px-2 py-1" />
+                          </div>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <select name="method" className="rounded border px-2 py-1">
+                              <option value="">Método</option>
+                              <option value="PAGO_MOVIL">Pago móvil</option>
+                              <option value="TRANSFERENCIA">Transferencia</option>
+                              <option value="ZELLE">Zelle</option>
+                              <option value="EFECTIVO">Efectivo</option>
+                            </select>
+                            <input name="reference" placeholder="Referencia" className="rounded border px-2 py-1" />
+                          </div>
+                          <textarea name="notes" rows={2} placeholder="Notas (opcional)" className="w-full rounded border px-2 py-1 text-xs" />
+                          <div>
+                            <label className="text-[11px] font-semibold text-gray-600">Comprobante</label>
+                            <ProofUploader inputName="proofUrl" />
+                          </div>
+                          <button type="submit" className="w-full rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white">
+                            Registrar abono
+                          </button>
+                        </form>
+                      </details>
+                      <details className="rounded-2xl border border-dashed border-gray-200 bg-white p-3 text-xs text-gray-600">
+                        <summary className="cursor-pointer font-semibold text-gray-700">Generar orden de producción</summary>
+                        <form action={createProductionOrder} className="mt-3 space-y-2 text-xs">
+                          <input type="hidden" name="projectId" value={project.id} />
+                          <input type="hidden" name="subprojectId" value={subproject.id} />
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <input name="number" placeholder="Número de orden" className="rounded border px-2 py-1" required />
+                            <select name="phase" className="rounded border px-2 py-1">
+                              <option value="">Fase</option>
+                              <option value="FABRICACION">Fabricación</option>
+                              <option value="INSTALACION">Instalación</option>
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <select name="carpentryLeadId" className="rounded border px-2 py-1">
+                              <option value="">Carpintero</option>
+                              {employees.map((employee: any) => (
+                                <option key={employee.id} value={employee.id}>
+                                  {employee.name}
+                                </option>
+                              ))}
+                            </select>
+                            <select name="supervisorId" className="rounded border px-2 py-1">
+                              <option value="">Supervisor</option>
+                              {employees.map((employee: any) => (
+                                <option key={employee.id} value={employee.id}>
+                                  {employee.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <textarea name="notes" rows={2} placeholder="Notas" className="w-full rounded border px-2 py-1 text-xs" />
+                          <button
+                            type="submit"
+                            className={`w-full rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] ${
+                              readyForProduction ? "bg-blue-600 text-white" : "bg-amber-500 text-white/90"
+                            }`}
+                          >
+                            Crear orden
+                          </button>
+                          {!readyForProduction && (
+                            <p className="text-[10px] text-amber-500">
+                              El 70% de fabricación debe estar cubierto para mandar a producir.
+                            </p>
+                          )}
+                        </form>
+                      </details>
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="rounded-2xl border border-dashed border-gray-200 p-3 text-xs text-gray-500">
+                No hay subproyectos registrados. Agrega uno a la derecha para comenzar el control.
+              </div>
+            )}
+          </div>
+          <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-600">
+            <h3 className="text-sm font-semibold text-gray-900">Agregar subproyecto</h3>
+            <p className="text-xs text-gray-500">Registra cada mueble o conjunto como un subproyecto independiente.</p>
+            <form action={createCarpentrySubproject} className="mt-3 space-y-3 text-xs text-gray-600">
+              <input type="hidden" name="projectId" value={project.id} />
+              <input type="hidden" name="returnTo" value={`/dashboard/admin/carpinteria/${project.id}`} />
+              <div className="space-y-2">
+                <input name="name" placeholder="Nombre" className="w-full rounded border px-2 py-1" required />
+                <input
+                  name="totalUSD"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="Monto"
+                  className="w-full rounded border px-2 py-1"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <input name="quantity" type="number" min="1" placeholder="Cantidad" className="w-full rounded border px-2 py-1" />
+                <input name="priority" type="number" min="0" placeholder="Prioridad" className="w-full rounded border px-2 py-1" />
+              </div>
+              <textarea name="description" rows={2} placeholder="Descripción" className="w-full rounded border px-2 py-1 text-xs" />
+              <label className="inline-flex items-center gap-2 text-[11px] text-gray-500">
+                <input type="checkbox" name="includeInBudget" defaultChecked className="h-4 w-4 rounded border-gray-300 text-emerald-600" />
+                Sumar este monto al presupuesto total
+              </label>
+              <button type="submit" className="w-full rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white">
+                Guardar subproyecto
+              </button>
+            </form>
+          </div>
         </div>
       </section>
 
@@ -302,3 +494,10 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
     </div>
   );
 }
+  const formatCurrency = (value: number) => `$${Number(value || 0).toFixed(2)}`;
+  const formatDateShort = (value?: string) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  };

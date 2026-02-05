@@ -215,6 +215,7 @@ export default function AdminSidebar() {
       label: 'Carpintería',
       items: [
         { href: '/dashboard/admin/carpinteria', label: 'Proyectos de Carpintería' },
+        { href: '/dashboard/admin/carpinteria/pagos-parciales', label: 'Pagos por partes' },
         { href: '/dashboard/admin/estudio', label: 'Estudio de Diseño Interior' },
         { href: '/dashboard/admin/estudio/nuevo', label: 'Nuevo proyecto de diseño' },
       ],

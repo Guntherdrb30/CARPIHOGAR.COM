@@ -147,10 +147,13 @@ export async function getCarpentryProjectById(id: string) {
       tasks: { include: { employee: true }, orderBy: { workDate: "desc" } },
       clientPayments: { orderBy: { paidAt: "desc" } },
       materialLists: {
-        include: { items: true, deliveredBy: true },
+        include: { items: true, deliveredBy: true, subproject: true },
         orderBy: { uploadedAt: "desc" },
       },
-      purchaseOrders: { orderBy: { createdAt: "desc" } },
+      purchaseOrders: {
+        include: { subproject: true },
+        orderBy: { createdAt: "desc" },
+      },
       expenses: { orderBy: { date: "desc" } },
       productionOrders: {
         include: { tasks: { orderBy: { workDate: "desc" } } },
@@ -159,6 +162,12 @@ export async function getCarpentryProjectById(id: string) {
       updates: {
         include: { responsible: true, createdBy: true },
         orderBy: { progressDate: "desc" },
+      },
+      subprojects: {
+        include: {
+          payments: { orderBy: { paidAt: "desc" } },
+        },
+        orderBy: [{ priority: "asc" }, { createdAt: "desc" }],
       },
     },
   });
@@ -199,6 +208,43 @@ export async function getCarpentryProjectById(id: string) {
   };
 }
 
+export async function getCarpentryMaterialListById(id: string) {
+  if (!id) return null;
+  const session = await getServerSession(authOptions);
+  requireProjectManager(session);
+  const list = await prisma.carpentryProjectMaterialList.findUnique({
+    where: { id },
+    include: {
+      items: true,
+      subproject: true,
+    },
+  });
+  if (!list) return null;
+  const enrichedItems = await Promise.all(
+    list.items.map(async (item) => {
+      let productId: string | null = null;
+      const sku = String(item.sku || "").trim();
+      if (sku) {
+        const product = await prisma.product.findFirst({
+          where: { sku: { equals: sku, mode: "insensitive" } },
+          select: { id: true },
+        });
+        if (product) {
+          productId = product.id;
+        }
+      }
+      return {
+        ...item,
+        productId,
+      };
+    }),
+  );
+  return {
+    ...list,
+    items: enrichedItems,
+  };
+}
+
 export async function getCarpentryTasks() {
   const session = await getServerSession(authOptions);
   requireAdmin(session);
@@ -229,6 +275,8 @@ export async function createCarpentryProject(formData: FormData) {
   const initialPaymentProofUrl = String(formData.get("initialPaymentProofUrl") || "").trim() || null;
   const laborCostUSD = toDecimal(formData.get("laborCostUSD"), 0);
   const status = String(formData.get("status") || "ACTIVO").toUpperCase();
+  const paymentPlanRaw = String(formData.get("paymentPlan") || "ESTANDAR").toUpperCase();
+  const paymentPlan = paymentPlanRaw === "PARCIAL" ? "PARCIAL" : "ESTANDAR";
   const startDateRaw = String(formData.get("startDate") || "").trim();
   const endDateRaw = String(formData.get("endDate") || "").trim();
   const carpenterId = String(formData.get("carpenterId") || "").trim() || null;
@@ -272,6 +320,7 @@ export async function createCarpentryProject(formData: FormData) {
             : status === "CERRADO"
             ? "CERRADO"
             : "ACTIVO",
+        paymentPlan,
         startDate: startDateRaw ? new Date(startDateRaw) : null,
         endDate: endDateRaw ? new Date(endDateRaw) : null,
         carpenterId,
@@ -327,6 +376,13 @@ export async function updateCarpentryProject(formData: FormData) {
   const initialPaymentUSD = toDecimal(formData.get("initialPaymentUSD"), 0);
   const laborCostUSD = toDecimal(formData.get("laborCostUSD"), 0);
   const status = String(formData.get("status") || "").toUpperCase();
+  const paymentPlanRaw = String(formData.get("paymentPlan") || "").toUpperCase();
+  const paymentPlan =
+    paymentPlanRaw === "PARCIAL"
+      ? "PARCIAL"
+      : paymentPlanRaw === "ESTANDAR"
+      ? "ESTANDAR"
+      : null;
   const startDateRaw = String(formData.get("startDate") || "").trim();
   const endDateRaw = String(formData.get("endDate") || "").trim();
   const carpenterId = String(formData.get("carpenterId") || "").trim() || null;
@@ -346,17 +402,18 @@ export async function updateCarpentryProject(formData: FormData) {
       ...(totalAmountUSD ? { totalAmountUSD: totalAmountUSD as any } : {}),
       ...(initialPaymentUSD ? { initialPaymentUSD: initialPaymentUSD as any } : {}),
       ...(laborCostUSD ? { laborCostUSD: laborCostUSD as any } : {}),
-      ...(status
-        ? {
-            status:
-              status === "EN_PROCESO"
-                ? "EN_PROCESO"
-                : status === "CERRADO"
-                ? "CERRADO"
-                : "ACTIVO",
-          }
-        : {}),
-      startDate: startDateRaw ? new Date(startDateRaw) : null,
+        ...(status
+          ? {
+              status:
+                status === "EN_PROCESO"
+                  ? "EN_PROCESO"
+                  : status === "CERRADO"
+                  ? "CERRADO"
+                  : "ACTIVO",
+            }
+          : {}),
+        ...(paymentPlan ? { paymentPlan } : {}),
+        startDate: startDateRaw ? new Date(startDateRaw) : null,
       endDate: endDateRaw ? new Date(endDateRaw) : null,
       carpenterId,
       architectId,
@@ -457,6 +514,184 @@ export async function deleteCarpentryClientPayment(formData: FormData) {
   }
   await prisma.carpentryClientPayment.delete({ where: { id } });
   redirect(`/dashboard/admin/carpinteria/${payment.projectId}?message=Abono%20eliminado`);
+}
+
+export async function getCarpentrySubprojectProjects() {
+  const session = await getServerSession(authOptions);
+  requireProjectManager(session);
+  return prisma.carpentryProject.findMany({
+    where: { paymentPlan: "PARCIAL" },
+    include: {
+      files: true,
+      clientPayments: { orderBy: { paidAt: "desc" } },
+      materialLists: {
+        include: { items: true, deliveredBy: true, subproject: true },
+        orderBy: { uploadedAt: "desc" },
+      },
+      subprojects: {
+        include: {
+          payments: { orderBy: { paidAt: "desc" } },
+        },
+        orderBy: [{ priority: "asc" }, { createdAt: "desc" }],
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function createCarpentrySubproject(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  const rawReturnTo = String(formData.get("returnTo") || "").trim();
+  const returnToBase = rawReturnTo.startsWith("/dashboard/admin/carpinteria")
+    ? rawReturnTo
+    : "/dashboard/admin/carpinteria/pagos-parciales";
+  const projectId = String(formData.get("projectId") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  const description = String(formData.get("description") || "").trim() || null;
+  const totalUSD = toDecimal(formData.get("totalUSD"), 0);
+  const quantity = Math.max(1, Number.parseInt(String(formData.get("quantity") || "1"), 10) || 1);
+  const priority = Number.parseInt(String(formData.get("priority") || "0"), 10) || 0;
+  const includeInBudget = formData.get("includeInBudget") != null;
+
+  const redirectWith = (key: "message" | "error", value: string) => {
+    const url = new URL(returnToBase, "http://internal");
+    url.searchParams.set(key, value);
+    redirect(url.pathname + url.search);
+  };
+
+  if (!projectId || !name) {
+    redirectWith("error", "Datos incompletos");
+  }
+  if (!totalUSD || totalUSD <= 0) {
+    redirectWith("error", "Monto invalido");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const project = await tx.carpentryProject.findUnique({ where: { id: projectId } });
+    if (!project) {
+      redirectWith("error", "Proyecto no encontrado");
+    }
+    const projectUpdate: any = {};
+    if (project.paymentPlan !== "PARCIAL") {
+      projectUpdate.paymentPlan = "PARCIAL";
+    }
+    if (includeInBudget) {
+      projectUpdate.totalAmountUSD = { increment: totalUSD as any };
+    }
+    if (Object.keys(projectUpdate).length) {
+      await tx.carpentryProject.update({
+        where: { id: projectId },
+        data: projectUpdate,
+      });
+    }
+
+    await tx.carpentrySubproject.create({
+      data: {
+        projectId,
+        name,
+        description,
+        totalUSD: totalUSD as any,
+        quantity,
+        priority,
+      },
+    });
+  });
+  redirectWith("message", "Subproyecto registrado");
+}
+
+export async function createCarpentrySubprojectPayment(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  const rawReturnTo = String(formData.get("returnTo") || "").trim();
+  const returnToBase = rawReturnTo.startsWith("/dashboard/admin/carpinteria")
+    ? rawReturnTo
+    : "/dashboard/admin/carpinteria/pagos-parciales";
+  const subprojectId = String(formData.get("subprojectId") || formData.get("furnitureId") || "").trim();
+  const amountUSD = toDecimal(formData.get("amountUSD"), 0);
+  const phaseRaw = String(formData.get("phase") || "").toUpperCase();
+  const phase =
+    phaseRaw === "INSTALACION"
+      ? "INSTALACION"
+      : phaseRaw === "FABRICACION"
+      ? "FABRICACION"
+      : null;
+  const paidAtRaw = String(formData.get("paidAt") || "").trim();
+  const methodRaw = String(formData.get("method") || "").toUpperCase();
+  const reference = String(formData.get("reference") || "").trim() || null;
+  const notes = String(formData.get("notes") || "").trim() || null;
+  const proofUrl = String(formData.get("proofUrl") || "").trim() || null;
+  const redirectWith = (key: "message" | "error", value: string) => {
+    const url = new URL(returnToBase, "http://internal");
+    url.searchParams.set(key, value);
+    redirect(url.pathname + url.search);
+  };
+
+  if (!subprojectId || !amountUSD || amountUSD <= 0) {
+    redirectWith("error", "Abono invalido");
+  }
+  if (!phase) {
+    redirectWith("error", "Selecciona una fase");
+  }
+
+  const method =
+    methodRaw === "PAGO_MOVIL"
+      ? "PAGO_MOVIL"
+      : methodRaw === "TRANSFERENCIA"
+      ? "TRANSFERENCIA"
+      : methodRaw === "ZELLE"
+      ? "ZELLE"
+      : methodRaw === "EFECTIVO"
+      ? "EFECTIVO"
+      : null;
+
+  await prisma.$transaction(async (tx) => {
+    const subproject = await tx.carpentrySubproject.findUnique({ where: { id: subprojectId } });
+    if (!subproject) {
+      redirectWith("error", "Subproyecto no encontrado");
+    }
+    const project = await tx.carpentryProject.findUnique({ where: { id: subproject.projectId } });
+    if (!project) {
+      redirectWith("error", "Proyecto no encontrado");
+    }
+    if (project.paymentPlan !== "PARCIAL") {
+      await tx.carpentryProject.update({
+        where: { id: project.id },
+        data: { paymentPlan: "PARCIAL" },
+      });
+    }
+
+    await tx.carpentrySubprojectPayment.create({
+      data: {
+        subprojectId,
+        amountUSD: amountUSD as any,
+        phase: phase as any,
+        paidAt: paidAtRaw ? new Date(paidAtRaw) : new Date(),
+        method: method as any,
+        reference,
+        notes,
+        proofUrl,
+      },
+    });
+
+    await tx.carpentrySubproject.update({
+      where: { id: subprojectId },
+      data:
+        phase === "INSTALACION"
+          ? { installationPaidUSD: { increment: amountUSD as any } }
+          : { fabricationPaidUSD: { increment: amountUSD as any } },
+    });
+    const projectAccumulationField =
+      phase === "INSTALACION" ? "installationPaidUSD" : "fabricationPaidUSD";
+    await tx.carpentryProject.update({
+      where: { id: project.id },
+      data: {
+        [projectAccumulationField]: { increment: amountUSD as any },
+      },
+    });
+  });
+
+  redirectWith("message", "Abono registrado");
 }
 
 export async function updateCarpentryTaskStatus(formData: FormData) {
@@ -634,6 +869,7 @@ export async function createCarpentryProjectMaterialList(formData: FormData) {
   const phaseRaw = String(formData.get("phase") || "").toUpperCase();
   const deliveredAtRaw = String(formData.get("deliveredAt") || "").trim();
   const deliveredByIdRaw = String(formData.get("deliveredById") || "").trim();
+  const subprojectIdRaw = String(formData.get("subprojectId") || "").trim();
   if (!projectId || !name || !fileUrl) {
     redirect("/dashboard/admin/carpinteria?error=Lista%20invalida");
   }
@@ -647,6 +883,13 @@ export async function createCarpentryProjectMaterialList(formData: FormData) {
   const normalizedPhase = phaseRaw && phaseLabelMap[phaseRaw] ? phaseLabelMap[phaseRaw] : null;
   const deliveredAt = deliveredAtRaw ? parseDate(deliveredAtRaw) : null;
   const deliveredById = deliveredByIdRaw || null;
+  let subprojectId: string | null = null;
+  if (subprojectIdRaw) {
+    const subproject = await prisma.carpentrySubproject.findUnique({ where: { id: subprojectIdRaw } });
+    if (subproject && subproject.projectId === projectId) {
+      subprojectId = subprojectIdRaw;
+    }
+  }
   await prisma.carpentryProjectMaterialList.create({
     data: {
       projectId,
@@ -656,6 +899,7 @@ export async function createCarpentryProjectMaterialList(formData: FormData) {
       phase: normalizedPhase as any,
       deliveredAt: deliveredAt as any,
       deliveredById,
+      subprojectId,
       items: {
         create: items.map((item) => ({
           sku: item?.sku || null,
@@ -677,6 +921,7 @@ export async function createCarpentryProjectPurchaseOrder(formData: FormData) {
   const projectId = String(formData.get("projectId") || "").trim();
   const totalUSD = toDecimal(formData.get("totalUSD"), 0);
   const saleId = String(formData.get("saleId") || "").trim() || null;
+  const subprojectIdRaw = String(formData.get("subprojectId") || "").trim();
   const statusRaw = String(formData.get("status") || "PENDING").toUpperCase();
   const notes = String(formData.get("notes") || "").trim() || null;
   const requireSecret = parseBool(String(formData.get("requiresSecret") || ""));
@@ -684,11 +929,19 @@ export async function createCarpentryProjectPurchaseOrder(formData: FormData) {
   if (!projectId || totalUSD <= 0) {
     redirect("/dashboard/admin/carpinteria?error=Orden%20invalida");
   }
+  let subprojectId: string | null = null;
+  if (subprojectIdRaw) {
+    const subproject = await prisma.carpentrySubproject.findUnique({ where: { id: subprojectIdRaw } });
+    if (subproject && subproject.projectId === projectId) {
+      subprojectId = subprojectIdRaw;
+    }
+  }
   await prisma.$transaction(async (tx) => {
     const purchaseOrder = await tx.carpentryProjectPurchaseOrder.create({
       data: {
         projectId,
         saleId,
+        subprojectId,
         totalUSD: totalUSD as any,
         status: normalizeEnum(purchaseStatusMap, statusRaw, purchaseStatusMap.PENDING),
         requiresSecret: requireSecret,
@@ -821,6 +1074,7 @@ export async function createProductionOrder(formData: FormData) {
   const statusRaw = String(formData.get("status") || "PLANNED").toUpperCase();
   const progressPct = toDecimal(formData.get("progressPct"), 0);
   const notes = String(formData.get("notes") || "").trim() || null;
+  const subprojectId = String(formData.get("subprojectId") || "").trim() || null;
   if (!projectId || !number) {
     redirect(`/dashboard/admin/carpinteria/${projectId}?error=Numero%20requerido`);
   }
@@ -837,6 +1091,7 @@ export async function createProductionOrder(formData: FormData) {
       status: normalizeEnum(productionStatusMap, statusRaw, productionStatusMap.PLANNED) as any,
       progressPct: progressPct as any,
       notes,
+      subprojectId,
     },
   });
   redirect(`/dashboard/admin/carpinteria/${projectId}?message=Orden%20de%20produccion%20creada`);

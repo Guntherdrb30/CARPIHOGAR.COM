@@ -74,6 +74,8 @@ export default function OfflineSaleForm({
   initialAddr2 = "",
   initialAddrNotes = "",
   carpentryProjectId,
+  carpentrySubprojectId,
+  carpentryMaterialListId,
   backTo,
   allowCredit = true,
   unlockCreditWithDeleteSecret = false,
@@ -120,6 +122,8 @@ export default function OfflineSaleForm({
   initialAddr2?: string;
   initialAddrNotes?: string;
   carpentryProjectId?: string;
+  carpentrySubprojectId?: string;
+  carpentryMaterialListId?: string;
   backTo?: string;
   allowCredit?: boolean;
   unlockCreditWithDeleteSecret?: boolean;
@@ -882,6 +886,8 @@ export default function OfflineSaleForm({
       <input type="hidden" name="docType" value={docType} />
       <input type="hidden" name="saleType" value={saleType} />
       {carpentryProjectId ? <input type="hidden" name="carpentryProjectId" value={carpentryProjectId} /> : null}
+      {carpentrySubprojectId ? <input type="hidden" name="carpentrySubprojectId" value={carpentrySubprojectId} /> : null}
+      {carpentryMaterialListId ? <input type="hidden" name="carpentryMaterialListId" value={carpentryMaterialListId} /> : null}
       {backTo ? <input type="hidden" name="backTo" value={backTo} /> : null}
       {(allowCreditUi && unlockCreditWithDeleteSecret && deleteSecret.trim()) ? (<input type="hidden" name="deleteSecret" value={deleteSecret} />) : null}
 

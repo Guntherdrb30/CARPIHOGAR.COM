@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -84,16 +83,30 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
           </div>
           <form action={createCarpentryProject} className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1fr,320px]">
             <div className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700">Nombre del proyecto</label>
-                  <input name="name" required className="mt-1 w-full rounded border px-3 py-2 text-sm" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700">Cliente</label>
-                  <input name="clientName" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700">Nombre del proyecto</label>
+                <input name="name" required className="mt-1 w-full rounded border px-3 py-2 text-sm" />
               </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700">Cliente</label>
+                <input name="clientName" className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700">Modelo de pago</label>
+              <select
+                name="paymentPlan"
+                defaultValue="ESTANDAR"
+                className="mt-1 w-full rounded border px-3 py-2 text-sm"
+              >
+                <option value="ESTANDAR">Pago 70% / 30% (estándar)</option>
+                <option value="PARCIAL">Pagos por partes (nuevo control)</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                El modo estándar requiere abonar el 70% para comenzar; el modo pagos por partes te permite seleccionar muebles e ir registrando abonos específicos.
+              </p>
+            </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700">Ciudad</label>
@@ -286,6 +299,10 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {projects.map((projectItem: any) => {
+            const planLabel =
+              projectItem.paymentPlan === "PARCIAL"
+                ? "Pagos por partes"
+                : "Pago 70% / 30% (estándar)";
             const cover = projectItem.files?.find((f: any) => f.fileType === "IMAGEN")?.url || projectItem.files?.[0]?.url;
             const paid = projectItem.clientPayments?.reduce((sum: number, p: any) => sum + Number(p.amountUSD || 0), 0) || 0;
             return (
@@ -298,8 +315,11 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
                   <div className="flex h-40 items-center justify-center bg-slate-100 text-sm text-gray-500">Sin imagen</div>
                 )}
                 <div className="p-4 space-y-2 text-sm text-gray-700">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-gray-900">{projectItem.name}</h3>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-900">{projectItem.name}</h3>
+                      <p className="text-[11px] text-gray-400">{planLabel}</p>
+                    </div>
                     <span className="rounded-full bg-emerald-100 px-3 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-600">
                       {projectItem.status}
                     </span>

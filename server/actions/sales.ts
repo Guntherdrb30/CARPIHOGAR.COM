@@ -468,6 +468,8 @@ export async function createOfflineSale(formData: FormData) {
   const allowedDocs = ['recibo','factura'];
   const docType = (allowedDocs.includes(docTypeRaw) ? docTypeRaw : 'recibo') as 'recibo'|'factura';
   const carpentryProjectId = String(formData.get('carpentryProjectId') || '').trim();
+  const carpentrySubprojectId = String(formData.get('carpentrySubprojectId') || '').trim();
+  const carpentryMaterialListId = String(formData.get('carpentryMaterialListId') || '').trim();
   const backToParam = String(formData.get('backTo') || '').trim();
   // Shipping address fields
   const incomingShippingAddressId = String(formData.get('shippingAddressId') || '');
@@ -863,22 +865,46 @@ Total: ${totalTxt}.
 
   const finalMessage = customerCreated ? `${successMessage} - Cliente creado para tienda online` : successMessage;
 
+  let finalPurchaseProjectId = carpentryProjectId;
+  let resolvedSubprojectId: string | null = null;
+  if (carpentrySubprojectId) {
+    const subproject = await prisma.carpentrySubproject.findUnique({ where: { id: carpentrySubprojectId } });
+    if (subproject) {
+      if (!finalPurchaseProjectId) {
+        finalPurchaseProjectId = subproject.projectId;
+      }
+      if (finalPurchaseProjectId === subproject.projectId) {
+        resolvedSubprojectId = carpentrySubprojectId;
+      }
+    }
+  }
   try { revalidatePath('/dashboard/admin/ventas'); } catch {}
-  if (carpentryProjectId) {
+  if (finalPurchaseProjectId) {
     try {
       const existing = await prisma.carpentryProjectPurchaseOrder.findFirst({ where: { saleId: order.id } });
+      const purchaseNotesArray = [`Compra generada desde venta ${order.id}`];
+      if (carpentryMaterialListId) {
+        purchaseNotesArray.push(`Lista ${carpentryMaterialListId}`);
+      }
+      const purchaseNotesStr = purchaseNotesArray.join(" · ");
       if (!existing) {
         await prisma.carpentryProjectPurchaseOrder.create({
           data: {
-            projectId: carpentryProjectId,
+            projectId: finalPurchaseProjectId,
             saleId: order.id,
+            subprojectId: resolvedSubprojectId,
             totalUSD: totalUSD as any,
             status: 'APPROVED' as any,
-            notes: `Compra generada desde venta ${order.id}`,
+            notes: purchaseNotesStr,
           },
         });
+      } else if (resolvedSubprojectId && !existing.subprojectId) {
+        await prisma.carpentryProjectPurchaseOrder.update({
+          where: { id: existing.id },
+          data: { subprojectId: resolvedSubprojectId },
+        });
       }
-      try { revalidatePath(`/dashboard/admin/carpinteria/${carpentryProjectId}`); } catch {}
+      try { revalidatePath(`/dashboard/admin/carpinteria/${finalPurchaseProjectId}`); } catch {}
     } catch {}
   }
   const backTo = backToParam || '/dashboard/admin/ventas';

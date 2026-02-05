@@ -29,11 +29,16 @@ import type {
 type ProjectWithExtras = CarpentryProject & {
   files: { id: string; url: string; fileType: string; filename?: string }[];
   clientPayments: { amountUSD: number }[];
+  subprojects?: { id: string; name: string }[];
   materialLists: (CarpentryProjectMaterialList & {
-    items: { name: string; unitPriceUSD: number; quantity: number }[];
+    items: { name: string; unitPriceUSD: number; quantity: number; sku?: string | null; productId?: string | null }[];
     deliveredBy?: PayrollEmployee | null;
+    subproject?: { id: string; name: string } | null;
   })[];
-  purchaseOrders: (CarpentryProjectPurchaseOrder & { sale?: Order | null })[];
+  purchaseOrders: (CarpentryProjectPurchaseOrder & {
+    sale?: Order | null;
+    subproject?: { id: string; name: string } | null;
+  })[];
   inventoryEntries: (CarpentryProjectInventoryEntry & {
     purchaseOrder?: CarpentryProjectPurchaseOrder | null;
   })[];
@@ -90,20 +95,29 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
   const progressInstallation = installationGoal
     ? Math.min(100, (installationPaid / installationGoal) * 100)
     : 0;
-  const saleFormHref = (() => {
+  const baseSaleParams = {
+    customerName: project.clientName?.trim() || "trends172,ca",
+    customerEmail: project.clientEmail?.trim() || "root@carpihogar.com",
+    customerPhone: project.clientPhone?.trim() || "04245262306",
+    customerTaxId: "J-31758009-5",
+    customerFiscalAddress: "Av Industrial, Edificio Teca, Barinas, Estado Barinas, Venezuela",
+    docType: "recibo",
+    lockDocType: "1",
+    carpentryProjectId: project.id,
+    backTo: `/dashboard/admin/carpinteria/${project.id}`,
+  };
+  const buildSaleHref = (extra: Record<string, string | undefined> = {}) => {
     const params = new URLSearchParams();
-    const customerName = project.clientName?.trim() || "trends172,ca";
-    params.set("customerName", customerName);
-    params.set("customerEmail", project.clientEmail?.trim() || "root@carpihogar.com");
-    params.set("customerPhone", project.clientPhone?.trim() || "04245262306");
-    params.set("customerTaxId", "J-31758009-5");
-    params.set("customerFiscalAddress", "Av Industrial, Edificio Teca, Barinas, Estado Barinas, Venezuela");
-    params.set("docType", "recibo");
-    params.set("lockDocType", "1");
-    params.set("carpentryProjectId", project.id);
-    params.set("backTo", `/dashboard/admin/carpinteria/${project.id}`);
+    Object.entries(baseSaleParams).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    Object.entries(extra).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    });
     return `/dashboard/admin/ventas/nueva?${params.toString()}`;
-  })();
+  };
+  const saleFormHref = buildSaleHref();
 
   const formatDateShort = (value?: string | Date) => {
     const date = value ? new Date(value) : null;
@@ -248,6 +262,15 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
             />
             <input name="description" placeholder="Descripción (opcional)" className="border rounded px-3 py-2 w-full" />
           </div>
+          <div>
+            <label className="text-xs text-gray-500">Subproyecto (opcional)</label>
+            <select name="subprojectId" className="w-full border rounded px-3 py-2">
+              <option value="">Proyecto completo</option>
+              {project.subprojects?.map((subproject) => (
+                <option key={subproject.id} value={subproject.id}>{subproject.name}</option>
+              ))}
+            </select>
+          </div>
           <div className="space-y-1 text-xs text-gray-600">
             <label>Archivo PDF/Excel</label>
             <ProofUploader inputName="fileUrl" />
@@ -265,29 +288,57 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
         </form>
         {project.materialLists?.length ? (
           <div className="space-y-3 pt-3">
-            {project.materialLists.map((list) => (
-              <div key={list.id} className="rounded-xl border border-dashed border-gray-300 p-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold">{list.name}</div>
-                  <div className="text-xs text-gray-500">{new Date(list.uploadedAt).toLocaleDateString()}</div>
-                </div>
-                <p className="text-xs text-gray-500">{list.description}</p>
-                {list.items?.length ? (
-                  <div className="mt-2 text-xs text-gray-600">
-                    {list.items.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-[11px] px-1 py-0.5">
-                        <span>{item.name}</span>
-                        <span>
-                          {item.quantity} × ${Number(item.unitPriceUSD).toFixed(2)}
-                        </span>
+            {project.materialLists.map((list) => {
+              const listTotal =
+                (list.items?.reduce(
+                  (sum, item) => sum + Number(item.unitPriceUSD || 0) * Number(item.quantity || 0),
+                  0,
+                ) || 0);
+              const listHref = buildSaleHref({
+                carpentryMaterialListId: list.id,
+                carpentrySubprojectId: list.subprojectId || undefined,
+              });
+              return (
+                <div key={list.id} className="space-y-3 rounded-xl border border-dashed border-gray-300 p-3 text-sm shadow-sm">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">{list.name}</div>
+                      <div className="text-[11px] text-gray-500">
+                        {list.subproject ? `Subproyecto: ${list.subproject.name}` : "Proyecto general"}
                       </div>
-                    ))}
+                      <div className="text-[11px] text-gray-400">
+                        {new Date(list.uploadedAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <Link
+                      href={listHref}
+                      className="rounded-full border border-blue-600 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-blue-600 transition hover:bg-blue-50"
+                    >
+                      Comprar lista
+                    </Link>
                   </div>
-                ) : (
-                  <p className="text-xs text-gray-400">Sin ítems registrados.</p>
-                )}
-              </div>
-            ))}
+                  <div className="flex items-center justify-between text-[11px] text-gray-600">
+                    <span>Total estimado</span>
+                    <span className="font-semibold text-gray-900">${listTotal.toFixed(2)}</span>
+                  </div>
+                  <p className="text-xs text-gray-500">{list.description || "Sin descripción"}</p>
+                  {list.items?.length ? (
+                    <div className="space-y-1 text-xs text-gray-600">
+                      {list.items.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between px-1 py-0.5">
+                          <span>{item.name}</span>
+                          <span>
+                            {item.quantity} × ${Number(item.unitPriceUSD).toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400">Sin ítems registrados.</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <p className="text-xs text-gray-500">No hay listas de materiales aún.</p>
@@ -354,6 +405,9 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
                     {new Date(order.createdAt).toLocaleDateString()}
                     {sale?.payment?.status ? ` · Estado del pago: ${sale.payment.status}` : ""}
                   </div>
+                  <div className="text-[11px] text-blue-600">
+                    {order.subproject ? `Subproyecto: ${order.subproject.name}` : "Proyecto general"}
+                  </div>
                 </div>
               );
             })}
@@ -368,6 +422,14 @@ export default function CarpentryProjectTabs({ project, employees }: Props) {
           <input name="totalUSD" type="number" step="0.01" placeholder="Total de la compra" className="border rounded px-3 py-2" required />
           <input name="saleId" placeholder="ID de venta (si aplica)" className="border rounded px-3 py-2" />
         </div>
+        <select name="subprojectId" className="w-full border rounded px-3 py-2">
+          <option value="">Subproyecto (opcional)</option>
+          {project.subprojects?.map((subproject) => (
+            <option key={subproject.id} value={subproject.id}>
+              {subproject.name}
+            </option>
+          ))}
+        </select>
         <select name="status" className="w-full border rounded px-3 py-2">
           <option value="PENDING">Pendiente</option>
           <option value="APPROVED">Aprobada</option>
