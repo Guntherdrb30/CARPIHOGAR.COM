@@ -172,8 +172,8 @@ function buildCatalogHtml({
   const perPage = 24; // 4 columns x 6 rows
   const rawPages = chunk(products, perPage);
   const pages = rawPages.length ? rawPages : [[]];
-  // Print only product pages (4x6). This keeps the catalog compact.
-  const totalPages = Math.max(1, pages.length);
+  // Cover page + product pages (4x6).
+  const totalPages = Math.max(1, pages.length + 1);
   const safeBrandName = escapeHtml(brandName);
   const safeCategory = escapeHtml(categoryLabel);
   const safePrintedAt = escapeHtml(printedAt);
@@ -187,9 +187,58 @@ function buildCatalogHtml({
     .filter(Boolean)
     .join(', ');
 
+  const coverSectionsHtml = (copy.sections || [])
+    .slice(0, 3)
+    .map(
+      (section) => `
+        <div class="section">
+          <div class="section__kicker">${escapeHtml(section.highlight)}</div>
+          <h3 class="section__title">${escapeHtml(section.title)}</h3>
+          <p class="section__text">${escapeHtml(section.text)}</p>
+        </div>
+      `,
+    )
+    .join('');
+
+  const coverHtml = `
+    <section class="page page--cover">
+      <header class="page__header">
+        <div class="brand">
+          <img class="brand__logo" src="${escapeHtml(logoUrl)}" alt="${safeBrandName}" />
+          <div class="brand__meta">
+            <div class="brand__name">${safeBrandName}</div>
+            <div class="brand__tag">CATALOGO PREMIUM</div>
+          </div>
+        </div>
+        <div class="meta">
+          <div class="meta__row"><span>Categoria</span><strong>${safeCategory}</strong></div>
+          <div class="meta__row"><span>Precios</span><strong>${escapeHtml(priceLabelSummary || 'Cliente')}</strong></div>
+          <div class="meta__row"><span>Moneda</span><strong>${safeCurrency}</strong></div>
+        </div>
+      </header>
+
+      <div class="cover">
+        <h1 class="cover__title">${escapeHtml(copy.coverTitle)}</h1>
+        <div class="cover__subtitle">${escapeHtml(copy.coverSubtitle)}</div>
+        <p class="cover__desc">${escapeHtml(copy.coverDescription)}</p>
+        <div class="cover__summary">${escapeHtml(copy.summary)}</div>
+      </div>
+
+      <div class="sections">
+        ${coverSectionsHtml}
+      </div>
+
+      <footer class="page__footer">
+        <div class="footer__left">${safePrintedAt}</div>
+        <div class="footer__center">${safeContact}</div>
+        <div class="footer__right">Pagina 1 / ${totalPages}</div>
+      </footer>
+    </section>
+  `;
+
   const productPagesHtml = pages
     .map((pageProducts, idx) => {
-      const pageNumber = idx + 1;
+      const pageNumber = idx + 2; // cover is 1
       const cards = pageProducts
         .map((p) => {
           const label = p.code || p.sku || 'SIN CODIGO';
@@ -241,8 +290,13 @@ function buildCatalogHtml({
         <section class="page page--products">
           <header class="page__header page__header--compact">
             <div class="header__left">
-              <div class="header__title">${safeBrandName}</div>
-              <div class="header__sub">${safeCategory} · ${escapeHtml(priceLabelSummary)} · ${safeCurrency}${safeRate}</div>
+              <div class="header__brand">
+                <img class="header__logo" src="${escapeHtml(logoUrl)}" alt="${safeBrandName}" />
+                <div class="header__brandText">
+                  <div class="header__title">${safeBrandName}</div>
+                  <div class="header__sub">${safeCategory} - ${escapeHtml(priceLabelSummary)} - ${safeCurrency}${safeRate}</div>
+                </div>
+              </div>
             </div>
             <div class="header__right">
               <div class="header__sort">Orden: ${safeSort}</div>
@@ -287,6 +341,7 @@ function buildCatalogHtml({
         --line: rgba(15, 23, 42, 0.12);
         --brand: #e11d2e;
         --brand2: #0ea5e9;
+        --orange: #f97316;
         --shadow: 0 14px 40px rgba(2, 6, 23, 0.25);
         --radius: 16px;
         --gap: 10px;
@@ -352,7 +407,10 @@ function buildCatalogHtml({
       .section__title{ margin: 8px 0 6px; font-size: 14px; }
       .section__text{ margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 
-      .header__title{ font-weight: 800; letter-spacing: 0.02em; }
+      .header__brand{ display:flex; gap: 10px; align-items:center; }
+      .header__logo{ width: 34px; height: 34px; object-fit: contain; border-radius: 10px; background: #fff; border: 1px solid var(--line); padding: 6px; }
+      .header__brandText{ display:flex; flex-direction: column; }
+      .header__title{ font-weight: 900; letter-spacing: 0.02em; color: var(--orange); }
       .header__sub{ font-size: 12px; color: var(--muted); margin-top: 2px; }
       .header__sort{ font-size: 12px; color: var(--muted); text-align: right; }
 
@@ -458,6 +516,7 @@ function buildCatalogHtml({
     </style>
   </head>
   <body>
+    ${coverHtml}
     ${productPagesHtml}
   </body>
 </html>`;
@@ -620,7 +679,7 @@ export async function POST(request: Request) {
         {
           role: 'user',
           content:
-            'Redacta el copy para un catálogo premium. Incluye portada impactante y exactamente 3 secciones (destacados, tendencias, remates). No inventes datos de productos.',
+            'Redacta el copy para un catálogo premium de Carpihogar. La primera página debe ser una presentación moderna y súper elegante sobre un TEMA DIFERENTE en cada generación (servicios de Carpihogar: tienda online, asesoría, envíos, atención, garantías, compras por volumen, etc). Incluye portada impactante y exactamente 3 secciones que desarrollen ese tema. No inventes datos de productos.',
         },
         {
           role: 'user',
@@ -643,14 +702,15 @@ export async function POST(request: Request) {
         : null;
 
     const fallbackCopy = {
-      summary: `Selección actual de productos en ${brandName}.`,
+      summary: `Tu proyecto empieza aquí: compra online, asesoría y entrega con el respaldo de ${brandName}.`,
       coverTitle: `Catálogo premium de ${brandName}`,
       coverSubtitle: 'CARPINTERIA Y HOGAR',
-      coverDescription: `Explora nuestra selección en ${categorySlug}.`,
+      coverDescription:
+        'Descubre una experiencia de compra moderna: atención experta, disponibilidad real y soluciones para carpintería y hogar.',
       sections: [
-        { title: 'Destacados', text: 'Una selección curada con lo más buscado por nuestros clientes.', highlight: 'Lo más vendido' },
-        { title: 'Tendencias', text: 'Nuevas llegadas y piezas que elevan cualquier proyecto.', highlight: 'Novedades' },
-        { title: 'Remates', text: 'Oportunidades para comprar inteligente sin sacrificar calidad.', highlight: 'Oferta' },
+        { title: 'Compra online', text: 'Explora el catálogo, compara precios y encuentra rápido lo que necesitas para tu proyecto.', highlight: 'Rápido y claro' },
+        { title: 'Asesoría', text: 'Te ayudamos a elegir herrajes, materiales y soluciones según tu necesidad.', highlight: 'Atención experta' },
+        { title: 'Entrega', text: 'Coordinamos disponibilidad y entrega para que avances sin retrasos.', highlight: 'Logística' },
       ],
     };
 
