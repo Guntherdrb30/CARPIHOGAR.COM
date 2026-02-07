@@ -172,7 +172,7 @@ function buildCatalogHtml({
   }>;
   groupByCategory?: boolean;
 }) {
-  const perPage = 8; // 2 columns x 4 rows
+  const perPage = 4; // 2 columns x 2 rows
   const safeGroupByCategory = Boolean(groupByCategory);
   const safeBrandName = escapeHtml(brandName);
   const safeCategory = escapeHtml(categoryLabel);
@@ -218,13 +218,9 @@ function buildCatalogHtml({
         const stockText =
           typeof p.stock === 'number' && Number.isFinite(p.stock) ? `${p.stock}` : '-';
         const imgUrl = p.image ? escapeHtml(p.image) : '';
-        const priceLines = p.prices
-          .slice(0, 1)
-          .map(
-            (line) =>
-              `<div class="price"><span class="price__label">${escapeHtml(line.label)}</span><span class="price__value">${escapeHtml(line.value)}</span></div>`,
-          )
-          .join('');
+        const firstPrice = Array.isArray(p.prices) && p.prices.length ? p.prices[0] : null;
+        const priceLabel = firstPrice?.label ? String(firstPrice.label) : 'Precio';
+        const priceValue = firstPrice?.value ? String(firstPrice.value) : 'Bajo solicitud';
         const inner = `
               <div class="card__media">
                 ${
@@ -234,16 +230,13 @@ function buildCatalogHtml({
                 }
               </div>
               <div class="card__body">
+                <div class="card__code">Código: <strong>${escapeHtml(label)}</strong></div>
                 <div class="card__name">${escapeHtml(p.name)}</div>
-                <div class="card__metaRow">
-                  <span class="meta__label">Código</span>
-                  <span class="meta__value">${escapeHtml(label)}</span>
+                <div class="card__priceRow">
+                  <span class="card__priceLabel">${escapeHtml(priceLabel)}</span>
+                  <span class="card__priceValue">${escapeHtml(priceValue)}</span>
                 </div>
-                <div class="card__prices">${priceLines}</div>
-                <div class="card__metaRow">
-                  <span class="meta__label">Stock</span>
-                  <span class="meta__value">${escapeHtml(stockText)}</span>
-                </div>
+                <div class="card__stock">Stock: ${escapeHtml(stockText)}</div>
               </div>
           `;
 
@@ -283,12 +276,12 @@ function buildCatalogHtml({
                 <img class="header__logo" src="${escapeHtml(logoUrl)}" alt="${safeBrandName}" />
                 <div class="header__brandText">
                   <div class="header__title">${safeBrandName}</div>
-                  <div class="header__sub">${safePageCategory} - ${escapeHtml(priceLabelSummary)} - ${safeCurrency}${safeRate}</div>
+                  <div class="header__sub">Catálogo · ${safePageCategory}</div>
                 </div>
               </div>
             </div>
             <div class="header__right">
-              <div class="header__sort">Orden: ${safeSort}</div>
+              <div class="header__items">${perPage} productos por página</div>
             </div>
           </header>
 
@@ -597,7 +590,7 @@ function buildCatalogHtml({
       .header__brandText{ display:flex; flex-direction: column; }
       .header__title{ font-weight: 900; letter-spacing: 0.02em; color: var(--orange); }
       .header__sub{ font-size: 12px; color: var(--muted); margin-top: 2px; }
-      .header__sort{ font-size: 12px; color: var(--muted); text-align: right; }
+      .header__items{ font-size: 12px; color: var(--muted); text-align: right; }
 
       .grid{
         margin-top: 14px;
@@ -605,7 +598,7 @@ function buildCatalogHtml({
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: var(--gap);
         height: calc(297mm - 18mm - 16mm - 32mm - 18mm);
-        grid-template-rows: repeat(4, minmax(0, 1fr));
+        grid-template-rows: repeat(2, minmax(0, 1fr));
       }
       .card{
         border: 1px solid var(--line);
@@ -616,6 +609,7 @@ function buildCatalogHtml({
         grid-template-rows: 62% 38%;
         min-height: 0;
         height: 100%;
+        box-shadow: 0 10px 18px rgba(2, 6, 23, 0.06);
       }
       .card--link{
         color: inherit;
@@ -631,46 +625,38 @@ function buildCatalogHtml({
         display:flex;
         align-items:center;
         justify-content:center;
-        padding: 10px;
+        padding: 12px;
         min-height: 0;
         overflow: hidden;
+        height: 100%;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.00));
       }
-      .card__img{ width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; display:block; }
+      .card__img{ width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: cover; display:block; border-radius: 14px; }
       .card__img--empty{ width: 100%; height: 100%; display:flex; align-items:center; justify-content:center; color: #94a3b8; font-size: 11px; }
       .card__body{
         padding: 10px 12px;
         display:flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 7px;
         min-height: 0;
         overflow: hidden;
-        background: linear-gradient(180deg, rgba(14,165,233,0.06), rgba(225,29,46,0.03));
+        background: #ffffff;
       }
+      .card__code{ font-size: 12px; color: var(--muted); }
+      .card__code strong{ color: var(--ink); font-weight: 800; letter-spacing: 0.02em; }
       .card__name{
-        font-weight: 700;
-        font-size: 14px;
-        line-height: 1.18;
+        font-weight: 800;
+        font-size: 15px;
+        line-height: 1.2;
         display: -webkit-box;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
         overflow: hidden;
       }
-      .card__metaRow{ display:flex; justify-content: space-between; gap: 10px; }
-      .meta__label{ text-transform: uppercase; letter-spacing: 0.16em; font-size: 9px; color: var(--muted); }
-      .meta__value{
-        font-weight: 800;
-        color: var(--ink);
-        letter-spacing: 0.08em;
-        white-space: nowrap;
-        overflow:hidden;
-        text-overflow: ellipsis;
-        max-width: 60%;
-        text-align: right;
-      }
-      .card__prices{ display:flex; flex-direction: column; gap: 4px; }
-      .price{ display:flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); }
-      .price__label{ text-transform: uppercase; letter-spacing: 0.16em; font-size: 10px; }
-      .price__value{ font-weight: 900; color: var(--brand); }
+      .card__priceRow{ display:flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+      .card__priceLabel{ font-size: 12px; color: var(--muted); }
+      .card__priceValue{ font-size: 14px; font-weight: 900; color: var(--orange); white-space: nowrap; }
+      .card__stock{ font-size: 12px; color: var(--muted); }
       .page__footer{
         position:absolute;
         left: 14mm;
@@ -887,7 +873,8 @@ export async function POST(request: Request) {
     : [];
   const byId = new Map(dbProducts.map((p) => [p.id, p]));
 
-  const money = new Intl.NumberFormat('es-VE', { style: 'currency', currency });
+  // Use the currency code (USD / VES) like the admin preview cards.
+  const moneyWithCode = new Intl.NumberFormat('es-VE', { style: 'currency', currency, currencyDisplay: 'code' });
   const convert = (value: number) => (currency === 'VES' ? value * exchangeRate : value);
   const resolvePriceLines = (p: any) => {
     const lines: Array<{ label: string; value: string }> = [];
@@ -905,13 +892,13 @@ export async function POST(request: Request) {
       const raw = p?.[field];
       const num = raw == null ? null : Number(raw);
       if (num != null && Number.isFinite(num) && num > 0) {
-        lines.push({ label, value: money.format(convert(num)) });
+        lines.push({ label, value: moneyWithCode.format(convert(num)) });
       }
     }
     if (!lines.length) {
       const fallback = Number(p?.priceUSD ?? 0);
       if (Number.isFinite(fallback) && fallback > 0) {
-        lines.push({ label: 'Cliente', value: money.format(convert(fallback)) });
+        lines.push({ label: 'Cliente', value: moneyWithCode.format(convert(fallback)) });
       } else {
         lines.push({ label: 'Precio', value: 'Bajo solicitud' });
       }
