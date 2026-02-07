@@ -232,12 +232,12 @@ function buildCatalogHtml({
                     ? `<img class="card__img" src="${imgUrl}" alt="${escapeHtml(p.name)}" />`
                     : `<div class="card__img card__img--empty">Sin imagen</div>`
                 }
-              </div>
-              <div class="card__body">
-                <div class="card__name">${escapeHtml(p.name)}</div>
-                <div class="card__codeLine"><span class="code__label">Código</span><span class="code__value">${escapeHtml(label)}</span></div>
-                <div class="card__prices">${priceLines}</div>
-                <div class="card__stock">Stock: <strong>${escapeHtml(stockText)}</strong></div>
+                <div class="card__overlay">
+                  <div class="card__name">${escapeHtml(p.name)}</div>
+                  <div class="card__codeLine"><span class="code__label">Código</span><span class="code__value">${escapeHtml(label)}</span></div>
+                  <div class="card__prices">${priceLines}</div>
+                  <div class="card__stock">Stock: <strong>${escapeHtml(stockText)}</strong></div>
+                </div>
               </div>
           `;
 
@@ -619,17 +619,25 @@ function buildCatalogHtml({
         outline-offset: 2px;
       }
       .card__media{
-        flex: 0 0 62%;
+        flex: 1 1 auto;
         background: #ffffff;
-        border-bottom: 1px solid var(--line);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        padding: 6px;
+        display:block;
+        position: relative;
       }
       .card__img{ width: 100%; height: 100%; object-fit: cover; display:block; }
       .card__img--empty{ width: 100%; height: 100%; display:flex; align-items:center; justify-content:center; color: #94a3b8; font-size: 11px; }
-      .card__body{ flex: 1 1 auto; padding: 8px 9px; display:flex; flex-direction: column; gap: 4px; min-height: 0; }
+      .card__overlay{
+        position: absolute;
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        padding: 10px 10px;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.92);
+        border: 1px solid rgba(15, 23, 42, 0.14);
+        box-shadow: 0 12px 24px rgba(2, 6, 23, 0.18);
+        backdrop-filter: blur(8px);
+      }
       .card__name{
         font-weight: 700;
         font-size: 12px;
@@ -663,7 +671,8 @@ function buildCatalogHtml({
       .card__prices{ display:flex; flex-direction: column; gap: 4px; }
       .price{ display:flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--muted); }
       .price__value{ font-weight: 800; color: var(--ink); }
-      .card__stock{ margin-top: auto; font-size: 10px; color: var(--muted); }
+      .price__label{ text-transform: uppercase; letter-spacing: 0.12em; font-size: 9px; }
+      .card__stock{ margin-top: 4px; font-size: 10px; color: var(--muted); }
       .page__footer{
         position:absolute;
         left: 14mm;
@@ -691,6 +700,11 @@ function buildCatalogHtml({
         body{ background: #fff; }
         .page{ margin: 0; border-radius: 0; box-shadow: none; page-break-after: always; }
         .page:last-child{ page-break-after: auto; }
+        .card__overlay{
+          box-shadow: none;
+          backdrop-filter: none;
+          background: rgba(255,255,255,0.96);
+        }
       }
     </style>
   </head>
