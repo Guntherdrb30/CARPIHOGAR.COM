@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import {
   createCarpentryProject,
+  deleteCarpentryProject,
   getCarpentryProjects,
   updateCarpentryProject,
 } from "@/server/actions/carpentry";
@@ -17,6 +18,9 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
   if ((session?.user as any)?.role !== "ADMIN") {
     redirect("/auth/login?callbackUrl=/dashboard/admin/carpinteria");
   }
+  const email = String((session?.user as any)?.email || "").toLowerCase();
+  const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
+  const isRoot = String((session?.user as any)?.role || "") === "ADMIN" && email && email === rootEmail;
   const sp = (await searchParams) || ({} as any);
   const message = sp.message ? decodeURIComponent(String(sp.message)) : "";
   const error = sp.error ? decodeURIComponent(String(sp.error)) : "";
@@ -279,6 +283,17 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
                     >
                       Control completo
                     </a>
+                    {isRoot && Number((projectItem as any)?._count?.purchaseOrders || 0) === 0 && (
+                      <form action={deleteCarpentryProject}>
+                        <input type="hidden" name="id" value={projectItem.id} />
+                        <button
+                          type="submit"
+                          className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-red-700 hover:bg-red-100"
+                        >
+                          Eliminar
+                        </button>
+                      </form>
+                    )}
                   </div>
                 </div>
               </div>

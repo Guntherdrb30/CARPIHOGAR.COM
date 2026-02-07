@@ -17,6 +17,13 @@ function requireProjectManager(session: any) {
   if (role !== "ADMIN" && role !== "SUPERVISOR_PROYECTOS") throw new Error("Not authorized");
 }
 
+function requireRoot(session: any) {
+  const role = String(session?.user?.role || "");
+  const email = String(session?.user?.email || "").toLowerCase();
+  const rootEmail = String(process.env.ROOT_EMAIL || "root@carpihogar.com").toLowerCase();
+  if (role !== "ADMIN" || !email || email !== rootEmail) throw new Error("Not authorized");
+}
+
 const toDecimal = (value: FormDataEntryValue | null, fallback = 0) => {
   const n = Number(String(value || "").trim());
   return Number.isFinite(n) ? n : fallback;
@@ -191,6 +198,11 @@ export async function getCarpentryProjects() {
   return prisma.carpentryProject.findMany({
     include: {
       files: true,
+      _count: {
+        select: {
+          purchaseOrders: true,
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -484,9 +496,17 @@ export async function updateCarpentryProject(formData: FormData) {
 
 export async function deleteCarpentryProject(formData: FormData) {
   const session = await getServerSession(authOptions);
-  requireProjectManager(session);
+  requireRoot(session);
   const id = String(formData.get("id") || "").trim();
   if (!id) throw new Error("Missing id");
+
+  const purchaseCount = await prisma.carpentryProjectPurchaseOrder.count({
+    where: { projectId: id },
+  });
+  if (purchaseCount > 0) {
+    redirect("/dashboard/admin/carpinteria?error=No%20se%20puede%20eliminar%3A%20el%20proyecto%20tiene%20compras");
+  }
+
   await prisma.carpentryProject.delete({ where: { id } });
   redirect("/dashboard/admin/carpinteria?message=Proyecto%20eliminado");
 }
