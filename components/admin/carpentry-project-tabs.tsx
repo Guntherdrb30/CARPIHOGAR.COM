@@ -80,9 +80,11 @@ const stageDefinitions: { key: CarpentryProjectPhase; label: string; description
 export default function CarpentryProjectTabs({ project, employees }: Props) {
   const [activeTab, setActiveTab] = useState<string>("summary");
   const total = Number(project.totalAmountUSD || 0);
-  const clientPaid = Number(
-    project.clientPayments?.reduce((acc, payment) => acc + Number(payment.amountUSD || 0), 0) || 0,
-  );
+  const clientPaid = project.paymentPlan === "PARCIAL"
+    ? Number(project.fabricationPaidUSD || 0) + Number(project.installationPaidUSD || 0)
+    : Number(
+        project.clientPayments?.reduce((acc, payment) => acc + Number(payment.amountUSD || 0), 0) || 0,
+      );
   const balance = total - clientPaid;
   const fabricationGoal = (total * (Number(project.fabricationPct || 70) || 0)) / 100;
   const installationGoal = (total * (Number(project.installationPct || 30) || 0)) / 100;

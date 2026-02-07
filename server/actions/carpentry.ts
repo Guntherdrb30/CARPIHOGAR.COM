@@ -126,6 +126,65 @@ async function ensureInventoryEntriesForProject(projectId: string, purchaseOrder
   });
 }
 
+async function recalculatePartialProjectTotals(tx: Prisma.TransactionClient, projectId: string) {
+  const subprojects = await tx.carpentrySubproject.findMany({
+    where: { projectId },
+    select: { id: true, totalUSD: true },
+  });
+
+  const totalAmountUSD = subprojects.reduce((acc, sp) => acc + Number(sp.totalUSD || 0), 0);
+  const subprojectIds = subprojects.map((sp) => sp.id);
+
+  if (!subprojectIds.length) {
+    await tx.carpentryProject.update({
+      where: { id: projectId },
+      data: { paymentPlan: "PARCIAL" },
+    });
+    return;
+  }
+
+  const grouped = await tx.carpentrySubprojectPayment.groupBy({
+    by: ["subprojectId", "phase"],
+    where: { subprojectId: { in: subprojectIds } },
+    _sum: { amountUSD: true },
+  });
+
+  const bySubproject = new Map<string, { fabrication: number; installation: number }>();
+  for (const row of grouped) {
+    const current = bySubproject.get(row.subprojectId) || { fabrication: 0, installation: 0 };
+    const amount = Number((row as any)?._sum?.amountUSD || 0);
+    if (row.phase === "INSTALACION") current.installation += amount;
+    else current.fabrication += amount;
+    bySubproject.set(row.subprojectId, current);
+  }
+
+  let projectFabricationPaidUSD = 0;
+  let projectInstallationPaidUSD = 0;
+
+  for (const sp of subprojects) {
+    const sums = bySubproject.get(sp.id) || { fabrication: 0, installation: 0 };
+    projectFabricationPaidUSD += sums.fabrication;
+    projectInstallationPaidUSD += sums.installation;
+    await tx.carpentrySubproject.update({
+      where: { id: sp.id },
+      data: {
+        fabricationPaidUSD: sums.fabrication as any,
+        installationPaidUSD: sums.installation as any,
+      },
+    });
+  }
+
+  await tx.carpentryProject.update({
+    where: { id: projectId },
+    data: {
+      paymentPlan: "PARCIAL",
+      totalAmountUSD: totalAmountUSD as any,
+      fabricationPaidUSD: projectFabricationPaidUSD as any,
+      installationPaidUSD: projectInstallationPaidUSD as any,
+    },
+  });
+}
+
 export async function getCarpentryProjects() {
   const session = await getServerSession(authOptions);
   requireProjectManager(session);
@@ -552,6 +611,8 @@ export async function createCarpentrySubproject(formData: FormData) {
   const totalUSD = toDecimal(formData.get("totalUSD"), 0);
   const quantity = Math.max(1, Number.parseInt(String(formData.get("quantity") || "1"), 10) || 1);
   const priority = Number.parseInt(String(formData.get("priority") || "0"), 10) || 0;
+  // `includeInBudget` is kept for backwards compatibility with the UI,
+  // but the parent project total is recalculated from subprojects.
   const includeInBudget = formData.get("includeInBudget") != null;
 
   const redirectWith = (key: "message" | "error", value: string) => {
@@ -572,17 +633,10 @@ export async function createCarpentrySubproject(formData: FormData) {
     if (!project) {
       redirectWith("error", "Proyecto no encontrado");
     }
-    const projectUpdate: any = {};
     if (project.paymentPlan !== "PARCIAL") {
-      projectUpdate.paymentPlan = "PARCIAL";
-    }
-    if (includeInBudget) {
-      projectUpdate.totalAmountUSD = { increment: totalUSD as any };
-    }
-    if (Object.keys(projectUpdate).length) {
       await tx.carpentryProject.update({
         where: { id: projectId },
-        data: projectUpdate,
+        data: { paymentPlan: "PARCIAL" },
       });
     }
 
@@ -596,8 +650,101 @@ export async function createCarpentrySubproject(formData: FormData) {
         priority,
       },
     });
+
+    // Always recalc totals from subprojects to keep parent in sync.
+    // The `includeInBudget` checkbox is ignored intentionally to avoid drift.
+    await recalculatePartialProjectTotals(tx, projectId);
   });
   redirectWith("message", "Subproyecto registrado");
+}
+
+export async function updateCarpentrySubproject(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  const rawReturnTo = String(formData.get("returnTo") || "").trim();
+  const returnToBase = rawReturnTo.startsWith("/dashboard/admin/carpinteria")
+    ? rawReturnTo
+    : "/dashboard/admin/carpinteria/pagos-parciales";
+  const id = String(formData.get("id") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  const description = String(formData.get("description") || "").trim() || null;
+  const totalUSD = toDecimal(formData.get("totalUSD"), 0);
+  const quantity = Math.max(1, Number.parseInt(String(formData.get("quantity") || "1"), 10) || 1);
+  const priority = Number.parseInt(String(formData.get("priority") || "0"), 10) || 0;
+  const statusRaw = String(formData.get("status") || "").trim().toUpperCase();
+  const status =
+    statusRaw === "FABRICANDO"
+      ? "FABRICANDO"
+      : statusRaw === "INSTALANDO"
+      ? "INSTALANDO"
+      : statusRaw === "COMPLETADO"
+      ? "COMPLETADO"
+      : "PENDIENTE";
+
+  const redirectWith = (key: "message" | "error", value: string) => {
+    const url = new URL(returnToBase, "http://internal");
+    url.searchParams.set(key, value);
+    redirect(url.pathname + url.search);
+  };
+
+  if (!id || !name) {
+    redirectWith("error", "Datos incompletos");
+  }
+  if (!totalUSD || totalUSD <= 0) {
+    redirectWith("error", "Monto invalido");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const subproject = await tx.carpentrySubproject.findUnique({ where: { id } });
+    if (!subproject) {
+      redirectWith("error", "Subproyecto no encontrado");
+    }
+    await tx.carpentrySubproject.update({
+      where: { id },
+      data: {
+        name,
+        description,
+        totalUSD: totalUSD as any,
+        quantity,
+        priority,
+        status: status as any,
+      },
+    });
+    await recalculatePartialProjectTotals(tx, subproject.projectId);
+  });
+
+  redirectWith("message", "Subproyecto actualizado");
+}
+
+export async function deleteCarpentrySubproject(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  const rawReturnTo = String(formData.get("returnTo") || "").trim();
+  const returnToBase = rawReturnTo.startsWith("/dashboard/admin/carpinteria")
+    ? rawReturnTo
+    : "/dashboard/admin/carpinteria/pagos-parciales";
+  const id = String(formData.get("id") || "").trim();
+
+  const redirectWith = (key: "message" | "error", value: string) => {
+    const url = new URL(returnToBase, "http://internal");
+    url.searchParams.set(key, value);
+    redirect(url.pathname + url.search);
+  };
+
+  if (!id) {
+    redirectWith("error", "Subproyecto no especificado");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const subproject = await tx.carpentrySubproject.findUnique({ where: { id } });
+    if (!subproject) {
+      redirectWith("error", "Subproyecto no encontrado");
+    }
+    await tx.carpentrySubproject.delete({ where: { id } });
+    await recalculatePartialProjectTotals(tx, subproject.projectId);
+  });
+
+  redirectWith("message", "Subproyecto eliminado");
 }
 
 export async function createCarpentrySubprojectPayment(formData: FormData) {
@@ -674,21 +821,7 @@ export async function createCarpentrySubprojectPayment(formData: FormData) {
       },
     });
 
-    await tx.carpentrySubproject.update({
-      where: { id: subprojectId },
-      data:
-        phase === "INSTALACION"
-          ? { installationPaidUSD: { increment: amountUSD as any } }
-          : { fabricationPaidUSD: { increment: amountUSD as any } },
-    });
-    const projectAccumulationField =
-      phase === "INSTALACION" ? "installationPaidUSD" : "fabricationPaidUSD";
-    await tx.carpentryProject.update({
-      where: { id: project.id },
-      data: {
-        [projectAccumulationField]: { increment: amountUSD as any },
-      },
-    });
+    await recalculatePartialProjectTotals(tx, project.id);
   });
 
   redirectWith("message", "Abono registrado");

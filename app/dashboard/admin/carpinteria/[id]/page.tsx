@@ -6,8 +6,10 @@ import {
   createCarpentrySubproject,
   createCarpentrySubprojectPayment,
   createProductionOrder,
+  deleteCarpentrySubproject,
   deleteCarpentryClientPayment,
   getCarpentryProjectById,
+  updateCarpentrySubproject,
   updateCarpentryProject,
 } from "@/server/actions/carpentry";
 import { getPayrollEmployees } from "@/server/actions/payroll";
@@ -276,6 +278,7 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
                           <textarea name="notes" rows={2} placeholder="Notas" className="w-full rounded border px-2 py-1 text-xs" />
                           <button
                             type="submit"
+                            disabled={!readyForProduction}
                             className={`w-full rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] ${
                               readyForProduction ? "bg-blue-600 text-white" : "bg-amber-500 text-white/90"
                             }`}
@@ -287,6 +290,78 @@ export default async function CarpinteriaProjectPage({ params, searchParams }: {
                               El 70% de fabricación debe estar cubierto para mandar a producir.
                             </p>
                           )}
+                        </form>
+                      </details>
+                      <details className="rounded-2xl border border-dashed border-gray-200 bg-white p-3 text-xs text-gray-600">
+                        <summary className="cursor-pointer font-semibold text-gray-700">Editar / eliminar</summary>
+                        <form action={updateCarpentrySubproject} className="mt-3 space-y-2 text-xs">
+                          <input type="hidden" name="id" value={subproject.id} />
+                          <input type="hidden" name="returnTo" value={`/dashboard/admin/carpinteria/${project.id}`} />
+                          <input
+                            name="name"
+                            defaultValue={subproject.name}
+                            placeholder="Nombre"
+                            className="w-full rounded border px-2 py-1"
+                            required
+                          />
+                          <input
+                            name="totalUSD"
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            defaultValue={Number(subproject.totalUSD || 0)}
+                            className="w-full rounded border px-2 py-1"
+                            required
+                          />
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                            <input
+                              name="quantity"
+                              type="number"
+                              min="1"
+                              defaultValue={Number(subproject.quantity || 1)}
+                              className="w-full rounded border px-2 py-1"
+                            />
+                            <input
+                              name="priority"
+                              type="number"
+                              min="0"
+                              defaultValue={Number(subproject.priority || 0)}
+                              className="w-full rounded border px-2 py-1"
+                            />
+                            <select
+                              name="status"
+                              defaultValue={subproject.status || "PENDIENTE"}
+                              className="w-full rounded border px-2 py-1"
+                            >
+                              <option value="PENDIENTE">Pendiente</option>
+                              <option value="FABRICANDO">Fabricando</option>
+                              <option value="INSTALANDO">Instalando</option>
+                              <option value="COMPLETADO">Completado</option>
+                            </select>
+                          </div>
+                          <textarea
+                            name="description"
+                            defaultValue={subproject.description || ""}
+                            rows={2}
+                            placeholder="Descripción"
+                            className="w-full rounded border px-2 py-1 text-xs"
+                          />
+                          <button
+                            type="submit"
+                            className="w-full rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-white"
+                          >
+                            Guardar cambios
+                          </button>
+                        </form>
+                        <form action={deleteCarpentrySubproject} className="mt-2">
+                          <input type="hidden" name="id" value={subproject.id} />
+                          <input type="hidden" name="returnTo" value={`/dashboard/admin/carpinteria/${project.id}`} />
+                          <button
+                            type="submit"
+                            className="w-full rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-red-700"
+                          >
+                            Eliminar subproyecto
+                          </button>
                         </form>
                       </details>
                     </div>
