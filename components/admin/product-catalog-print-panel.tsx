@@ -52,7 +52,7 @@ export default function ProductCatalogPrintPanel({
   const [category, setCategory] = useState('');
   const [categoryTouched, setCategoryTouched] = useState(false);
   const [sortValue, setSortValue] = useState(sortOptions[0].value);
-  const [priceTypes, setPriceTypes] = useState<string[]>(['client']);
+  const [priceType, setPriceType] = useState<string>('client');
   const [priceTouched, setPriceTouched] = useState(false);
   const [currency, setCurrency] = useState<'USD' | 'VES'>('USD');
   const [itemsPerPage, setItemsPerPage] = useState(4);
@@ -60,6 +60,11 @@ export default function ProductCatalogPrintPanel({
   const [aiResult, setAiResult] = useState<AiResult | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [sortBy, sortDir] = sortValue.split('::');
+
+  const selectedPriceOption = useMemo(() => {
+    return PRICE_TYPE_OPTIONS.find((option) => option.value === priceType) || PRICE_TYPE_OPTIONS[0];
+  }, [priceType]);
+  const selectedPriceField = selectedPriceOption.field;
 
   const filteredProducts = useMemo(() => {
     const useCategory = Boolean(category);
@@ -73,7 +78,7 @@ export default function ProductCatalogPrintPanel({
       const safeNumber = (value: any) =>
         typeof value === 'number' && isFinite(value) ? value : 0;
       if (sortBy === 'price') {
-        return safeNumber(a?.priceUSD) - safeNumber(b?.priceUSD);
+        return safeNumber(a?.[selectedPriceField]) - safeNumber(b?.[selectedPriceField]);
       }
       if (sortBy === 'stock') {
         return safeNumber(a?.stock) - safeNumber(b?.stock);
@@ -85,7 +90,7 @@ export default function ProductCatalogPrintPanel({
 
     filtered.sort((a, b) => (sortDir === 'desc' ? -comparator(a, b) : comparator(a, b)));
     return filtered;
-  }, [products, category, sortBy, sortDir]);
+  }, [products, category, sortBy, sortDir, selectedPriceField]);
 
   const exchangeRate = useMemo(() => {
     const rate = Number(settings?.tasaVES ?? 0);
@@ -108,24 +113,11 @@ export default function ProductCatalogPrintPanel({
     [convertToCurrency, currencyFormatter]
   );
 
-  const selectedPriceOptions = useMemo(() => {
-    const picked = PRICE_TYPE_OPTIONS.filter((option) => priceTypes.includes(option.value));
-    return picked.length ? picked : [PRICE_TYPE_OPTIONS[0]];
-  }, [priceTypes]);
-  const priceSummary = selectedPriceOptions.map((option) => option.label).join(', ');
-  const togglePriceType = useCallback(
-    (value: string) => {
-      setPriceTypes((prev) => {
-        if (prev.includes(value)) {
-          if (prev.length === 1) return prev;
-          return prev.filter((type) => type !== value);
-        }
-        return [...prev, value];
-      });
-      setPriceTouched(true);
-    },
-    []
-  );
+  const priceSummary = selectedPriceOption.label;
+  const togglePriceType = useCallback((value: string) => {
+    setPriceType(value);
+    setPriceTouched(true);
+  }, []);
   const handleCategoryChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
     setCategory(event.target.value);
     setCategoryTouched(true);
@@ -144,7 +136,7 @@ export default function ProductCatalogPrintPanel({
   );
 
   const readyToGenerate =
-    filteredProducts.length > 0 && priceTypes.length > 0 && categoryTouched && priceTouched;
+    filteredProducts.length > 0 && Boolean(priceType) && categoryTouched && priceTouched;
   const previewProducts = filteredProducts.slice(0, itemsPerPage);
   const placeholderCount = Math.max(0, 8 - previewProducts.length);
   const displayedCategory = categories.find((c) => c.slug === category);
@@ -186,7 +178,7 @@ export default function ProductCatalogPrintPanel({
         })),
         filters: {
           category: category || 'Todas las categorías',
-          priceTypes,
+          priceTypes: [priceType],
           currency,
           sortBy,
           sortDir,
@@ -212,7 +204,7 @@ export default function ProductCatalogPrintPanel({
     } finally {
       setAiGenerating(false);
     }
-  }, [readyToGenerate, filteredProducts, priceTypes, category, currency, sortBy, sortDir, brandName, contactLine, aiLogoUrl]);
+  }, [readyToGenerate, filteredProducts, priceType, category, currency, sortBy, sortDir, brandName, contactLine, aiLogoUrl]);
 
   const downloadAiCatalog = useCallback(() => {
     if (!aiResult?.catalogHtml || typeof window === 'undefined') return;
@@ -290,10 +282,10 @@ export default function ProductCatalogPrintPanel({
             </select>
           </label>
           <div className="space-y-2 text-sm text-gray-700">
-            <span className="font-medium">Tipo(s) de precio</span>
+            <span className="font-medium">Tipo de precio</span>
             <div className="flex flex-wrap gap-2">
               {PRICE_TYPE_OPTIONS.map((option) => {
-                const isSelected = priceTypes.includes(option.value);
+                const isSelected = priceType === option.value;
                 return (
                   <button
                     key={option.value}
@@ -347,7 +339,7 @@ export default function ProductCatalogPrintPanel({
         <div className="space-y-2 text-sm">
           <p>
             Categoría: <strong>{displayedCategory ? displayedCategory.name : 'Todas las categorías'}</strong> ·
-            Tipo(s) de precio: <strong>{priceSummary || 'Cliente'}</strong> ·
+            Tipo de precio: <strong>{priceSummary || 'Cliente'}</strong> ·
             Moneda: <strong>{currency}</strong>
           </p>
           {categoryTouched && priceTouched && !readyToGenerate && (
@@ -409,15 +401,9 @@ export default function ProductCatalogPrintPanel({
 
         <div className="grid grid-cols-2 gap-3 py-3">
           {previewProducts.map((product) => {
-            const priceEntries = selectedPriceOptions
-              .map((option) => {
-                const rawValue = product?.[option.field];
-                if (rawValue == null) return null;
-                const numeric = Number(rawValue);
-                if (!Number.isFinite(numeric)) return null;
-                return { label: option.label, value: numeric };
-              })
-              .filter((entry): entry is { label: string; value: number } => Boolean(entry));
+            const rawValue = product?.[selectedPriceField];
+            const numeric = rawValue == null ? null : Number(rawValue);
+            const hasPrice = numeric != null && Number.isFinite(numeric);
             const previewImageUrl = normalizeCatalogImageUrl(product?.images?.[0]);
 
             return (
@@ -425,7 +411,7 @@ export default function ProductCatalogPrintPanel({
                 key={product.id}
                 className="space-y-1 rounded-lg border border-gray-200 bg-white p-2 text-[12px] leading-snug text-gray-700"
               >
-                <div className="h-20 w-full overflow-hidden rounded-md bg-gray-100">
+                <div className="h-28 w-full overflow-hidden rounded-md bg-gray-100">
                   {previewImageUrl ? (
                     <img
                       src={previewImageUrl}
@@ -440,20 +426,15 @@ export default function ProductCatalogPrintPanel({
                   )}
                 </div>
                 <p className="text-[11px] text-gray-500">Código: {product.code || product.sku || '—'}</p>
-                <p className="font-semibold text-sm text-gray-900 leading-tight">{product.name}</p>
+                <p className="font-semibold text-[13px] text-gray-900 leading-tight">{product.name}</p>
                 <div className="space-y-0.5">
-                  {priceEntries.length ? (
-                    priceEntries.map((entry) => (
-                      <div
-                        key={`${product.id}-${entry.label}`}
-                        className="flex items-center justify-between text-[11px] text-gray-500"
-                      >
-                        <span>{entry.label}</span>
-                        <span className="font-semibold text-sm text-amber-600">
-                          {formatCurrency(entry.value)}
-                        </span>
-                      </div>
-                    ))
+                  {hasPrice ? (
+                    <div className="flex items-center justify-between text-[11px] text-gray-500">
+                      <span>{selectedPriceOption.label}</span>
+                      <span className="font-semibold text-sm text-amber-600">
+                        {formatCurrency(numeric!)}
+                      </span>
+                    </div>
                   ) : (
                     <p className="text-[11px] text-gray-400">Precios no disponibles</p>
                   )}

@@ -219,6 +219,7 @@ function buildCatalogHtml({
           typeof p.stock === 'number' && Number.isFinite(p.stock) ? `${p.stock}` : '-';
         const imgUrl = p.image ? escapeHtml(p.image) : '';
         const priceLines = p.prices
+          .slice(0, 1)
           .map(
             (line) =>
               `<div class="price"><span class="price__label">${escapeHtml(line.label)}</span><span class="price__value">${escapeHtml(line.value)}</span></div>`,
@@ -234,7 +235,7 @@ function buildCatalogHtml({
               </div>
               <div class="card__body">
                 <div class="card__name">${escapeHtml(p.name)}</div>
-                <div class="card__codeLine"><span class="code__label">Codigo</span><span class="code__value">${escapeHtml(label)}</span></div>
+                <div class="card__codeLine"><span class="code__label">Código</span><span class="code__value">${escapeHtml(label)}</span></div>
                 <div class="card__prices">${priceLines}</div>
                 <div class="card__stock">Stock: <strong>${escapeHtml(stockText)}</strong></div>
               </div>
@@ -618,20 +619,20 @@ function buildCatalogHtml({
         outline-offset: 2px;
       }
       .card__media{
-        height: 58%;
+        height: 60%;
         background: #ffffff;
         border-bottom: 1px solid var(--line);
         display:flex;
         align-items:center;
         justify-content:center;
-        padding: 8px;
+        padding: 6px;
       }
-      .card__img{ width: 100%; height: 100%; object-fit: contain; display:block; }
+      .card__img{ width: 100%; height: 100%; object-fit: cover; display:block; }
       .card__img--empty{ width: 100%; height: 100%; display:flex; align-items:center; justify-content:center; color: #94a3b8; font-size: 11px; }
-      .card__body{ padding: 10px 10px; display:flex; flex-direction: column; gap: 5px; min-height: 0; }
+      .card__body{ padding: 9px 9px; display:flex; flex-direction: column; gap: 4px; min-height: 0; }
       .card__name{
         font-weight: 700;
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.25;
         display: -webkit-box;
         -webkit-box-orient: vertical;
