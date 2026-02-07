@@ -612,8 +612,8 @@ function buildCatalogHtml({
         border-radius: 14px;
         overflow: hidden;
         background: #ffffff;
-        display:flex;
-        flex-direction: column;
+        display:grid;
+        grid-template-rows: 62% 38%;
         min-height: 0;
         height: 100%;
       }
@@ -626,7 +626,6 @@ function buildCatalogHtml({
         outline-offset: 2px;
       }
       .card__media{
-        flex: 0 0 62%;
         background: #ffffff;
         border-bottom: 1px solid var(--line);
         display:flex;
@@ -639,12 +638,12 @@ function buildCatalogHtml({
       .card__img{ width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; display:block; }
       .card__img--empty{ width: 100%; height: 100%; display:flex; align-items:center; justify-content:center; color: #94a3b8; font-size: 11px; }
       .card__body{
-        flex: 1 1 auto;
         padding: 10px 12px;
         display:flex;
         flex-direction: column;
         gap: 6px;
         min-height: 0;
+        overflow: hidden;
         background: linear-gradient(180deg, rgba(14,165,233,0.06), rgba(225,29,46,0.03));
       }
       .card__name{
