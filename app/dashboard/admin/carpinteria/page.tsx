@@ -283,12 +283,18 @@ export default async function CarpinteriaAdminPage({ searchParams }: { searchPar
                     >
                       Control completo
                     </a>
-                    {isRoot && Number((projectItem as any)?._count?.purchaseOrders || 0) === 0 && (
+                    {Number((projectItem as any)?._count?.purchaseOrders || 0) === 0 && (
                       <form action={deleteCarpentryProject}>
                         <input type="hidden" name="id" value={projectItem.id} />
                         <button
                           type="submit"
-                          className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-red-700 hover:bg-red-100"
+                          disabled={!isRoot}
+                          title={isRoot ? "Eliminar proyecto" : "Solo ROOT puede eliminar proyectos"}
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] ${
+                            isRoot
+                              ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                              : "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
+                          }`}
                         >
                           Eliminar
                         </button>

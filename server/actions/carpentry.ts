@@ -496,7 +496,11 @@ export async function updateCarpentryProject(formData: FormData) {
 
 export async function deleteCarpentryProject(formData: FormData) {
   const session = await getServerSession(authOptions);
-  requireRoot(session);
+  try {
+    requireRoot(session);
+  } catch {
+    redirect("/dashboard/admin/carpinteria?error=Solo%20ROOT%20puede%20eliminar%20proyectos");
+  }
   const id = String(formData.get("id") || "").trim();
   if (!id) throw new Error("Missing id");
 
