@@ -619,24 +619,24 @@ function buildCatalogHtml({
         outline-offset: 2px;
       }
       .card__media{
-        height: 60%;
+        flex: 0 0 56%;
         background: #ffffff;
         border-bottom: 1px solid var(--line);
         display:flex;
         align-items:center;
         justify-content:center;
-        padding: 6px;
+        padding: 4px;
       }
       .card__img{ width: 100%; height: 100%; object-fit: cover; display:block; }
       .card__img--empty{ width: 100%; height: 100%; display:flex; align-items:center; justify-content:center; color: #94a3b8; font-size: 11px; }
-      .card__body{ padding: 9px 9px; display:flex; flex-direction: column; gap: 4px; min-height: 0; }
+      .card__body{ flex: 1 1 auto; padding: 6px 7px; display:flex; flex-direction: column; gap: 2px; min-height: 0; }
       .card__name{
         font-weight: 700;
-        font-size: 12px;
-        line-height: 1.25;
+        font-size: 11px;
+        line-height: 1.15;
         display: -webkit-box;
         -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
+        -webkit-line-clamp: 1;
         overflow: hidden;
       }
       .card__codeLine{
@@ -644,11 +644,11 @@ function buildCatalogHtml({
         align-items:center;
         justify-content: space-between;
         gap: 8px;
-        font-size: 10px;
+        font-size: 9px;
         color: var(--muted);
         letter-spacing: 0.04em;
       }
-      .code__label{ text-transform: uppercase; letter-spacing: 0.16em; font-size: 9px; }
+      .code__label{ text-transform: uppercase; letter-spacing: 0.16em; font-size: 8px; }
       .code__value{
         font-weight: 800;
         color: var(--ink);
@@ -661,9 +661,9 @@ function buildCatalogHtml({
         text-align: right;
       }
       .card__prices{ display:flex; flex-direction: column; gap: 4px; }
-      .price{ display:flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--muted); }
+      .price{ display:flex; justify-content: space-between; gap: 8px; font-size: 10px; color: var(--muted); }
       .price__value{ font-weight: 800; color: var(--ink); }
-      .card__stock{ margin-top: auto; font-size: 11px; color: var(--muted); }
+      .card__stock{ font-size: 9px; color: var(--muted); }
       .page__footer{
         position:absolute;
         left: 14mm;
