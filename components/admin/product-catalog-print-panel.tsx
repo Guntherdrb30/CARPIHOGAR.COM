@@ -368,7 +368,7 @@ export default function ProductCatalogPrintPanel({
               <div className="mt-4 overflow-hidden rounded-xl border border-blue-100 bg-white">
                 <div className="flex items-center justify-between border-b border-blue-100 px-3 py-2">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-gray-500">Vista previa</p>
-                  <p className="text-[11px] text-gray-500">Se imprime en páginas de 15 productos (3x5).</p>
+                  <p className="text-[11px] text-gray-500">Se imprime en páginas de 8 productos (2x4).</p>
                 </div>
                 <iframe
                   title="Vista previa catálogo IA"

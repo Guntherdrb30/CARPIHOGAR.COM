@@ -172,7 +172,7 @@ function buildCatalogHtml({
   }>;
   groupByCategory?: boolean;
 }) {
-  const perPage = 15; // 3 columns x 5 rows
+  const perPage = 8; // 2 columns x 4 rows
   const safeGroupByCategory = Boolean(groupByCategory);
   const safeBrandName = escapeHtml(brandName);
   const safeCategory = escapeHtml(categoryLabel);
@@ -232,11 +232,17 @@ function buildCatalogHtml({
                     ? `<img class="card__img" src="${imgUrl}" alt="${escapeHtml(p.name)}" />`
                     : `<div class="card__img card__img--empty">Sin imagen</div>`
                 }
-                <div class="card__overlay">
-                  <div class="card__name">${escapeHtml(p.name)}</div>
-                  <div class="card__codeLine"><span class="code__label">Código</span><span class="code__value">${escapeHtml(label)}</span></div>
-                  <div class="card__prices">${priceLines}</div>
-                  <div class="card__stock">Stock: <strong>${escapeHtml(stockText)}</strong></div>
+              </div>
+              <div class="card__body">
+                <div class="card__name">${escapeHtml(p.name)}</div>
+                <div class="card__metaRow">
+                  <span class="meta__label">Código</span>
+                  <span class="meta__value">${escapeHtml(label)}</span>
+                </div>
+                <div class="card__prices">${priceLines}</div>
+                <div class="card__metaRow">
+                  <span class="meta__label">Stock</span>
+                  <span class="meta__value">${escapeHtml(stockText)}</span>
                 </div>
               </div>
           `;
@@ -596,10 +602,10 @@ function buildCatalogHtml({
       .grid{
         margin-top: 14px;
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
         gap: var(--gap);
         height: calc(297mm - 18mm - 16mm - 32mm - 18mm);
-        grid-template-rows: repeat(5, 1fr);
+        grid-template-rows: repeat(4, 1fr);
       }
       .card{
         border: 1px solid var(--line);
@@ -619,60 +625,42 @@ function buildCatalogHtml({
         outline-offset: 2px;
       }
       .card__media{
-        flex: 1 1 auto;
+        flex: 0 0 62%;
         background: #ffffff;
-        display:block;
-        position: relative;
+        border-bottom: 1px solid var(--line);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding: 10px;
       }
-      .card__img{ width: 100%; height: 100%; object-fit: cover; display:block; }
+      .card__img{ width: 100%; height: 100%; object-fit: contain; display:block; }
       .card__img--empty{ width: 100%; height: 100%; display:flex; align-items:center; justify-content:center; color: #94a3b8; font-size: 11px; }
-      .card__overlay{
-        position: absolute;
-        left: 10px;
-        right: 10px;
-        bottom: 10px;
-        padding: 10px 10px;
-        border-radius: 14px;
-        background: rgba(255,255,255,0.92);
-        border: 1px solid rgba(15, 23, 42, 0.14);
-        box-shadow: 0 12px 24px rgba(2, 6, 23, 0.18);
-        backdrop-filter: blur(8px);
-      }
+      .card__body{ flex: 1 1 auto; padding: 10px 12px; display:flex; flex-direction: column; gap: 6px; min-height: 0; }
       .card__name{
         font-weight: 700;
-        font-size: 12px;
-        line-height: 1.2;
+        font-size: 14px;
+        line-height: 1.18;
         display: -webkit-box;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
         overflow: hidden;
       }
-      .card__codeLine{
-        display:flex;
-        align-items:center;
-        justify-content: space-between;
-        gap: 8px;
-        font-size: 10px;
-        color: var(--muted);
-        letter-spacing: 0.04em;
-      }
-      .code__label{ text-transform: uppercase; letter-spacing: 0.16em; font-size: 8px; }
-      .code__value{
+      .card__metaRow{ display:flex; justify-content: space-between; gap: 10px; }
+      .meta__label{ text-transform: uppercase; letter-spacing: 0.16em; font-size: 9px; color: var(--muted); }
+      .meta__value{
         font-weight: 800;
         color: var(--ink);
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.08em;
         white-space: nowrap;
         overflow:hidden;
         text-overflow: ellipsis;
-        max-width: 70%;
+        max-width: 60%;
         text-align: right;
       }
       .card__prices{ display:flex; flex-direction: column; gap: 4px; }
-      .price{ display:flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--muted); }
-      .price__value{ font-weight: 800; color: var(--ink); }
-      .price__label{ text-transform: uppercase; letter-spacing: 0.12em; font-size: 9px; }
-      .card__stock{ margin-top: 4px; font-size: 10px; color: var(--muted); }
+      .price{ display:flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); }
+      .price__label{ text-transform: uppercase; letter-spacing: 0.16em; font-size: 10px; }
+      .price__value{ font-weight: 900; color: var(--brand); }
       .page__footer{
         position:absolute;
         left: 14mm;
@@ -700,11 +688,6 @@ function buildCatalogHtml({
         body{ background: #fff; }
         .page{ margin: 0; border-radius: 0; box-shadow: none; page-break-after: always; }
         .page:last-child{ page-break-after: auto; }
-        .card__overlay{
-          box-shadow: none;
-          backdrop-filter: none;
-          background: rgba(255,255,255,0.96);
-        }
       }
     </style>
   </head>
