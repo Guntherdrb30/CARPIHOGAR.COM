@@ -894,8 +894,19 @@ export async function createCarpentryTask(formData: FormData) {
       : "PENDIENTE";
   const methodRaw = String(formData.get("method") || "").toUpperCase();
   const reference = String(formData.get("reference") || "").trim() || null;
+  const tasaVES = toDecimal(formData.get("tasaVES"), 0);
   const backTo = String(formData.get("backTo") || "").trim();
   const productionOrderId = String(formData.get("productionOrderId") || "").trim() || null;
+
+  if (amountUSD > 0 && (!tasaVES || tasaVES <= 0)) {
+    redirect(`${backTo || "/dashboard/admin/nomina"}?error=Tasa%20BCV%20requerida`);
+  }
+
+  try {
+    await prisma.$executeRawUnsafe(
+      'ALTER TABLE "public"."PayrollPayment" ADD COLUMN IF NOT EXISTS "tasaVES" DECIMAL(10,2)'
+    );
+  } catch {}
 
   if (!employeeId || !description) {
     redirect(`${backTo || "/dashboard/admin/nomina"}?error=Datos%20incompletos`);
@@ -959,6 +970,7 @@ export async function createCarpentryTask(formData: FormData) {
             employeeId,
             category: "CARPINTERIA",
             amountUSD: amountUSD as any,
+            tasaVES: tasaVES as any,
             paidAt: workDateRaw ? new Date(workDateRaw) : new Date(),
             method: method as any,
             reference,

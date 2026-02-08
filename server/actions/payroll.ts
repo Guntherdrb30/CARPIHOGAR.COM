@@ -33,6 +33,22 @@ const parseDateInput = (value?: string | null) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+async function ensurePayrollPaymentColumns() {
+  try {
+    await prisma.$executeRawUnsafe(
+      'ALTER TABLE "public"."PayrollPayment" ADD COLUMN IF NOT EXISTS "tasaVES" DECIMAL(10,2)'
+    );
+  } catch {}
+
+  try {
+    await prisma.$executeRawUnsafe(
+      'UPDATE "public"."PayrollPayment" ' +
+        'SET "tasaVES" = (SELECT "tasaVES" FROM "public"."SiteSettings" WHERE "id" = 1) ' +
+        'WHERE "tasaVES" IS NULL'
+    );
+  } catch {}
+}
+
 async function requireRootSession() {
   const session = await getServerSession(authOptions);
   const user = (session?.user as SessionUser) || {};
@@ -131,6 +147,7 @@ export async function deletePayrollEmployee(formData: FormData) {
 export async function getPayrollPayments(filters?: PayrollPaymentFilters) {
   const session = await getServerSession(authOptions);
   requireAdmin(session);
+  await ensurePayrollPaymentColumns();
   const where: Prisma.PayrollPaymentWhereInput = {};
   const startDate = parseDateInput(filters?.startDate || null);
   const endDate = parseDateInput(filters?.endDate || null);
@@ -159,9 +176,11 @@ export async function getPayrollPayments(filters?: PayrollPaymentFilters) {
 export async function createPayrollPayment(formData: FormData) {
   const session = await getServerSession(authOptions);
   requireAdmin(session);
+  await ensurePayrollPaymentColumns();
   const employeeId = String(formData.get("employeeId") || "").trim() || null;
   const category = String(formData.get("category") || "OTRO").toUpperCase();
   const amountUSD = toDecimal(formData.get("amountUSD"), 0);
+  const tasaVES = toDecimal(formData.get("tasaVES"), 0);
   const paidAtRaw = String(formData.get("paidAt") || "").trim();
   const paidAt = paidAtRaw ? new Date(paidAtRaw) : new Date();
   const methodRaw = String(formData.get("method") || "").toUpperCase();
@@ -170,6 +189,9 @@ export async function createPayrollPayment(formData: FormData) {
   const service = String(formData.get("service") || "").trim() || null;
   if (!amountUSD || amountUSD <= 0) {
     redirect("/dashboard/admin/nomina?error=Monto%20invalido");
+  }
+  if (!tasaVES || tasaVES <= 0) {
+    redirect("/dashboard/admin/nomina?error=Tasa%20BCV%20requerida");
   }
   const method =
     methodRaw === "PAGO_MOVIL"
@@ -193,6 +215,7 @@ export async function createPayrollPayment(formData: FormData) {
           ? "CARPINTERIA"
           : "OTRO",
       amountUSD: amountUSD as any,
+      tasaVES: tasaVES as any,
       paidAt: paidAt as any,
       method: method as any,
       reference,
@@ -201,6 +224,53 @@ export async function createPayrollPayment(formData: FormData) {
     },
   });
   redirect("/dashboard/admin/nomina?message=Pago%20registrado");
+}
+
+export async function updatePayrollPaymentTasa(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  await ensurePayrollPaymentColumns();
+  const paymentId = String(formData.get("paymentId") || "").trim();
+  const tasaVES = toDecimal(formData.get("tasaVES"), 0);
+  if (!paymentId) throw new Error("Missing paymentId");
+  if (!tasaVES || tasaVES <= 0) {
+    redirect("/dashboard/admin/nomina?error=Tasa%20invalida");
+  }
+  await prisma.payrollPayment.update({
+    where: { id: paymentId },
+    data: { tasaVES: tasaVES as any },
+  });
+  redirect("/dashboard/admin/nomina?message=Tasa%20actualizada");
+}
+
+export async function applyPayrollWeekTasa(formData: FormData) {
+  const session = await getServerSession(authOptions);
+  requireAdmin(session);
+  await ensurePayrollPaymentColumns();
+  const weekStartRaw = String(formData.get("weekStart") || "").trim();
+  const tasaVES = toDecimal(formData.get("tasaVES"), 0);
+  if (!weekStartRaw) throw new Error("Missing weekStart");
+  const isoOnly = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(weekStartRaw);
+  if (!isoOnly) {
+    redirect("/dashboard/admin/nomina?error=Semana%20invalida");
+  }
+  const year = Number(isoOnly[1]);
+  const month = Number(isoOnly[2]);
+  const day = Number(isoOnly[3]);
+  const start = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+  if (!tasaVES || tasaVES <= 0) {
+    redirect("/dashboard/admin/nomina?error=Tasa%20invalida");
+  }
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+  end.setUTCHours(23, 59, 59, 999);
+
+  await prisma.payrollPayment.updateMany({
+    where: { paidAt: { gte: start as any, lte: end as any } },
+    data: { tasaVES: tasaVES as any },
+  });
+
+  redirect("/dashboard/admin/nomina?message=Tasa%20semanal%20actualizada");
 }
 
 export async function updatePayrollPaymentDate(formData: FormData) {

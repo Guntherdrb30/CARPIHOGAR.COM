@@ -9,6 +9,8 @@ import {
   getPayrollPayments,
   updatePayrollEmployee,
   updatePayrollPaymentDate,
+  updatePayrollPaymentTasa,
+  applyPayrollWeekTasa,
   deletePayrollPayment,
 } from "@/server/actions/payroll";
 import { createCarpentryTask, getCarpentryProjects, getCarpentryTasks } from "@/server/actions/carpentry";
@@ -85,14 +87,15 @@ export default async function NominaAdminPage({
     endDate: normalizeParam(sp.endDate),
   };
 
-  const [employees, payments, projects, tasks, settings] = await Promise.all([
+  const settings = await getSettings();
+  const tasaVES = Number((settings as any)?.tasaVES || 0) || 0;
+
+  const [employees, payments, projects, tasks] = await Promise.all([
     getPayrollEmployees(),
     getPayrollPayments(filters),
     getCarpentryProjects(),
     getCarpentryTasks(),
-    getSettings(),
   ]);
-  const tasaVES = Number((settings as any)?.tasaVES || 0) || 0;
 
   type WeekGroup = {
     key: string;
@@ -100,6 +103,8 @@ export default async function NominaAdminPage({
     end: Date;
     payments: any[];
     totalUSD: number;
+    totalVES: number;
+    weekTasaVES: number;
   };
 
   const weekMap = new Map<string, WeekGroup>();
@@ -110,11 +115,26 @@ export default async function NominaAdminPage({
     const key = start.toISOString().slice(0, 10);
     let group = weekMap.get(key);
     if (!group) {
-      group = { key, start: new Date(start), end: new Date(end), payments: [], totalUSD: 0 };
+      group = {
+        key,
+        start: new Date(start),
+        end: new Date(end),
+        payments: [],
+        totalUSD: 0,
+        totalVES: 0,
+        weekTasaVES: 0,
+      };
       weekMap.set(key, group);
     }
     group.payments.push(p);
-    group.totalUSD += Number(p.amountUSD || 0);
+    const amount = Number(p.amountUSD || 0);
+    const paymentTasa = Number((p as any).tasaVES || 0) || 0;
+    const resolvedTasa = paymentTasa > 0 ? paymentTasa : tasaVES;
+    group.totalUSD += amount;
+    group.totalVES += amount * resolvedTasa;
+    if (!group.weekTasaVES) {
+      if (paymentTasa > 0) group.weekTasaVES = paymentTasa;
+    }
   });
 
   const weeklyPayrolls = Array.from(weekMap.values()).sort((a, b) => b.start.getTime() - a.start.getTime());
@@ -125,6 +145,9 @@ export default async function NominaAdminPage({
       return db.getTime() - da.getTime();
     });
   });
+
+  const currentWeekTasa =
+    weeklyPayrolls.length && weeklyPayrolls[0].weekTasaVES > 0 ? weeklyPayrolls[0].weekTasaVES : tasaVES;
 
   const filterStartDate = parseDate(filters.startDate);
   const filterEndDate = parseDate(filters.endDate);
@@ -229,13 +252,14 @@ export default async function NominaAdminPage({
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Control semanal de nómina</h2>
           <div className="text-xs uppercase tracking-[0.3em] text-orange-600">
-            Tasa BCV {tasaVES > 0 ? tasaVES.toFixed(2) : "no registrada"} Bs/USD
+            Tasa semana {currentWeekTasa > 0 ? currentWeekTasa.toFixed(2) : "no registrada"} Bs/USD
           </div>
         </div>
         {weeklyPayrolls.length ? (
           weeklyPayrolls.map((week, index) => {
             const weekLabel = `Semana del ${formatShortDate(week.start)} al ${formatShortDate(week.end)}`;
-            const totalVES = week.totalUSD * tasaVES;
+            const usedTasa = week.weekTasaVES > 0 ? week.weekTasaVES : tasaVES;
+            const totalVES = week.totalVES || week.totalUSD * usedTasa;
             return (
               <details
                 key={week.key}
@@ -248,11 +272,34 @@ export default async function NominaAdminPage({
                     <div className="text-xs text-orange-100">{formatFullDate(week.start)} – {formatFullDate(week.end)}</div>
                   </div>
                   <div className="text-right text-xs space-y-1">
+                    <div>
+                      Tasa Bs/USD <span className="font-semibold">{usedTasa > 0 ? usedTasa.toFixed(2) : "-"}</span>
+                    </div>
                     <div>Total USD <span className="font-semibold">{formatUSD(week.totalUSD)}</span></div>
                     <div>Total Bs <span className="font-semibold">{formatVES(totalVES)}</span></div>
                   </div>
                 </summary>
                 <div className="border-t border-orange-200 bg-white p-4">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+                    <div className="text-xs text-gray-600">
+                      Tasa usada en esta semana:{" "}
+                      <span className="font-semibold text-orange-700">{usedTasa > 0 ? usedTasa.toFixed(2) : "-"}</span> Bs/USD
+                    </div>
+                    <form action={applyPayrollWeekTasa} className="flex flex-wrap items-center gap-2">
+                      <input type="hidden" name="weekStart" value={week.key} />
+                      <label className="text-xs text-gray-600">Cambiar tasa semana</label>
+                      <input
+                        name="tasaVES"
+                        type="number"
+                        step="0.01"
+                        defaultValue={usedTasa > 0 ? usedTasa.toFixed(2) : ""}
+                        className="border rounded px-2 py-1 text-xs w-32"
+                      />
+                      <button type="submit" className="text-xs bg-orange-600 text-white rounded px-2 py-1">
+                        Aplicar
+                      </button>
+                    </form>
+                  </div>
                   <div className="overflow-x-auto rounded-lg border border-orange-100 bg-white shadow-inner">
                     <table className="min-w-full text-sm">
                       <thead className="bg-orange-50 text-orange-600 text-xs uppercase">
@@ -263,6 +310,7 @@ export default async function NominaAdminPage({
                           <th className="px-2 py-1 text-left">Metodo</th>
                           <th className="px-2 py-1 text-left">Servicio</th>
                           <th className="px-2 py-1 text-left">Referencia</th>
+                          <th className="px-2 py-1 text-right">Tasa</th>
                           <th className="px-2 py-1 text-right">Monto USD</th>
                         </tr>
                       </thead>
@@ -308,6 +356,21 @@ export default async function NominaAdminPage({
                               <td className="px-2 py-1">{p.method || "-"}</td>
                               <td className="px-2 py-1">{p.service || p.description || "-"}</td>
                               <td className="px-2 py-1">{p.reference || "-"}</td>
+                              <td className="px-2 py-1 text-right text-xs text-gray-700">
+                                <form action={updatePayrollPaymentTasa} className="flex items-center justify-end gap-1">
+                                  <input type="hidden" name="paymentId" value={p.id} />
+                                  <input
+                                    name="tasaVES"
+                                    type="number"
+                                    step="0.01"
+                                    defaultValue={Number((p as any).tasaVES || 0) > 0 ? Number((p as any).tasaVES).toFixed(2) : usedTasa.toFixed(2)}
+                                    className="border px-2 py-0.5 text-xs rounded w-24 text-right"
+                                  />
+                                  <button type="submit" className="text-xs bg-orange-600 text-white rounded px-2 py-0.5">
+                                    Guardar
+                                  </button>
+                                </form>
+                              </td>
                               <td className="px-2 py-1 text-right font-semibold">
                                 {formatUSD(Number(p.amountUSD || 0))}
                               </td>
@@ -317,11 +380,11 @@ export default async function NominaAdminPage({
                       </tbody>
                       <tfoot>
                         <tr className="text-sm font-semibold text-orange-700">
-                          <td colSpan={6} className="px-2 py-2 text-right">Total USD semana</td>
+                          <td colSpan={7} className="px-2 py-2 text-right">Total USD semana</td>
                           <td className="px-2 py-2 text-right">{formatUSD(week.totalUSD)}</td>
                         </tr>
                         <tr className="text-xs text-orange-600">
-                          <td colSpan={6} className="px-2 py-1 text-right">Equivalente Bs</td>
+                          <td colSpan={7} className="px-2 py-1 text-right">Equivalente Bs</td>
                           <td className="px-2 py-1 text-right">{formatVES(totalVES)}</td>
                         </tr>
                       </tfoot>
@@ -446,6 +509,17 @@ export default async function NominaAdminPage({
             <input name="amountUSD" type="number" step="0.01" className="border rounded px-2 py-1 w-full" required />
           </div>
           <div>
+            <label className="block text-sm text-gray-700">Tasa BCV (Bs/USD)</label>
+            <input
+              name="tasaVES"
+              type="number"
+              step="0.01"
+              defaultValue={tasaVES > 0 ? tasaVES.toFixed(2) : ""}
+              className="border rounded px-2 py-1 w-full"
+              required
+            />
+          </div>
+          <div>
             <label className="block text-sm text-gray-700">Fecha</label>
             <input name="paidAt" type="date" className="border rounded px-2 py-1 w-full" />
           </div>
@@ -509,6 +583,17 @@ export default async function NominaAdminPage({
           <div>
             <label className="block text-sm text-gray-700">Monto USD</label>
             <input name="amountUSD" type="number" step="0.01" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-700">Tasa BCV (Bs/USD)</label>
+            <input
+              name="tasaVES"
+              type="number"
+              step="0.01"
+              defaultValue={tasaVES > 0 ? tasaVES.toFixed(2) : ""}
+              className="border rounded px-2 py-1 w-full"
+              required
+            />
           </div>
           <div>
             <label className="block text-sm text-gray-700">Fecha</label>

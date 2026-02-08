@@ -1041,6 +1041,7 @@ model PayrollPayment {
   employeeId   String?
   category     PayrollPaymentCategory @default(OTRO)
   amountUSD    Decimal                @db.Decimal(12, 2)
+  tasaVES      Decimal?               @db.Decimal(10, 2)
   paidAt       DateTime               @default(now())
   description  String?
   service      String?
