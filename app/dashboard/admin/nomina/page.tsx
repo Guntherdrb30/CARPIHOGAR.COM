@@ -104,7 +104,8 @@ export default async function NominaAdminPage({
     payments: any[];
     totalUSD: number;
     totalVES: number;
-    weekTasaVES: number;
+    minTasaVES: number;
+    maxTasaVES: number;
   };
 
   const weekMap = new Map<string, WeekGroup>();
@@ -122,7 +123,8 @@ export default async function NominaAdminPage({
         payments: [],
         totalUSD: 0,
         totalVES: 0,
-        weekTasaVES: 0,
+        minTasaVES: 0,
+        maxTasaVES: 0,
       };
       weekMap.set(key, group);
     }
@@ -132,8 +134,9 @@ export default async function NominaAdminPage({
     const resolvedTasa = paymentTasa > 0 ? paymentTasa : tasaVES;
     group.totalUSD += amount;
     group.totalVES += amount * resolvedTasa;
-    if (!group.weekTasaVES) {
-      if (paymentTasa > 0) group.weekTasaVES = paymentTasa;
+    if (resolvedTasa > 0) {
+      group.minTasaVES = group.minTasaVES > 0 ? Math.min(group.minTasaVES, resolvedTasa) : resolvedTasa;
+      group.maxTasaVES = group.maxTasaVES > 0 ? Math.max(group.maxTasaVES, resolvedTasa) : resolvedTasa;
     }
   });
 
@@ -147,7 +150,7 @@ export default async function NominaAdminPage({
   });
 
   const currentWeekTasa =
-    weeklyPayrolls.length && weeklyPayrolls[0].weekTasaVES > 0 ? weeklyPayrolls[0].weekTasaVES : tasaVES;
+    weeklyPayrolls.length && weeklyPayrolls[0].totalUSD > 0 ? weeklyPayrolls[0].totalVES / weeklyPayrolls[0].totalUSD : tasaVES;
 
   const filterStartDate = parseDate(filters.startDate);
   const filterEndDate = parseDate(filters.endDate);
@@ -258,8 +261,9 @@ export default async function NominaAdminPage({
         {weeklyPayrolls.length ? (
           weeklyPayrolls.map((week, index) => {
             const weekLabel = `Semana del ${formatShortDate(week.start)} al ${formatShortDate(week.end)}`;
-            const usedTasa = week.weekTasaVES > 0 ? week.weekTasaVES : tasaVES;
+            const usedTasa = week.totalUSD > 0 ? week.totalVES / week.totalUSD : tasaVES;
             const totalVES = week.totalVES || week.totalUSD * usedTasa;
+            const isMixedTasa = week.minTasaVES > 0 && week.maxTasaVES > 0 && Math.abs(week.maxTasaVES - week.minTasaVES) > 0.0001;
             return (
               <details
                 key={week.key}
@@ -273,7 +277,13 @@ export default async function NominaAdminPage({
                   </div>
                   <div className="text-right text-xs space-y-1">
                     <div>
-                      Tasa Bs/USD <span className="font-semibold">{usedTasa > 0 ? usedTasa.toFixed(2) : "-"}</span>
+                      Tasa Bs/USD{" "}
+                      <span className="font-semibold">{usedTasa > 0 ? usedTasa.toFixed(2) : "-"}</span>
+                      {isMixedTasa && (
+                        <span className="ml-2 text-orange-100">
+                          (mixta {week.minTasaVES.toFixed(2)}–{week.maxTasaVES.toFixed(2)})
+                        </span>
+                      )}
                     </div>
                     <div>Total USD <span className="font-semibold">{formatUSD(week.totalUSD)}</span></div>
                     <div>Total Bs <span className="font-semibold">{formatVES(totalVES)}</span></div>
@@ -282,8 +292,13 @@ export default async function NominaAdminPage({
                 <div className="border-t border-orange-200 bg-white p-4">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
                     <div className="text-xs text-gray-600">
-                      Tasa usada en esta semana:{" "}
+                      Tasa semana:{" "}
                       <span className="font-semibold text-orange-700">{usedTasa > 0 ? usedTasa.toFixed(2) : "-"}</span> Bs/USD
+                      {isMixedTasa && (
+                        <span className="ml-2 text-gray-500">
+                          (mixta {week.minTasaVES.toFixed(2)}–{week.maxTasaVES.toFixed(2)})
+                        </span>
+                      )}
                     </div>
                     <form action={applyPayrollWeekTasa} className="flex flex-wrap items-center gap-2">
                       <input type="hidden" name="weekStart" value={week.key} />
